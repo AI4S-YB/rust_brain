@@ -1,7 +1,11 @@
-name: CI
+name: Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -33,7 +37,6 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.os }}-cargo-
 
-      # Linux: install system deps for Tauri + WebView
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
@@ -106,10 +109,10 @@ jobs:
       - name: Check formatting
         run: cargo fmt -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2 -- --check
 
-  build-tauri:
-    name: Build Tauri (${{ matrix.os }})
+  build-and-release:
+    name: Build & Release (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    needs: [check]
+    needs: [check, clippy, fmt]
     strategy:
       fail-fast: false
       matrix:
@@ -150,15 +153,31 @@ jobs:
         working-directory: crates/rb-app
         run: cargo tauri build
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Collect release artifacts (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p release
+          cp target/release/bundle/deb/*.deb release/ 2>/dev/null || true
+          cp target/release/bundle/appimage/*.AppImage release/ 2>/dev/null || true
+
+      - name: Collect release artifacts (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          mkdir -p release
+          cp target/release/bundle/dmg/*.dmg release/ 2>/dev/null || true
+
+      - name: Collect release artifacts (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          mkdir -p release
+          cp target/release/bundle/msi/*.msi release/ 2>/dev/null || true
+          cp target/release/bundle/nsis/*.exe release/ 2>/dev/null || true
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: rustbrain-${{ matrix.os }}
-          path: |
-            target/release/bundle/**/*.deb
-            target/release/bundle/**/*.AppImage
-            target/release/bundle/**/*.dmg
-            target/release/bundle/**/*.app
-            target/release/bundle/**/*.msi
-            target/release/bundle/**/*.exe
-          if-no-files-found: ignore
+          files: release/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
