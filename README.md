@@ -1,0 +1,136 @@
+# RustBrain
+
+A desktop transcriptomics analysis platform built entirely in Rust. Integrates RNA-seq tools behind a unified UI with interactive visualizations and project-based data management.
+
+**Tech Stack:** Rust + Tauri v2 + WebView + ECharts
+
+## Features
+
+- **QC Analysis** — Powered by [fastqc-rs](https://github.com/AI4S-YB/fastqc-rs), 2.1-4.7x faster than Java FastQC
+- **Adapter Trimming** — Powered by [cutadapt-rs](https://github.com/AI4S-YB/cutadapt-rs), byte-identical output to Python cutadapt
+- **Differential Expression** — Powered by [DESeq2_rs](https://github.com/AI4S-YB/DESeq2_rs), 28x faster than R DESeq2 with 99.6% accuracy
+- **Project Management** — Create/open projects with isolated work directories, full run history
+- **Interactive Visualization** — ECharts-based volcano plots, MA plots, quality scores, heatmaps
+- **Custom Plotting** — User-defined scatter/bar/box/histogram charts from result data
+- **Result Export** — Charts as PNG, tables as TSV
+- **Cross-Platform** — Windows, macOS, Linux desktop builds via Tauri
+
+## Architecture
+
+```
+rust_brain/
+├── crates/
+│   ├── rb-core/          # Module trait, Project model, async Runner
+│   ├── rb-app/           # Tauri v2 desktop app (11 commands)
+│   ├── rb-qc/            # fastqc-rs adapter
+│   ├── rb-trimming/      # cutadapt-rs adapter
+│   └── rb-deseq2/        # DESeq2_rs adapter
+├── frontend/             # Vanilla HTML/CSS/JS + ECharts
+└── deps/                 # Tool submodules
+```
+
+All analysis modules implement a unified `Module` trait:
+
+```rust
+#[async_trait]
+pub trait Module: Send + Sync {
+    fn id(&self) -> &str;
+    fn name(&self) -> &str;
+    fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError>;
+    async fn run(&self, params: &Value, project_dir: &Path, progress_tx: Sender<Progress>)
+        -> Result<ModuleResult, ModuleError>;
+}
+```
+
+## Getting Started
+
+### Prerequisites
+
+- Rust 1.75+
+- Tauri CLI: `cargo install tauri-cli --locked`
+- Linux: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev`
+
+### Clone
+
+```bash
+git clone --recurse-submodules https://github.com/AI4S-YB/rust_brain.git
+cd rust_brain
+```
+
+### Development
+
+```bash
+# Run desktop app (hot-reload)
+cd crates/rb-app && cargo tauri dev
+
+# Frontend-only preview (no backend)
+cd frontend && python3 -m http.server 8090
+
+# Run tests
+cargo test --workspace
+
+# Check + lint
+cargo check --workspace
+cargo clippy --workspace
+```
+
+### Build
+
+```bash
+cd crates/rb-app && cargo tauri build
+```
+
+Outputs: `.deb` / `.AppImage` (Linux), `.dmg` (macOS), `.msi` (Windows)
+
+## Analysis Pipeline
+
+```
+Raw Reads → QC → Trimming → Alignment → Quantification → DESeq2 → Enrichment
+             ✅      ✅                                      ✅
+```
+
+## TODO
+
+### Near-term
+
+- [ ] Wire real analysis results to frontend charts (replace mock data)
+- [ ] Parse fastqc-rs structured output (per-module pass/warn/fail, quality scores)
+- [ ] Parse cutadapt-rs trimming statistics from output
+- [ ] Add progress reporting inside each adapter (currently only start/end)
+- [ ] Persist recent projects list to disk (currently in-memory only)
+- [ ] Add proper error dialogs in frontend (replace `alert()`)
+
+### Module Integration
+
+- [ ] **WGCNA** — Integrate [WGCNA_rs](https://github.com/AI4S-YB/WGCNA_rs) (co-expression network analysis)
+- [ ] **Alignment** — Integrate HISAT2 as subprocess adapter
+- [ ] **Quantification** — Integrate StringTie as subprocess adapter
+- [ ] **Enrichment Analysis** — Implement GO/KEGG enrichment module in Rust
+
+### Pipeline & Workflow
+
+- [ ] Pipeline orchestration — chain modules (QC → Trim → Align → Quant → DESeq2)
+- [ ] Auto-connect upstream outputs as downstream inputs
+- [ ] Breakpoint resume for interrupted pipelines
+- [ ] Batch sample processing
+
+### Visualization
+
+- [ ] Gene-level detail view (click gene in volcano plot → show expression across samples)
+- [ ] Heatmap with hierarchical clustering
+- [ ] PCA / sample distance plot
+- [ ] Brush-linked views (select genes in volcano → highlight in table and other plots)
+- [ ] Custom plot: populate column dropdowns from actual result data
+
+### Infrastructure
+
+- [ ] Resolve cutadapt-core workspace dep inheritance (currently uses subprocess fallback)
+- [ ] Auto-update via Tauri updater plugin
+- [ ] i18n (Chinese / English)
+- [ ] App icon and branding
+- [ ] User settings persistence (save/load AppConfig)
+- [ ] Logging to file (not just in-memory)
+
+## License
+
+MIT
