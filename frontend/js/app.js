@@ -27,16 +27,24 @@
     slate:  '#5c7080',
   };
 
-  const PLOTLY_LAYOUT_BASE = {
-    paper_bgcolor: '#ffffff',
-    plot_bgcolor:  '#faf8f4',
-    font: { family: 'Karla, sans-serif', color: '#57534e', size: 12 },
-    margin: { t: 44, r: 24, b: 50, l: 60 },
-    xaxis: { gridcolor: '#e8e2d8', zerolinecolor: '#ddd6ca', linecolor: '#ddd6ca' },
-    yaxis: { gridcolor: '#e8e2d8', zerolinecolor: '#ddd6ca', linecolor: '#ddd6ca' },
+  // ── ECharts theme / helpers ────────────────────────────────
+  const ECHART_THEME = {
+    backgroundColor: '#faf8f4',
+    textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+    title: { textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' } },
+    grid: { left: 60, right: 24, top: 44, bottom: 50 },
+    toolbox: {
+      feature: {
+        saveAsImage: { title: 'Save PNG', pixelRatio: 2 },
+        dataZoom: { title: { zoom: 'Zoom', back: 'Reset' } },
+      },
+      right: 20, top: 10,
+    },
   };
 
-  const PLOTLY_CONFIG = { responsive: true, displayModeBar: true, displaylogo: false };
+  function createChart(container) {
+    return echarts.init(container, null, { renderer: 'canvas' });
+  }
 
   // ── State ──────────────────────────────────────────────────
   const state = {
@@ -56,6 +64,20 @@
       return new Promise(resolve => setTimeout(() => resolve({ ok: true }), 1200));
     }
   };
+
+  // ── TSV export ─────────────────────────────────────────────
+  function exportTableAsTSV(tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    const rows = Array.from(table.querySelectorAll('tr'));
+    const tsv = rows.map(row =>
+      Array.from(row.querySelectorAll('th, td')).map(cell => cell.textContent.trim()).join('\t')
+    ).join('\n');
+    const blob = new Blob([tsv], { type: 'text/tab-separated-values' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = filename || 'export.tsv'; a.click(); URL.revokeObjectURL(a.href);
+  }
+  window.exportTableAsTSV = exportTableAsTSV;
 
   // ── Router ─────────────────────────────────────────────────
   function navigate(view) {
@@ -522,7 +544,10 @@
                 <div class="chart-container" id="deseq-ma-chart" style="height:380px;"></div>
               </div>
               <div class="tab-content" data-tab="deseq-table">
-                <div style="max-height:420px;overflow-y:auto;">
+                <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+                  <button class="btn btn-ghost btn-sm" onclick="exportTableAsTSV('deseq-results-table', 'deseq2_results.tsv')">Export TSV</button>
+                </div>
+                <div style="max-height:400px;overflow-y:auto;">
                   <table class="data-table" id="deseq-results-table"><thead><tr><th>Gene</th><th>log2FC</th><th>p-value</th><th>padj</th></tr></thead><tbody></tbody></table>
                 </div>
               </div>
@@ -702,44 +727,57 @@
   function renderQCCharts() {
     const el = document.getElementById('qc-quality-chart');
     if (!el) return;
+
     const pos = Array.from({ length: 150 }, (_, i) => i + 1);
     const mean = pos.map(p => p < 5 ? 32 + Math.random() * 3 : p < 120 ? 34 + Math.random() * 2 : 34 - (p - 120) * 0.15 + Math.random() * 2);
     const lo = mean.map(q => q - 4 - Math.random() * 2);
     const hi = mean.map(q => q + 2 + Math.random());
-    Plotly.newPlot(el, [
-      { x: pos, y: hi, type: 'scatter', mode: 'lines', line: { width: 0 }, showlegend: false, hoverinfo: 'skip' },
-      { x: pos, y: lo, type: 'scatter', mode: 'lines', line: { width: 0 }, fill: 'tonexty', fillcolor: 'rgba(13,115,119,0.08)', showlegend: false, hoverinfo: 'skip' },
-      { x: pos, y: mean, type: 'scatter', mode: 'lines', name: 'Mean Quality', line: { color: '#0d7377', width: 2.5 } },
-    ], {
-      ...PLOTLY_LAYOUT_BASE,
-      title: { text: 'Per Base Sequence Quality', font: { family: 'Zilla Slab', size: 15, color: '#1c1917' } },
-      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Position (bp)' },
-      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Phred Score', range: [0, 42] },
-      shapes: [
-        { type: 'rect', x0: 0, x1: 150, y0: 28, y1: 42, fillcolor: 'rgba(45,134,89,0.04)', line: { width: 0 } },
-        { type: 'rect', x0: 0, x1: 150, y0: 20, y1: 28, fillcolor: 'rgba(184,134,11,0.06)', line: { width: 0 } },
-        { type: 'rect', x0: 0, x1: 150, y0: 0, y1: 20, fillcolor: 'rgba(201,80,60,0.04)', line: { width: 0 } },
+
+    const chart = createChart(el);
+    chart.setOption({
+      backgroundColor: '#faf8f4',
+      textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+      title: { text: 'Per Base Sequence Quality', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
+      grid: ECHART_THEME.grid,
+      toolbox: ECHART_THEME.toolbox,
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'category', data: pos, name: 'Position (bp)', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+      yAxis: { type: 'value', name: 'Phred Score', nameLocation: 'middle', nameGap: 40, min: 0, max: 42, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+      series: [
+        { type: 'line', data: hi, symbol: 'none', lineStyle: { width: 0 }, showSymbol: false, areaStyle: { color: 'rgba(13,115,119,0.08)' }, stack: 'band', name: 'hi' },
+        { type: 'line', data: lo, symbol: 'none', lineStyle: { width: 0 }, showSymbol: false, areaStyle: { color: 'rgba(13,115,119,0.08)' }, stack: 'band', name: 'lo' },
+        {
+          type: 'line', data: mean, name: 'Mean Quality', symbol: 'none',
+          lineStyle: { color: '#0d7377', width: 2.5 }, smooth: false,
+          markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#ccc', width: 1 }, data: [{ yAxis: 28 }, { yAxis: 20 }] },
+        },
       ],
-      showlegend: false,
-    }, PLOTLY_CONFIG);
+      legend: { show: false },
+    });
+    window.addEventListener('resize', () => chart.resize());
   }
 
   function renderTrimmingCharts() {
     const el = document.getElementById('trim-length-chart');
     if (!el) return;
+
     const lens = Array.from({ length: 131 }, (_, i) => i + 20);
     const counts = lens.map(l => Math.floor(80000 * Math.exp(-0.5 * ((l - 148) / 8) ** 2) + Math.random() * 1000));
-    Plotly.newPlot(el, [{
-      x: lens, y: counts, type: 'bar',
-      marker: { color: lens.map(l => l < 50 ? 'rgba(184,134,11,0.6)' : 'rgba(59,110,165,0.5)') },
-      hovertemplate: 'Length: %{x} bp<br>Count: %{y}<extra></extra>',
-    }], {
-      ...PLOTLY_LAYOUT_BASE,
-      title: { text: 'Read Length Distribution After Trimming', font: { family: 'Zilla Slab', size: 15, color: '#1c1917' } },
-      xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Read Length (bp)' },
-      yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Count' },
-      bargap: 0.05, showlegend: false,
-    }, PLOTLY_CONFIG);
+    const colors = lens.map(l => l < 50 ? 'rgba(184,134,11,0.7)' : 'rgba(59,110,165,0.6)');
+
+    const chart = createChart(el);
+    chart.setOption({
+      backgroundColor: '#faf8f4',
+      textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+      title: { text: 'Read Length Distribution After Trimming', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
+      grid: ECHART_THEME.grid,
+      toolbox: ECHART_THEME.toolbox,
+      tooltip: { trigger: 'axis', formatter: params => `Length: ${params[0].name} bp<br>Count: ${params[0].value.toLocaleString()}` },
+      xAxis: { type: 'category', data: lens.map(String), name: 'Read Length (bp)', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false } },
+      yAxis: { type: 'value', name: 'Count', nameLocation: 'middle', nameGap: 50, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+      series: [{ type: 'bar', data: counts.map((v, i) => ({ value: v, itemStyle: { color: colors[i] } })), barWidth: '95%' }],
+    });
+    window.addEventListener('resize', () => chart.resize());
   }
 
   function renderDESeq2Charts() {
@@ -761,42 +799,52 @@
       const up = genes.filter(g => g.padj < 0.01 && g.log2FC > 1);
       const dn = genes.filter(g => g.padj < 0.01 && g.log2FC < -1);
       const ns = genes.filter(g => g.padj >= 0.01 || Math.abs(g.log2FC) <= 1);
-      Plotly.newPlot(volcEl, [
-        { x: ns.map(g => g.log2FC), y: ns.map(g => g.nlp), mode: 'markers', type: 'scattergl', name: 'Not Sig.', marker: { color: 'rgba(168,162,158,0.35)', size: 4 }, text: ns.map(g => g.name), hovertemplate: '%{text}<br>log2FC: %{x:.2f}<br>-log10(padj): %{y:.1f}<extra></extra>' },
-        { x: up.map(g => g.log2FC), y: up.map(g => g.nlp), mode: 'markers', type: 'scattergl', name: 'Up', marker: { color: '#c9503c', size: 5 }, text: up.map(g => g.name), hovertemplate: '%{text}<br>log2FC: %{x:.2f}<br>-log10(padj): %{y:.1f}<extra></extra>' },
-        { x: dn.map(g => g.log2FC), y: dn.map(g => g.nlp), mode: 'markers', type: 'scattergl', name: 'Down', marker: { color: '#3b6ea5', size: 5 }, text: dn.map(g => g.name), hovertemplate: '%{text}<br>log2FC: %{x:.2f}<br>-log10(padj): %{y:.1f}<extra></extra>' },
-      ], {
-        ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'Volcano Plot', font: { family: 'Zilla Slab', size: 15, color: '#1c1917' } },
-        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'log2 Fold Change' },
-        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: '-log10(padj)' },
-        shapes: [
-          { type: 'line', x0: -1, x1: -1, y0: 0, y1: 50, line: { color: '#ddd6ca', dash: 'dash', width: 1 } },
-          { type: 'line', x0: 1, x1: 1, y0: 0, y1: 50, line: { color: '#ddd6ca', dash: 'dash', width: 1 } },
-          { type: 'line', x0: -6, x1: 6, y0: 2, y1: 2, line: { color: '#ddd6ca', dash: 'dash', width: 1 } },
+      const chart = createChart(volcEl);
+      chart.setOption({
+        backgroundColor: '#faf8f4',
+        textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+        title: { text: 'Volcano Plot', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
+        grid: ECHART_THEME.grid,
+        toolbox: ECHART_THEME.toolbox,
+        tooltip: { trigger: 'item', formatter: p => `${p.data[2]}<br>log2FC: ${p.data[0].toFixed(2)}<br>-log10(padj): ${p.data[1].toFixed(1)}` },
+        legend: { data: ['Not Sig.', 'Up', 'Down'], right: 60, top: 10, textStyle: { fontSize: 11 } },
+        xAxis: { type: 'value', name: 'log2 Fold Change', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+        yAxis: { type: 'value', name: '-log10(padj)', nameLocation: 'middle', nameGap: 40, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+        series: [
+          { name: 'Not Sig.', type: 'scatter', symbolSize: 4, data: ns.map(g => [g.log2FC, g.nlp, g.name]), itemStyle: { color: 'rgba(168,162,158,0.35)' }, large: true,
+            markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#ddd6ca', width: 1 }, data: [{ xAxis: -1 }, { xAxis: 1 }, { yAxis: 2 }] } },
+          { name: 'Up', type: 'scatter', symbolSize: 5, data: up.map(g => [g.log2FC, g.nlp, g.name]), itemStyle: { color: '#c9503c' }, large: true },
+          { name: 'Down', type: 'scatter', symbolSize: 5, data: dn.map(g => [g.log2FC, g.nlp, g.name]), itemStyle: { color: '#3b6ea5' }, large: true },
         ],
-        legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.7)', font: { size: 11 } },
-      }, PLOTLY_CONFIG);
+      });
+      window.addEventListener('resize', () => chart.resize());
     }
 
     if (maEl) {
       const sig = genes.filter(g => g.padj < 0.01 && Math.abs(g.log2FC) > 1);
       const ns = genes.filter(g => g.padj >= 0.01 || Math.abs(g.log2FC) <= 1);
-      Plotly.newPlot(maEl, [
-        { x: ns.map(g => Math.log10(g.baseMean)), y: ns.map(g => g.log2FC), mode: 'markers', type: 'scattergl', name: 'Not Sig.', marker: { color: 'rgba(168,162,158,0.3)', size: 4 } },
-        { x: sig.map(g => Math.log10(g.baseMean)), y: sig.map(g => g.log2FC), mode: 'markers', type: 'scattergl', name: 'Significant', marker: { color: '#c9503c', size: 5, opacity: 0.6 } },
-      ], {
-        ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'MA Plot', font: { family: 'Zilla Slab', size: 15, color: '#1c1917' } },
-        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'log10(Mean Expression)' },
-        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'log2 Fold Change' },
-        shapes: [{ type: 'line', x0: 0, x1: 6, y0: 0, y1: 0, line: { color: '#c8bfb0', width: 1 } }],
-        legend: { x: 0.02, y: 0.98, bgcolor: 'rgba(255,255,255,0.7)', font: { size: 11 } },
-      }, PLOTLY_CONFIG);
+      const chart = createChart(maEl);
+      chart.setOption({
+        backgroundColor: '#faf8f4',
+        textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+        title: { text: 'MA Plot', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
+        grid: ECHART_THEME.grid,
+        toolbox: ECHART_THEME.toolbox,
+        tooltip: { trigger: 'item', formatter: p => `log10(Mean): ${p.data[0].toFixed(2)}<br>log2FC: ${p.data[1].toFixed(2)}` },
+        legend: { data: ['Not Sig.', 'Significant'], right: 60, top: 10, textStyle: { fontSize: 11 } },
+        xAxis: { type: 'value', name: 'log10(Mean Expression)', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+        yAxis: { type: 'value', name: 'log2 Fold Change', nameLocation: 'middle', nameGap: 40, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+        series: [
+          { name: 'Not Sig.', type: 'scatter', symbolSize: 4, data: ns.map(g => [Math.log10(g.baseMean), g.log2FC]), itemStyle: { color: 'rgba(168,162,158,0.3)' }, large: true,
+            markLine: { silent: true, symbol: 'none', lineStyle: { color: '#c8bfb0', width: 1 }, data: [{ yAxis: 0 }] } },
+          { name: 'Significant', type: 'scatter', symbolSize: 5, data: sig.map(g => [Math.log10(g.baseMean), g.log2FC]), itemStyle: { color: '#c9503c', opacity: 0.6 }, large: true },
+        ],
+      });
+      window.addEventListener('resize', () => chart.resize());
     }
 
     if (tbody) {
-      const sorted = genes.sort((a, b) => a.padj - b.padj).slice(0, 30);
+      const sorted = [...genes].sort((a, b) => a.padj - b.padj).slice(0, 30);
       tbody.innerHTML = sorted.map(g => {
         const sc = g.padj < 0.01 && Math.abs(g.log2FC) > 1 ? 'significant' : '';
         const fc = g.log2FC > 0 ? 'positive' : 'negative';
@@ -813,34 +861,40 @@
       const names = ['turquoise','blue','brown','green','yellow','red','black','pink','magenta','purple','greenyellow','grey'];
       const sizes = [820,650,520,410,380,310,270,240,190,160,130,920];
       const colors = ['#40E0D0','#4169E1','#8B6914','#228B22','#DAA520','#DC143C','#444','#FF69B4','#C71585','#7B68EE','#7CCD7C','#999'];
-      Plotly.newPlot(modEl, [{
-        x: names, y: sizes, type: 'bar',
-        marker: { color: colors.map(c => c + 'CC') },
-        hovertemplate: '%{x}<br>%{y} genes<extra></extra>',
-      }], {
-        ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'Module Sizes', font: { family: 'Zilla Slab', size: 15, color: '#1c1917' } },
-        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: 'Module' },
-        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: 'Gene Count' },
-        showlegend: false,
-      }, PLOTLY_CONFIG);
+      const chart = createChart(modEl);
+      chart.setOption({
+        backgroundColor: '#faf8f4',
+        textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+        title: { text: 'Module Sizes', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
+        grid: ECHART_THEME.grid,
+        toolbox: ECHART_THEME.toolbox,
+        tooltip: { trigger: 'axis', formatter: p => `${p[0].name}<br>${p[0].value} genes` },
+        xAxis: { type: 'category', data: names, name: 'Module', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false }, axisLabel: { rotate: 30 } },
+        yAxis: { type: 'value', name: 'Gene Count', nameLocation: 'middle', nameGap: 45, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+        series: [{ type: 'bar', data: sizes.map((v, i) => ({ value: v, itemStyle: { color: colors[i] + 'CC' } })) }],
+      });
+      window.addEventListener('resize', () => chart.resize());
     }
 
     if (traitEl) {
       const mods = ['turquoise','blue','brown','green','yellow','red'];
       const traits = ['Treatment','Time','Batch','Age'];
-      const z = mods.map(() => traits.map(() => (Math.random() - 0.5) * 2));
-      Plotly.newPlot(traitEl, [{
-        z, x: traits, y: mods, type: 'heatmap',
-        colorscale: [[0, '#3b6ea5'], [0.5, '#faf8f4'], [1, '#c9503c']],
-        zmin: -1, zmax: 1,
-        hovertemplate: '%{y} vs %{x}<br>r = %{z:.2f}<extra></extra>',
-      }], {
-        ...PLOTLY_LAYOUT_BASE,
-        title: { text: 'Module-Trait Correlation', font: { family: 'Zilla Slab', size: 15, color: '#1c1917' } },
-        xaxis: { ...PLOTLY_LAYOUT_BASE.xaxis, title: '' },
-        yaxis: { ...PLOTLY_LAYOUT_BASE.yaxis, title: '' },
-      }, PLOTLY_CONFIG);
+      const data = [];
+      mods.forEach((m, mi) => { traits.forEach((t, ti) => { data.push([ti, mi, parseFloat(((Math.random() - 0.5) * 2).toFixed(2))]); }); });
+      const chart = createChart(traitEl);
+      chart.setOption({
+        backgroundColor: '#faf8f4',
+        textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+        title: { text: 'Module-Trait Correlation', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
+        grid: { left: 90, right: 80, top: 50, bottom: 60 },
+        toolbox: ECHART_THEME.toolbox,
+        tooltip: { formatter: p => `${mods[p.data[1]]} vs ${traits[p.data[0]]}<br>r = ${p.data[2]}` },
+        xAxis: { type: 'category', data: traits, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false } },
+        yAxis: { type: 'category', data: mods, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false } },
+        visualMap: { min: -1, max: 1, calculable: true, orient: 'vertical', right: 10, top: 'center', inRange: { color: ['#3b6ea5', '#faf8f4', '#c9503c'] }, textStyle: { color: '#57534e' } },
+        series: [{ type: 'heatmap', data, label: { show: true, formatter: p => p.data[2].toFixed(2), fontSize: 11 }, emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } } }],
+      });
+      window.addEventListener('resize', () => chart.resize());
     }
   }
 
