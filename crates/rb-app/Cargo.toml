@@ -2,3 +2,14 @@
 name = "rb-app"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+rb-core = { path = "../rb-core" }
+rfd = "0.15"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
