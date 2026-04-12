@@ -1,0 +1,28 @@
+{
+  "productName": "RustBrain",
+  "version": "0.1.0",
+  "identifier": "com.rustbrain.app",
+  "build": {
+    "frontendDist": "../../frontend"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "RustBrain - Transcriptomics Analysis",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' ipc: http://ipc.localhost https://unpkg.com https://cdn.jsdelivr.net; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": []
+  }
+}

@@ -1,0 +1,4 @@
+# Allow icon files to be tracked despite root .gitignore
+!*.png
+!*.ico
+!*.icns

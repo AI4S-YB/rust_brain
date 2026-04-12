@@ -1,0 +1,12 @@
+[package]
+name = "rb-trimming"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rb-core = { path = "../rb-core" }
+# cutadapt-core uses workspace dep inheritance from its own workspace,
+# so it can't be used as a direct path dep. Adapter calls CLI subprocess instead.
+async-trait.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
