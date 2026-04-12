@@ -14,6 +14,16 @@
   <!-- ECharts for visualizations -->
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 
+  <!-- Tauri API shim (browser-mode fallback) -->
+  <script>
+    if (!window.__TAURI__) {
+      window.__TAURI__ = {
+        core: { invoke: (cmd, args) => { console.log('[mock invoke]', cmd, args); return Promise.resolve(null); } },
+        event: { listen: (evt, cb) => { console.log('[mock listen]', evt); return Promise.resolve(() => {}); } },
+      };
+    }
+  </script>
+
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@0.344.0/dist/umd/lucide.js"></script>
 

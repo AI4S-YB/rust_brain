@@ -57,12 +57,10 @@
     state.pipelineStatus[m.id] = 'idle';
   });
 
-  // ── Backend API Placeholder ────────────────────────────────
+  // ── Tauri API ──────────────────────────────────────────────
   const api = {
-    invoke(command, args) {
-      console.log(`[RustBrain API] ${command}`, args);
-      return new Promise(resolve => setTimeout(() => resolve({ ok: true }), 1200));
-    }
+    invoke(command, args) { return window.__TAURI__.core.invoke(command, args); },
+    listen(event, callback) { return window.__TAURI__.event.listen(event, callback); }
   };
 
   // ── TSV export ─────────────────────────────────────────────
@@ -940,10 +938,21 @@
     document.addEventListener('click', e => {
       const z = e.target.closest('.file-drop-zone');
       if (z && !e.target.closest('.file-item-remove')) {
-        const inp = document.createElement('input');
-        inp.type = 'file'; inp.multiple = true; inp.accept = z.dataset.accept || '*';
-        inp.onchange = () => handleFileDrop(z, inp.files);
-        inp.click();
+        // Try native Tauri file dialog first, fall back to HTML input
+        api.invoke('select_files', { accept: z.dataset.accept || '*' })
+          .then(files => {
+            if (files && Array.isArray(files) && files.length > 0) {
+              handleFileDrop(z, files.map(f => ({ name: f.split('/').pop(), size: 0 })));
+            } else {
+              throw new Error('no files');
+            }
+          })
+          .catch(() => {
+            const inp = document.createElement('input');
+            inp.type = 'file'; inp.multiple = true; inp.accept = z.dataset.accept || '*';
+            inp.onchange = () => handleFileDrop(z, inp.files);
+            inp.click();
+          });
       }
     });
 
@@ -993,7 +1002,16 @@
     if (c) { c.classList.toggle('open'); if (window.lucide) lucide.createIcons(); }
   };
 
-  window.runModule = function (id) {
+  function collectModuleParams(moduleId) {
+    const params = {};
+    document.querySelectorAll('input[id], select[id]').forEach(el => {
+      if (el.type === 'checkbox') params[el.id] = el.checked;
+      else params[el.id] = el.value;
+    });
+    return params;
+  }
+
+  window.runModule = async function (id) {
     const st = document.getElementById('statusText');
     const js = document.getElementById('jobStatus');
     const mod = MODULES.find(m => m.id === id);
@@ -1001,10 +1019,17 @@
     js.textContent = '1 active job';
     const badge = document.querySelector(`.nav-item[data-view="${id}"] .nav-badge`);
     if (badge) { badge.className = 'nav-badge running'; badge.textContent = 'Running'; }
-    api.invoke(`run_${id}`, {}).then(() => {
-      st.textContent = 'Ready'; js.textContent = 'No active jobs';
-      if (badge) { badge.className = 'nav-badge done'; badge.textContent = 'Done'; }
-    });
+
+    const params = collectModuleParams(id);
+    try {
+      await api.invoke('validate_params', { module: id, params });
+      await api.invoke('run_module', { module: id, params });
+    } catch (err) {
+      console.warn(`[runModule] invoke failed for ${id}:`, err);
+    }
+
+    st.textContent = 'Ready'; js.textContent = 'No active jobs';
+    if (badge) { badge.className = 'nav-badge done'; badge.textContent = 'Done'; }
   };
 
   window.resetForm = function (id) { state.files[id] = []; navigate(id); };
@@ -1013,6 +1038,27 @@
   // ── Init ───────────────────────────────────────────────────
   function init() {
     setupEvents();
+
+    // Tauri event listeners
+    api.listen('run-progress', event => {
+      const st = document.getElementById('statusText');
+      const log = document.querySelector('.log-output');
+      if (st) st.textContent = event.payload?.message || 'Running...';
+      if (log) log.innerHTML += `\n<span class="log-info">[INFO]</span> ${event.payload?.message || ''}`;
+    });
+    api.listen('run-completed', event => {
+      const st = document.getElementById('statusText');
+      const js = document.getElementById('jobStatus');
+      if (st) st.textContent = 'Ready';
+      if (js) js.textContent = 'No active jobs';
+      if (event.payload?.module) navigate(event.payload.module);
+    });
+    api.listen('run-failed', event => {
+      const st = document.getElementById('statusText');
+      if (st) st.textContent = `Error: ${event.payload?.message || 'Run failed'}`;
+      console.error('[run-failed]', event.payload);
+    });
+
     navigate(location.hash.slice(1) || 'dashboard');
     if (window.lucide) lucide.createIcons();
     console.log('%cRustBrain %cv0.1.0', 'font-weight:bold;font-size:14px;color:#0d7377', 'color:#57534e');
