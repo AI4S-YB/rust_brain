@@ -9,6 +9,9 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 rb-core = { path = "../rb-core" }
+rb-deseq2 = { path = "../rb-deseq2" }
+rb-qc = { path = "../rb-qc" }
+rb-trimming = { path = "../rb-trimming" }
 rfd = "0.15"
 
 [build-dependencies]

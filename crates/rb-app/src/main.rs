@@ -4,9 +4,13 @@ mod commands;
 mod state;
 
 use state::{AppState, ModuleRegistry};
+use std::sync::Arc;
 
 fn main() {
-    let registry = ModuleRegistry::new();
+    let mut registry = ModuleRegistry::new();
+    registry.register(Arc::new(rb_deseq2::DeseqModule));
+    registry.register(Arc::new(rb_qc::QcModule));
+    registry.register(Arc::new(rb_trimming::TrimmingModule));
 
     tauri::Builder::default()
         .manage(AppState::new(registry))
