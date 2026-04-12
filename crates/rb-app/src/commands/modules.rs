@@ -38,10 +38,7 @@ pub async fn run_module(
 }
 
 #[tauri::command]
-pub async fn cancel_run(
-    run_id: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn cancel_run(run_id: String, state: State<'_, AppState>) -> Result<(), String> {
     let runner_guard = state.runner.lock().await;
     let runner = runner_guard
         .as_ref()

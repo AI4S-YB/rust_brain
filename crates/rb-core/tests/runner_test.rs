@@ -70,8 +70,8 @@ async fn runner_executes_mock_module() {
     let progress_log_clone = Arc::clone(&progress_log);
 
     // 3. Create Runner with progress callback
-    let runner = Runner::new(Arc::clone(&project_arc))
-        .on_progress(Box::new(move |run_id, progress| {
+    let runner =
+        Runner::new(Arc::clone(&project_arc)).on_progress(Box::new(move |run_id, progress| {
             progress_log_clone
                 .lock()
                 .unwrap()
@@ -91,7 +91,11 @@ async fn runner_executes_mock_module() {
 
     // 6. Assert run record status is Done
     let proj = project_arc.lock().await;
-    let run = proj.runs.iter().find(|r| r.id == run_id).expect("run record must exist");
+    let run = proj
+        .runs
+        .iter()
+        .find(|r| r.id == run_id)
+        .expect("run record must exist");
     assert_eq!(
         run.status,
         RunStatus::Done,

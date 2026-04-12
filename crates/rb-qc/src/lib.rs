@@ -137,10 +137,7 @@ impl Module for QcModule {
             })
             .await;
 
-        let ok_count = processed
-            .iter()
-            .filter(|v| v["status"] == "ok")
-            .count();
+        let ok_count = processed.iter().filter(|v| v["status"] == "ok").count();
 
         let summary = serde_json::json!({
             "total_files": total,
@@ -159,7 +156,9 @@ impl Module for QcModule {
 
 fn strip_seq_extensions(name: &str) -> String {
     let mut s = name.to_string();
-    for ext in &[".gz", ".bz2", ".txt", ".fastq", ".fq", ".csfastq", ".sam", ".bam", ".ubam"] {
+    for ext in &[
+        ".gz", ".bz2", ".txt", ".fastq", ".fq", ".csfastq", ".sam", ".bam", ".ubam",
+    ] {
         if let Some(stripped) = s.strip_suffix(ext) {
             s = stripped.to_string();
         }

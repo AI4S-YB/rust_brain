@@ -69,7 +69,8 @@ impl Module for DeseqModule {
             )
             .map_err(|e| ModuleError::ToolError(e.to_string()))?;
 
-            dds.run().map_err(|e| ModuleError::ToolError(e.to_string()))?;
+            dds.run()
+                .map_err(|e| ModuleError::ToolError(e.to_string()))?;
 
             let results = dds
                 .results(Contrast::LastCoefficient)

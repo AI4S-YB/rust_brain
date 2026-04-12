@@ -83,12 +83,7 @@ impl Module for TrimmingModule {
             let _ = progress_tx
                 .send(Progress {
                     fraction,
-                    message: format!(
-                        "Trimming {} ({}/{})",
-                        input_path.display(),
-                        idx + 1,
-                        total
-                    ),
+                    message: format!("Trimming {} ({}/{})", input_path.display(), idx + 1, total),
                 })
                 .await;
 

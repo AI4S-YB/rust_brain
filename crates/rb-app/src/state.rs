@@ -11,7 +11,9 @@ pub struct ModuleRegistry {
 
 impl ModuleRegistry {
     pub fn new() -> Self {
-        Self { modules: HashMap::new() }
+        Self {
+            modules: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, module: Arc<dyn Module>) {

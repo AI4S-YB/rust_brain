@@ -42,11 +42,7 @@ impl Runner {
         &self.project
     }
 
-    pub async fn spawn(
-        &self,
-        module: Arc<dyn Module>,
-        params: Value,
-    ) -> Result<String, String> {
+    pub async fn spawn(&self, module: Arc<dyn Module>, params: Value) -> Result<String, String> {
         // 1. Create run record in the project
         let run_id = {
             let mut proj = self.project.lock().await;

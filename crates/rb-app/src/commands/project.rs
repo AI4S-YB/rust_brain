@@ -88,9 +88,10 @@ pub async fn open_project(
 }
 
 #[tauri::command]
-pub async fn list_recent_projects(
-    state: State<'_, AppState>,
-) -> Result<Vec<String>, String> {
+pub async fn list_recent_projects(state: State<'_, AppState>) -> Result<Vec<String>, String> {
     let recent = state.recent_projects.lock().await;
-    Ok(recent.iter().map(|p| p.to_string_lossy().to_string()).collect())
+    Ok(recent
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect())
 }
