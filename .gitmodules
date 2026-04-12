@@ -1,0 +1,9 @@
+[submodule "deps/fastqc-rs"]
+	path = deps/fastqc-rs
+	url = https://github.com/AI4S-YB/fastqc-rs.git
+[submodule "deps/cutadapt-rs"]
+	path = deps/cutadapt-rs
+	url = https://github.com/AI4S-YB/cutadapt-rs.git
+[submodule "deps/DESeq2_rs"]
+	path = deps/DESeq2_rs
+	url = https://github.com/AI4S-YB/DESeq2_rs.git
