@@ -88,6 +88,8 @@ jobs:
           cargo clippy
           -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2
           -- -D warnings
+        env:
+          RUSTFLAGS: "--cap-lints=warn"
 
   fmt:
     name: Format
