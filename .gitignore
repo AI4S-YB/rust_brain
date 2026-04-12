@@ -1,0 +1,17 @@
+# Screenshots & test artifacts
+*.png
+*.jpeg
+*.gif
+.playwright-mcp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust (for future backend)
+/target/
+Cargo.lock
+
+# Node (if build tools added later)
+node_modules/
+dist/
