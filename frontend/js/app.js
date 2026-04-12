@@ -51,6 +51,8 @@
     currentView: 'dashboard',
     files: {},
     pipelineStatus: {},
+    projectOpen: false,
+    projectName: '',
   };
   MODULES.forEach(m => {
     state.files[m.id] = [];
@@ -128,6 +130,11 @@
         </div>`;
     }).join('');
 
+    const projName = state.projectOpen ? state.projectName : 'No project open';
+    const projStatus = state.projectOpen
+      ? `<span class="badge badge-green" style="margin-left:8px">Open</span>`
+      : `<span class="badge badge-muted" style="margin-left:8px">Closed</span>`;
+
     return `
       <div class="module-view">
         <div class="dashboard-hero animate-slide-up">
@@ -137,6 +144,18 @@
           <p class="dashboard-subtitle">
             End-to-end RNA-seq analysis powered by Rust. From raw reads to biological insights.
           </p>
+        </div>
+
+        <div class="card animate-slide-up" style="animation-delay: 40ms; margin-bottom: 16px; padding: 16px 24px;">
+          <div class="card-header" style="margin-bottom: 12px">
+            <span class="card-title"><i data-lucide="folder-open" style="width:15px;height:15px;vertical-align:-2px;margin-right:6px"></i>Project</span>
+            ${projStatus}
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <span style="font-size:0.9rem;color:var(--text-secondary);flex:1;min-width:120px;" id="dash-proj-name">${projName}</span>
+            <button class="btn btn-secondary btn-sm" onclick="projectNew()"><i data-lucide="folder-plus"></i> New Project</button>
+            <button class="btn btn-secondary btn-sm" onclick="projectOpen()"><i data-lucide="folder-open"></i> Open Project</button>
+          </div>
         </div>
 
         <div class="pipeline-flow-container card animate-slide-up" style="animation-delay: 60ms; padding: 16px 24px;">
@@ -219,6 +238,41 @@
       </div>`;
   }
 
+  // ── Project management helpers ─────────────────────────────
+  window.projectNew = async function () {
+    const name = prompt('Enter project name:');
+    if (!name) return;
+    try {
+      const dir = await api.invoke('select_directory', {});
+      await api.invoke('create_project', { name, directory: dir });
+      state.projectOpen = true;
+      state.projectName = name;
+      document.getElementById('projectName').textContent = name;
+    } catch (err) {
+      console.warn('[projectNew] invoke failed, using local fallback:', err);
+      state.projectOpen = true;
+      state.projectName = name;
+      document.getElementById('projectName').textContent = name;
+    }
+    const el = document.getElementById('dash-proj-name');
+    if (el) el.textContent = name;
+  };
+
+  window.projectOpen = async function () {
+    try {
+      const dir = await api.invoke('select_directory', {});
+      const result = await api.invoke('open_project', { directory: dir });
+      const name = (result && result.name) ? result.name : dir || 'Opened Project';
+      state.projectOpen = true;
+      state.projectName = name;
+      document.getElementById('projectName').textContent = name;
+      const el = document.getElementById('dash-proj-name');
+      if (el) el.textContent = name;
+    } catch (err) {
+      console.warn('[projectOpen] invoke failed:', err);
+    }
+  };
+
 
   // ── Module View ────────────────────────────────────────────
   function renderModule(moduleId) {
@@ -282,27 +336,27 @@
               <div class="form-row">
                 <div class="form-group">
                   <label class="form-label">Threads</label>
-                  <input type="number" class="form-input" value="4" min="1" max="32">
+                  <input type="number" class="form-input" id="qc-threads" value="4" min="1" max="32">
                 </div>
                 <div class="form-group">
                   <label class="form-label">Format</label>
-                  <select class="form-select">
+                  <select class="form-select" id="qc-format">
                     <option>Auto-detect</option><option>FASTQ</option><option>BAM</option><option>SAM</option>
                   </select>
                 </div>
               </div>
               <div class="form-group">
                 <label class="form-label">Output Directory</label>
-                <input type="text" class="form-input" placeholder="/path/to/output">
+                <input type="text" class="form-input" id="qc-output" placeholder="/path/to/output">
               </div>
               <div class="collapsible">
                 <button class="collapsible-trigger" onclick="toggleCollapsible(this)">
                   Advanced Options <i data-lucide="chevron-down"></i>
                 </button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> CASAVA mode</label></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> Disable base grouping</label></div>
-                  <div class="form-group"><label class="form-label">K-mer Size</label><input type="number" class="form-input" value="7" min="2" max="10"></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-casava"> CASAVA mode</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-nogroup"> Disable base grouping</label></div>
+                  <div class="form-group"><label class="form-label">K-mer Size</label><input type="number" class="form-input" id="qc-kmer" value="7" min="2" max="10"></div>
                 </div></div>
               </div>
             </div>
@@ -378,7 +432,7 @@
             <div class="panel-body">
               <div class="form-group">
                 <label class="form-label">Adapter Preset</label>
-                <select class="form-select">
+                <select class="form-select" id="trim-preset">
                   <option>Illumina Universal (AGATCGGAAGAGC)</option>
                   <option>Nextera Transposase</option>
                   <option>Illumina Small RNA</option>
@@ -388,30 +442,30 @@
               </div>
               <div class="form-group">
                 <label class="form-label">3' Adapter (-a)</label>
-                <input type="text" class="form-input" value="AGATCGGAAGAGC" placeholder="AGATCGGAAGAGC">
+                <input type="text" class="form-input" id="trim-adapter" value="AGATCGGAAGAGC" placeholder="AGATCGGAAGAGC">
                 <span class="form-hint">Sequence to trim from 3' end</span>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Quality Cutoff (-q)</label><input type="number" class="form-input" value="20" min="0" max="42"></div>
-                <div class="form-group"><label class="form-label">Min Length (-m)</label><input type="number" class="form-input" value="20" min="1"></div>
+                <div class="form-group"><label class="form-label">Quality Cutoff (-q)</label><input type="number" class="form-input" id="trim-quality" value="20" min="0" max="42"></div>
+                <div class="form-group"><label class="form-label">Min Length (-m)</label><input type="number" class="form-input" id="trim-minlen" value="20" min="1"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Max N Bases</label><input type="number" class="form-input" value="-1"><span class="form-hint">-1 = no limit</span></div>
-                <div class="form-group"><label class="form-label">Threads</label><input type="number" class="form-input" value="4" min="1" max="16"></div>
+                <div class="form-group"><label class="form-label">Max N Bases</label><input type="number" class="form-input" id="trim-maxn" value="-1"><span class="form-hint">-1 = no limit</span></div>
+                <div class="form-group"><label class="form-label">Threads</label><input type="number" class="form-input" id="trim-threads" value="4" min="1" max="16"></div>
               </div>
               <div class="collapsible">
                 <button class="collapsible-trigger" onclick="toggleCollapsible(this)">Paired-End Options <i data-lucide="chevron-down"></i></button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> Paired-end mode</label></div>
-                  <div class="form-group"><label class="form-label">R2 Adapter (-A)</label><input type="text" class="form-input" placeholder="AGATCGGAAGAGC"></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-paired"> Paired-end mode</label></div>
+                  <div class="form-group"><label class="form-label">R2 Adapter (-A)</label><input type="text" class="form-input" id="trim-adapter2" placeholder="AGATCGGAAGAGC"></div>
                 </div></div>
               </div>
               <div class="collapsible">
                 <button class="collapsible-trigger" onclick="toggleCollapsible(this)">Trim Galore Mode <i data-lucide="chevron-down"></i></button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> Enable Trim Galore wrapper</label></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> Run FastQC after trimming</label></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> RRBS mode</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-galore"> Enable Trim Galore wrapper</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-fastqc"> Run FastQC after trimming</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-rrbs"> RRBS mode</label></div>
                 </div></div>
               </div>
             </div>
@@ -496,21 +550,21 @@
             <div class="panel-body">
               <div class="form-group">
                 <label class="form-label">Design Variable</label>
-                <input type="text" class="form-input" value="condition" placeholder="e.g. condition, treatment">
+                <input type="text" class="form-input" id="deseq-design" value="condition" placeholder="e.g. condition, treatment">
                 <span class="form-hint">Column in sample info for comparison</span>
               </div>
               <div class="form-group">
                 <label class="form-label">Reference Level</label>
-                <input type="text" class="form-input" value="control" placeholder="e.g. control, untreated">
+                <input type="text" class="form-input" id="deseq-ref" value="control" placeholder="e.g. control, untreated">
                 <span class="form-hint">Baseline for fold-change calculation</span>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">padj Cutoff</label><input type="number" class="form-input" value="0.01" step="0.01" min="0" max="1"></div>
-                <div class="form-group"><label class="form-label">|log2FC| Cutoff</label><input type="number" class="form-input" value="1.0" step="0.1" min="0"></div>
+                <div class="form-group"><label class="form-label">padj Cutoff</label><input type="number" class="form-input" id="deseq-padj" value="0.01" step="0.01" min="0" max="1"></div>
+                <div class="form-group"><label class="form-label">|log2FC| Cutoff</label><input type="number" class="form-input" id="deseq-lfc" value="1.0" step="0.1" min="0"></div>
               </div>
               <div class="form-group">
                 <label class="form-label">Output File</label>
-                <input type="text" class="form-input" value="deseq2_results.tsv" placeholder="results.tsv">
+                <input type="text" class="form-input" id="deseq-output" value="deseq2_results.tsv" placeholder="results.tsv">
               </div>
             </div>
             <div class="panel-footer">
@@ -527,6 +581,7 @@
                 <div class="tab active" data-tab="deseq-volcano">Volcano Plot</div>
                 <div class="tab" data-tab="deseq-ma">MA Plot</div>
                 <div class="tab" data-tab="deseq-table">Results Table</div>
+                <div class="tab" data-tab="deseq-custom">Custom Plot</div>
                 <div class="tab" data-tab="deseq-log">Log</div>
               </div>
               <div class="tab-content active" data-tab="deseq-volcano">
@@ -548,6 +603,9 @@
                 <div style="max-height:400px;overflow-y:auto;">
                   <table class="data-table" id="deseq-results-table"><thead><tr><th>Gene</th><th>log2FC</th><th>p-value</th><th>padj</th></tr></thead><tbody></tbody></table>
                 </div>
+              </div>
+              <div class="tab-content" data-tab="deseq-custom">
+                ${renderCustomPlotPanel('differential')}
               </div>
               <div class="tab-content" data-tab="deseq-log">
                 <div class="log-output"><span class="log-info">[INFO]</span> DESeq2_rs v0.1.0
@@ -597,25 +655,25 @@
             <div class="panel-header"><span class="panel-title">WGCNA Parameters</span></div>
             <div class="panel-body">
               <div class="form-group"><label class="form-label">Correlation Method</label>
-                <select class="form-select"><option>Pearson</option><option>Biweight Midcorrelation</option></select></div>
+                <select class="form-select" id="wgcna-corr"><option>Pearson</option><option>Biweight Midcorrelation</option></select></div>
               <div class="form-group"><label class="form-label">Network Type</label>
-                <select class="form-select"><option>Signed</option><option>Unsigned</option><option>Signed Hybrid</option></select></div>
+                <select class="form-select" id="wgcna-nettype"><option>Signed</option><option>Unsigned</option><option>Signed Hybrid</option></select></div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Soft Threshold</label><input type="number" class="form-input" value="6" min="1" max="30"><span class="form-hint">Use threshold picker</span></div>
-                <div class="form-group"><label class="form-label">Min Module Size</label><input type="number" class="form-input" value="30" min="10"></div>
+                <div class="form-group"><label class="form-label">Soft Threshold</label><input type="number" class="form-input" id="wgcna-thresh" value="6" min="1" max="30"><span class="form-hint">Use threshold picker</span></div>
+                <div class="form-group"><label class="form-label">Min Module Size</label><input type="number" class="form-input" id="wgcna-minmod" value="30" min="10"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Merge Cut Height</label><input type="number" class="form-input" value="0.25" step="0.05" min="0" max="1"></div>
+                <div class="form-group"><label class="form-label">Merge Cut Height</label><input type="number" class="form-input" id="wgcna-mergecut" value="0.25" step="0.05" min="0" max="1"></div>
                 <div class="form-group"><label class="form-label">TOM Type</label>
-                  <select class="form-select"><option>Signed</option><option>Unsigned</option></select></div>
+                  <select class="form-select" id="wgcna-tom"><option>Signed</option><option>Unsigned</option></select></div>
               </div>
               <div class="collapsible">
                 <button class="collapsible-trigger" onclick="toggleCollapsible(this)">Advanced Options <i data-lucide="chevron-down"></i></button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> PAM refinement</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-pam"> PAM refinement</label></div>
                   <div class="form-group"><label class="form-label">Deep Split</label>
-                    <select class="form-select"><option value="0">0</option><option value="1">1</option><option value="2" selected>2 (default)</option><option value="3">3</option><option value="4">4</option></select></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox"> Export Cytoscape network</label></div>
+                    <select class="form-select" id="wgcna-deepsplit"><option value="0">0</option><option value="1">1</option><option value="2" selected>2 (default)</option><option value="3">3</option><option value="4">4</option></select></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-cytoscape"> Export Cytoscape network</label></div>
                 </div></div>
               </div>
             </div>
@@ -632,6 +690,7 @@
               <div class="tabs">
                 <div class="tab active" data-tab="wgcna-modules">Modules</div>
                 <div class="tab" data-tab="wgcna-trait">Trait Heatmap</div>
+                <div class="tab" data-tab="wgcna-custom">Custom Plot</div>
                 <div class="tab" data-tab="wgcna-log">Log</div>
               </div>
               <div class="tab-content active" data-tab="wgcna-modules">
@@ -644,6 +703,9 @@
               </div>
               <div class="tab-content" data-tab="wgcna-trait">
                 <div class="chart-container" id="wgcna-trait-chart" style="height:380px;"></div>
+              </div>
+              <div class="tab-content" data-tab="wgcna-custom">
+                ${renderCustomPlotPanel('network')}
               </div>
               <div class="tab-content" data-tab="wgcna-log">
                 <div class="log-output"><span class="log-info">[INFO]</span> WGCNA_rs v0.1.0
@@ -662,6 +724,101 @@
         </div>
       </div>`;
   }
+
+
+  // ── Custom Plot Panel ──────────────────────────────────────
+  function renderCustomPlotPanel(moduleId) {
+    const axisOptions = moduleId === 'differential'
+      ? ['log2FC', 'baseMean', '-log10(padj)', 'pvalue', 'padj']
+      : ['module_size', 'kME', 'connectivity', 'trait_correlation'];
+    const opts = axisOptions.map(o => `<option value="${o}">${o}</option>`).join('');
+    return `
+      <div style="padding:12px 0;">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:12px;">
+          <div class="form-group" style="margin-bottom:0;min-width:120px;">
+            <label class="form-label">X Axis</label>
+            <select class="form-select" id="${moduleId}-custom-x">${opts}</select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;min-width:120px;">
+            <label class="form-label">Y Axis</label>
+            <select class="form-select" id="${moduleId}-custom-y">${opts.replace('selected', '').replace(axisOptions[0], axisOptions[Math.min(1, axisOptions.length - 1)])}</select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;min-width:110px;">
+            <label class="form-label">Chart Type</label>
+            <select class="form-select" id="${moduleId}-custom-type">
+              <option value="scatter">Scatter</option>
+              <option value="bar">Bar</option>
+              <option value="boxplot">Boxplot</option>
+              <option value="histogram">Histogram</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="renderCustomPlot('${moduleId}')"><i data-lucide="bar-chart-2"></i> Draw</button>
+        </div>
+        <div class="chart-container" id="${moduleId}-custom-chart" style="height:320px;"></div>
+      </div>`;
+  }
+
+  window.renderCustomPlot = function (moduleId) {
+    const el = document.getElementById(`${moduleId}-custom-chart`);
+    if (!el) return;
+    const xSel = document.getElementById(`${moduleId}-custom-x`);
+    const ySel = document.getElementById(`${moduleId}-custom-y`);
+    const typeSel = document.getElementById(`${moduleId}-custom-type`);
+    const xKey = xSel ? xSel.value : 'X';
+    const yKey = ySel ? ySel.value : 'Y';
+    const chartType = typeSel ? typeSel.value : 'scatter';
+
+    const n = 80;
+    const xData = Array.from({ length: n }, () => (Math.random() - 0.5) * 8);
+    const yData = xData.map(x => x * 0.4 + (Math.random() - 0.5) * 4);
+
+    let existingChart = echarts.getInstanceByDom(el);
+    if (existingChart) existingChart.dispose();
+    const chart = createChart(el);
+
+    let series;
+    if (chartType === 'scatter') {
+      series = [{
+        type: 'scatter',
+        data: xData.map((x, i) => [x, yData[i]]),
+        symbolSize: 6,
+        itemStyle: { color: '#0d7377', opacity: 0.65 },
+      }];
+    } else if (chartType === 'bar') {
+      const labels = Array.from({ length: 12 }, (_, i) => `Group_${i + 1}`);
+      const vals = labels.map(() => Math.round(Math.random() * 500 + 50));
+      series = [{ type: 'bar', data: vals, itemStyle: { color: '#3b6ea5' } }];
+      xData.splice(0, xData.length, ...labels);
+    } else if (chartType === 'histogram') {
+      const bins = Array.from({ length: 20 }, (_, i) => -4 + i * 0.4);
+      const counts = bins.map(() => Math.round(Math.random() * 200 + 20));
+      series = [{ type: 'bar', data: counts, barWidth: '96%', itemStyle: { color: '#7c5cbf' } }];
+      xData.splice(0, xData.length, ...bins.map(b => b.toFixed(1)));
+    } else if (chartType === 'boxplot') {
+      const groups = ['Control', 'Treated', 'Recovery'];
+      const bpData = groups.map(() => {
+        const d = Array.from({ length: 50 }, () => Math.random() * 10).sort((a, b) => a - b);
+        const q1 = d[12], med = d[24], q3 = d[37];
+        return [d[2], q1, med, q3, d[47]];
+      });
+      series = [{ type: 'boxplot', data: bpData, itemStyle: { color: '#c9503c', borderColor: '#a03020' } }];
+      xData.splice(0, xData.length, ...groups);
+    }
+
+    const useXCategory = ['bar', 'histogram', 'boxplot'].includes(chartType);
+    chart.setOption({
+      backgroundColor: '#faf8f4',
+      textStyle: { fontFamily: 'Karla, sans-serif', color: '#57534e' },
+      title: { text: `${yKey} vs ${xKey}`, textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 14, color: '#1c1917' }, top: 6, left: 10 },
+      grid: ECHART_THEME.grid,
+      toolbox: ECHART_THEME.toolbox,
+      tooltip: { trigger: chartType === 'scatter' ? 'item' : 'axis' },
+      xAxis: { type: useXCategory ? 'category' : 'value', data: useXCategory ? xData : undefined, name: xKey, nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+      yAxis: { type: 'value', name: yKey, nameLocation: 'middle', nameGap: 40, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+      series,
+    });
+    window.addEventListener('resize', () => chart.resize());
+  };
 
 
   // ── Coming Soon ────────────────────────────────────────────
@@ -741,13 +898,24 @@
       tooltip: { trigger: 'axis' },
       xAxis: { type: 'category', data: pos, name: 'Position (bp)', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
       yAxis: { type: 'value', name: 'Phred Score', nameLocation: 'middle', nameGap: 40, min: 0, max: 42, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
+      visualMap: false,
       series: [
-        { type: 'line', data: hi, symbol: 'none', lineStyle: { width: 0 }, showSymbol: false, areaStyle: { color: 'rgba(13,115,119,0.08)' }, stack: 'band', name: 'hi' },
-        { type: 'line', data: lo, symbol: 'none', lineStyle: { width: 0 }, showSymbol: false, areaStyle: { color: 'rgba(13,115,119,0.08)' }, stack: 'band', name: 'lo' },
+        {
+          type: 'line', data: hi, symbol: 'none', lineStyle: { width: 0 }, showSymbol: false,
+          areaStyle: { color: 'rgba(13,115,119,0.08)' }, stack: 'band', name: 'hi',
+        },
+        {
+          type: 'line', data: lo, symbol: 'none', lineStyle: { width: 0 }, showSymbol: false,
+          areaStyle: { color: 'rgba(13,115,119,0.08)' }, stack: 'band', name: 'lo',
+        },
         {
           type: 'line', data: mean, name: 'Mean Quality', symbol: 'none',
           lineStyle: { color: '#0d7377', width: 2.5 }, smooth: false,
-          markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#ccc', width: 1 }, data: [{ yAxis: 28 }, { yAxis: 20 }] },
+          markLine: {
+            silent: true, symbol: 'none',
+            lineStyle: { type: 'dashed', color: '#ccc', width: 1 },
+            data: [{ yAxis: 28 }, { yAxis: 20 }],
+          },
         },
       ],
       legend: { show: false },
@@ -773,7 +941,10 @@
       tooltip: { trigger: 'axis', formatter: params => `Length: ${params[0].name} bp<br>Count: ${params[0].value.toLocaleString()}` },
       xAxis: { type: 'category', data: lens.map(String), name: 'Read Length (bp)', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false } },
       yAxis: { type: 'value', name: 'Count', nameLocation: 'middle', nameGap: 50, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
-      series: [{ type: 'bar', data: counts.map((v, i) => ({ value: v, itemStyle: { color: colors[i] } })), barWidth: '95%' }],
+      series: [{
+        type: 'bar', data: counts.map((v, i) => ({ value: v, itemStyle: { color: colors[i] } })),
+        barWidth: '95%',
+      }],
     });
     window.addEventListener('resize', () => chart.resize());
   }
@@ -797,6 +968,7 @@
       const up = genes.filter(g => g.padj < 0.01 && g.log2FC > 1);
       const dn = genes.filter(g => g.padj < 0.01 && g.log2FC < -1);
       const ns = genes.filter(g => g.padj >= 0.01 || Math.abs(g.log2FC) <= 1);
+
       const chart = createChart(volcEl);
       chart.setOption({
         backgroundColor: '#faf8f4',
@@ -804,13 +976,25 @@
         title: { text: 'Volcano Plot', textStyle: { fontFamily: 'Zilla Slab, serif', fontSize: 15, color: '#1c1917' }, top: 6, left: 10 },
         grid: ECHART_THEME.grid,
         toolbox: ECHART_THEME.toolbox,
-        tooltip: { trigger: 'item', formatter: p => `${p.data[2]}<br>log2FC: ${p.data[0].toFixed(2)}<br>-log10(padj): ${p.data[1].toFixed(1)}` },
+        tooltip: {
+          trigger: 'item',
+          formatter: p => `${p.data[2]}<br>log2FC: ${p.data[0].toFixed(2)}<br>-log10(padj): ${p.data[1].toFixed(1)}`,
+        },
         legend: { data: ['Not Sig.', 'Up', 'Down'], right: 60, top: 10, textStyle: { fontSize: 11 } },
         xAxis: { type: 'value', name: 'log2 Fold Change', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
         yAxis: { type: 'value', name: '-log10(padj)', nameLocation: 'middle', nameGap: 40, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
         series: [
-          { name: 'Not Sig.', type: 'scatter', symbolSize: 4, data: ns.map(g => [g.log2FC, g.nlp, g.name]), itemStyle: { color: 'rgba(168,162,158,0.35)' }, large: true,
-            markLine: { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#ddd6ca', width: 1 }, data: [{ xAxis: -1 }, { xAxis: 1 }, { yAxis: 2 }] } },
+          {
+            name: 'Not Sig.', type: 'scatter', symbolSize: 4,
+            data: ns.map(g => [g.log2FC, g.nlp, g.name]),
+            itemStyle: { color: 'rgba(168,162,158,0.35)' },
+            large: true,
+            markLine: {
+              silent: true, symbol: 'none',
+              lineStyle: { type: 'dashed', color: '#ddd6ca', width: 1 },
+              data: [{ xAxis: -1 }, { xAxis: 1 }, { yAxis: 2 }],
+            },
+          },
           { name: 'Up', type: 'scatter', symbolSize: 5, data: up.map(g => [g.log2FC, g.nlp, g.name]), itemStyle: { color: '#c9503c' }, large: true },
           { name: 'Down', type: 'scatter', symbolSize: 5, data: dn.map(g => [g.log2FC, g.nlp, g.name]), itemStyle: { color: '#3b6ea5' }, large: true },
         ],
@@ -821,6 +1005,7 @@
     if (maEl) {
       const sig = genes.filter(g => g.padj < 0.01 && Math.abs(g.log2FC) > 1);
       const ns = genes.filter(g => g.padj >= 0.01 || Math.abs(g.log2FC) <= 1);
+
       const chart = createChart(maEl);
       chart.setOption({
         backgroundColor: '#faf8f4',
@@ -833,9 +1018,17 @@
         xAxis: { type: 'value', name: 'log10(Mean Expression)', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
         yAxis: { type: 'value', name: 'log2 Fold Change', nameLocation: 'middle', nameGap: 40, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
         series: [
-          { name: 'Not Sig.', type: 'scatter', symbolSize: 4, data: ns.map(g => [Math.log10(g.baseMean), g.log2FC]), itemStyle: { color: 'rgba(168,162,158,0.3)' }, large: true,
-            markLine: { silent: true, symbol: 'none', lineStyle: { color: '#c8bfb0', width: 1 }, data: [{ yAxis: 0 }] } },
-          { name: 'Significant', type: 'scatter', symbolSize: 5, data: sig.map(g => [Math.log10(g.baseMean), g.log2FC]), itemStyle: { color: '#c9503c', opacity: 0.6 }, large: true },
+          {
+            name: 'Not Sig.', type: 'scatter', symbolSize: 4,
+            data: ns.map(g => [Math.log10(g.baseMean), g.log2FC]),
+            itemStyle: { color: 'rgba(168,162,158,0.3)' }, large: true,
+            markLine: { silent: true, symbol: 'none', lineStyle: { color: '#c8bfb0', width: 1 }, data: [{ yAxis: 0 }] },
+          },
+          {
+            name: 'Significant', type: 'scatter', symbolSize: 5,
+            data: sig.map(g => [Math.log10(g.baseMean), g.log2FC]),
+            itemStyle: { color: '#c9503c', opacity: 0.6 }, large: true,
+          },
         ],
       });
       window.addEventListener('resize', () => chart.resize());
@@ -859,6 +1052,7 @@
       const names = ['turquoise','blue','brown','green','yellow','red','black','pink','magenta','purple','greenyellow','grey'];
       const sizes = [820,650,520,410,380,310,270,240,190,160,130,920];
       const colors = ['#40E0D0','#4169E1','#8B6914','#228B22','#DAA520','#DC143C','#444','#FF69B4','#C71585','#7B68EE','#7CCD7C','#999'];
+
       const chart = createChart(modEl);
       chart.setOption({
         backgroundColor: '#faf8f4',
@@ -869,7 +1063,10 @@
         tooltip: { trigger: 'axis', formatter: p => `${p[0].name}<br>${p[0].value} genes` },
         xAxis: { type: 'category', data: names, name: 'Module', nameLocation: 'middle', nameGap: 30, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false }, axisLabel: { rotate: 30 } },
         yAxis: { type: 'value', name: 'Gene Count', nameLocation: 'middle', nameGap: 45, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { lineStyle: { color: '#e8e2d8' } } },
-        series: [{ type: 'bar', data: sizes.map((v, i) => ({ value: v, itemStyle: { color: colors[i] + 'CC' } })) }],
+        series: [{
+          type: 'bar',
+          data: sizes.map((v, i) => ({ value: v, itemStyle: { color: colors[i] + 'CC' } })),
+        }],
       });
       window.addEventListener('resize', () => chart.resize());
     }
@@ -878,7 +1075,12 @@
       const mods = ['turquoise','blue','brown','green','yellow','red'];
       const traits = ['Treatment','Time','Batch','Age'];
       const data = [];
-      mods.forEach((m, mi) => { traits.forEach((t, ti) => { data.push([ti, mi, parseFloat(((Math.random() - 0.5) * 2).toFixed(2))]); }); });
+      mods.forEach((m, mi) => {
+        traits.forEach((t, ti) => {
+          data.push([ti, mi, parseFloat(((Math.random() - 0.5) * 2).toFixed(2))]);
+        });
+      });
+
       const chart = createChart(traitEl);
       chart.setOption({
         backgroundColor: '#faf8f4',
@@ -889,11 +1091,33 @@
         tooltip: { formatter: p => `${mods[p.data[1]]} vs ${traits[p.data[0]]}<br>r = ${p.data[2]}` },
         xAxis: { type: 'category', data: traits, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false } },
         yAxis: { type: 'category', data: mods, axisLine: { lineStyle: { color: '#ddd6ca' } }, splitLine: { show: false } },
-        visualMap: { min: -1, max: 1, calculable: true, orient: 'vertical', right: 10, top: 'center', inRange: { color: ['#3b6ea5', '#faf8f4', '#c9503c'] }, textStyle: { color: '#57534e' } },
-        series: [{ type: 'heatmap', data, label: { show: true, formatter: p => p.data[2].toFixed(2), fontSize: 11 }, emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } } }],
+        visualMap: {
+          min: -1, max: 1, calculable: true, orient: 'vertical', right: 10, top: 'center',
+          inRange: { color: ['#3b6ea5', '#faf8f4', '#c9503c'] },
+          textStyle: { color: '#57534e' },
+        },
+        series: [{
+          type: 'heatmap',
+          data,
+          label: { show: true, formatter: p => p.data[2].toFixed(2), fontSize: 11 },
+          emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } },
+        }],
       });
       window.addEventListener('resize', () => chart.resize());
     }
+  }
+
+
+  // ── Module params collector ────────────────────────────────
+  function collectModuleParams(moduleId) {
+    const params = {};
+    const panel = document.querySelector(`.module-panel`);
+    if (!panel) return params;
+    panel.querySelectorAll('input[id], select[id]').forEach(el => {
+      if (el.type === 'checkbox') params[el.id] = el.checked;
+      else params[el.id] = el.value;
+    });
+    return params;
   }
 
 
@@ -965,7 +1189,10 @@
   function handleFileDrop(zone, fileList) {
     const mid = zone.dataset.module;
     if (!mid || !state.files[mid]) state.files[mid] = [];
-    Array.from(fileList).forEach(f => { if (!state.files[mid]) state.files[mid] = []; state.files[mid].push({ name: f.name, size: f.size }); });
+    Array.from(fileList).forEach(f => {
+      if (!state.files[mid]) state.files[mid] = [];
+      state.files[mid].push({ name: f.name || f, size: f.size || 0 });
+    });
     const list = document.getElementById(`${mid}-file-list`);
     if (list) renderFileList(list, mid);
   }
@@ -1001,15 +1228,6 @@
     const c = trigger.closest('.collapsible');
     if (c) { c.classList.toggle('open'); if (window.lucide) lucide.createIcons(); }
   };
-
-  function collectModuleParams(moduleId) {
-    const params = {};
-    document.querySelectorAll('input[id], select[id]').forEach(el => {
-      if (el.type === 'checkbox') params[el.id] = el.checked;
-      else params[el.id] = el.value;
-    });
-    return params;
-  }
 
   window.runModule = async function (id) {
     const st = document.getElementById('statusText');
