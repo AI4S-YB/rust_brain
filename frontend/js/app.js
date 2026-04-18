@@ -103,9 +103,7 @@
     });
 
     const bc = document.getElementById('breadcrumb');
-    const label = KNOWN_VIEWS.has(view)
-      ? t('nav.' + view.replace(/-/g, '_'))
-      : view;
+    const label = KNOWN_VIEWS.has(view) ? t(navKey(view)) : view;
     bc.innerHTML = `
       <span class="breadcrumb-home">${t('brand.name')}</span>
       <i data-lucide="chevron-right" class="breadcrumb-sep"></i>
