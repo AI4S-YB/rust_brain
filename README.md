@@ -8,6 +8,7 @@ A desktop transcriptomics analysis platform built entirely in Rust. Integrates R
 
 - **QC Analysis** — Powered by [fastqc-rs](https://github.com/AI4S-YB/fastqc-rs), 2.1-4.7x faster than Java FastQC
 - **Adapter Trimming** — Powered by [cutadapt-rs](https://github.com/AI4S-YB/cutadapt-rs), byte-identical output to Python cutadapt
+- **GFF Conversion** — Powered by [gffread_rs](https://github.com/AI4S-YB/gffread_rs), GFF3↔GTF conversion so annotations from any source feed straight into STAR
 - **Alignment & Quantification** — Powered by [STAR_rs](https://github.com/AI4S-YB/STAR_rs), splice-aware alignment with per-gene read counting; auto-merges per-sample `ReadsPerGene.out.tab` into a DESeq2-ready counts matrix
 - **Differential Expression** — Powered by [DESeq2_rs](https://github.com/AI4S-YB/DESeq2_rs), 28x faster than R DESeq2 with 99.6% accuracy
 - **Project Management** — Create/open projects with isolated work directories, full run history
@@ -25,6 +26,7 @@ rust_brain/
 │   ├── rb-app/           # Tauri v2 desktop app (11 commands)
 │   ├── rb-qc/            # fastqc-rs adapter
 │   ├── rb-trimming/      # cutadapt-rs adapter
+│   ├── rb-gff-convert/   # gffread-rs adapter (GFF3↔GTF)
 │   ├── rb-star-index/    # STAR_rs genome indexing adapter
 │   ├── rb-star-align/    # STAR_rs alignment + counts matrix merge
 │   └── rb-deseq2/        # DESeq2_rs adapter
@@ -88,8 +90,8 @@ Outputs: `.deb` / `.AppImage` (Linux), `.dmg` (macOS), `.msi` (Windows)
 ## Analysis Pipeline
 
 ```
-Raw Reads → QC → Trimming → Alignment → Quantification → DESeq2 → Enrichment
-             ✅      ✅         ✅              ✅           ✅
+Raw Reads → QC → Trimming → [GFF Convert] → Alignment → Quantification → DESeq2 → Enrichment
+             ✅      ✅           ✅             ✅              ✅           ✅
 ```
 
 ## TODO
@@ -166,6 +168,23 @@ installed builds at a custom `star` build without uninstalling.
 Similarly, `rb-trimming` invokes the `cutadapt-rs` binary from
 https://github.com/AI4S-YB/cutadapt-rs. Same discovery mechanism: PATH or
 Settings-configured path.
+
+## gffread_rs dependency
+
+`rb-gff-convert` invokes the `gffread-rs` binary from
+https://github.com/AI4S-YB/gffread_rs.
+
+**Released builds:** bundled automatically — no separate install needed.
+
+**Local development:** grab a prebuilt binary:
+
+    curl -sL https://github.com/AI4S-YB/gffread_rs/releases/download/v0.1.0/gffread-rs-v0.1.0-x86_64-unknown-linux-gnu.tar.gz \
+      | tar xz -C ~/.local/bin
+
+or build from source:
+
+    git clone https://github.com/AI4S-YB/gffread_rs.git
+    cd gffread_rs && cargo build -p gffread-rs --release
 
 ## License
 
