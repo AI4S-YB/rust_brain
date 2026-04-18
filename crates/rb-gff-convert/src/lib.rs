@@ -169,8 +169,11 @@ mod tests {
     fn validate_requires_input_file() {
         let m = GffConvertModule;
         let errs = m.validate(&json!({ "target_format": "gtf" }));
-        assert!(errs.iter().any(|e| e.field == "input_file"),
-            "expected input_file error, got {:?}", errs);
+        assert!(
+            errs.iter().any(|e| e.field == "input_file"),
+            "expected input_file error, got {:?}",
+            errs
+        );
     }
 
     #[test]
@@ -180,8 +183,11 @@ mod tests {
             "input_file": "/definitely/does/not/exist.gff3",
             "target_format": "gtf",
         }));
-        assert!(errs.iter().any(|e| e.field == "input_file"),
-            "expected input_file error for missing file, got {:?}", errs);
+        assert!(
+            errs.iter().any(|e| e.field == "input_file"),
+            "expected input_file error for missing file, got {:?}",
+            errs
+        );
     }
 
     #[test]
@@ -191,8 +197,11 @@ mod tests {
         let errs = m.validate(&json!({
             "input_file": tmp.path().to_string_lossy(),
         }));
-        assert!(errs.iter().any(|e| e.field == "target_format"),
-            "expected target_format error, got {:?}", errs);
+        assert!(
+            errs.iter().any(|e| e.field == "target_format"),
+            "expected target_format error, got {:?}",
+            errs
+        );
     }
 
     #[test]
@@ -256,12 +265,15 @@ mod tests {
         let input = PathBuf::from("/data/anno.gff3");
         let output = PathBuf::from("/runs/anno.gtf");
         let argv = build_argv(&input, &output, TargetFormat::Gtf, &[]);
-        assert_eq!(argv, vec![
-            os("/data/anno.gff3"),
-            os("-T"),
-            os("-o"),
-            os("/runs/anno.gtf"),
-        ]);
+        assert_eq!(
+            argv,
+            vec![
+                os("/data/anno.gff3"),
+                os("-T"),
+                os("-o"),
+                os("/runs/anno.gtf"),
+            ]
+        );
     }
 
     #[test]
@@ -269,11 +281,10 @@ mod tests {
         let input = PathBuf::from("/data/anno.gtf");
         let output = PathBuf::from("/runs/anno.gff3");
         let argv = build_argv(&input, &output, TargetFormat::Gff3, &[]);
-        assert_eq!(argv, vec![
-            os("/data/anno.gtf"),
-            os("-o"),
-            os("/runs/anno.gff3"),
-        ]);
+        assert_eq!(
+            argv,
+            vec![os("/data/anno.gtf"), os("-o"), os("/runs/anno.gff3"),]
+        );
     }
 
     #[test]
@@ -282,13 +293,16 @@ mod tests {
         let output = PathBuf::from("/runs/anno.gtf");
         let extras = vec!["--keep-comments".to_string(), "--force-exons".to_string()];
         let argv = build_argv(&input, &output, TargetFormat::Gtf, &extras);
-        assert_eq!(argv, vec![
-            os("/data/anno.gff3"),
-            os("-T"),
-            os("-o"),
-            os("/runs/anno.gtf"),
-            os("--keep-comments"),
-            os("--force-exons"),
-        ]);
+        assert_eq!(
+            argv,
+            vec![
+                os("/data/anno.gff3"),
+                os("-T"),
+                os("-o"),
+                os("/runs/anno.gtf"),
+                os("--keep-comments"),
+                os("--force-exons"),
+            ]
+        );
     }
 }
