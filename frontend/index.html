@@ -31,6 +31,17 @@
             if (cmd === 'run_module' && args.moduleId === 'star_index') {
               return Promise.resolve('mock-run-' + Date.now());
             }
+            if (cmd === 'run_module' && args.moduleId === 'star_align') {
+              return Promise.resolve('mock-run-align-' + Date.now());
+            }
+            if (cmd === 'read_table_preview') {
+              return Promise.resolve([
+                ['gene_id', 'S1', 'S2'],
+                ['GENE_A', '100', '50'],
+                ['GENE_B', '200', '0'],
+                ['GENE_D', '0', '300'],
+              ]);
+            }
             return Promise.resolve(null);
           }
         },

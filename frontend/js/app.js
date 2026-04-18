@@ -112,6 +112,7 @@
       });
     }
     else if (view === 'star-index') content.innerHTML = renderStarIndex();
+    else if (view === 'star-align') content.innerHTML = renderStarAlign();
     else content.innerHTML = renderModule(view);
 
     if (window.lucide) lucide.createIcons();
@@ -577,8 +578,123 @@
   }
 
 
+  // ── STAR Alignment ────────────────────────────────────────
+  function renderStarAlign() {
+    return `
+    <h2>STAR Alignment &amp; Quantification</h2>
+    <p>Map FASTQ reads to a pre-built STAR index and produce per-sample BAM, gene counts, and a merged counts matrix.</p>
+    <form id="form-star-align">
+      <label>Genome index directory
+        <input type="text" name="genome_dir" required placeholder="/path/to/star_index" />
+        <button type="button" data-pick-for="genome_dir" data-pick-mode="dir">Browse…</button>
+      </label>
+      <label>R1 FASTQ files (one per sample)
+        <input type="text" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz /path/to/S2_R1.fq.gz" />
+        <button type="button" data-pick-for="reads_1" data-pick-mode="multi">Browse…</button>
+      </label>
+      <label>R2 FASTQ files (optional, paired-end)
+        <input type="text" name="reads_2" placeholder="/path/to/S1_R2.fq.gz /path/to/S2_R2.fq.gz" />
+        <button type="button" data-pick-for="reads_2" data-pick-mode="multi">Browse…</button>
+      </label>
+      <label>Sample names (optional, one per line; defaults from R1 filename)
+        <textarea name="sample_names" placeholder="S1&#10;S2"></textarea>
+      </label>
+      <label>Threads <input type="number" name="threads" value="4" min="1" /></label>
+      <fieldset>
+        <legend>Strand</legend>
+        <label><input type="radio" name="strand" value="unstranded" checked /> unstranded</label>
+        <label><input type="radio" name="strand" value="forward" /> forward</label>
+        <label><input type="radio" name="strand" value="reverse" /> reverse</label>
+      </fieldset>
+      <details><summary>Advanced</summary>
+        <label>Extra args (one per line)
+          <textarea name="extra_args" placeholder="--outFilterMultimapNmax 10"></textarea>
+        </label>
+      </details>
+      <button type="submit">Run Alignment</button>
+    </form>
+    <div id="star-align-runs"></div>
+  `;
+  }
+
+  async function submitStarAlign(form) {
+    const fd = new FormData(form);
+    const splitPaths = (s) => (s || '').toString().split(/\s+/).map(x => x.trim()).filter(Boolean);
+    const splitLines = (s) => (s || '').toString().split('\n').map(x => x.trim()).filter(Boolean);
+    const params = {
+      genome_dir:    fd.get('genome_dir'),
+      reads_1:       splitPaths(fd.get('reads_1')),
+      reads_2:       splitPaths(fd.get('reads_2')),
+      sample_names:  splitLines(fd.get('sample_names')),
+      threads:       parseInt(fd.get('threads'), 10) || 4,
+      strand:        fd.get('strand') || 'unstranded',
+      extra_args:    splitLines(fd.get('extra_args')),
+    };
+    if (params.sample_names.length === 0) delete params.sample_names;
+    if (params.reads_2.length === 0)     delete params.reads_2;
+    try {
+      const runId = await window.__TAURI__.core.invoke('run_module', { moduleId: 'star_align', params });
+      state.currentRunId = runId;
+      navigate('star-align');
+    } catch (err) { alert('Failed to start run: ' + err); }
+  }
+
+  function renderStarAlignResult(result) {
+    const samples = (result.summary && result.summary.samples) || [];
+    const matrixPath = result.summary && result.summary.counts_matrix;
+    const data = {
+      names: samples.map(s => s.name),
+      uniq:  samples.map(s => (s.stats && s.stats.uniquely_mapped) || 0),
+      multi: samples.map(s => (s.stats && s.stats.multi_mapped) || 0),
+      unmap: samples.map(s => (s.stats && s.stats.unmapped) || 0),
+    };
+    setTimeout(() => renderMappingRateChart('star-align-chart', data), 0);
+
+    let previewHtml = '<p><em>No counts matrix produced</em></p>';
+    if (matrixPath) {
+      window.__TAURI__.core.invoke('read_table_preview', { path: matrixPath, max_rows: 50, max_cols: 10 })
+        .then(rows => {
+          const el = document.getElementById('star-align-preview');
+          if (!el || !rows || rows.length === 0) return;
+          const header = rows[0].map(c => `<th>${c}</th>`).join('');
+          const body = rows.slice(1).map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
+          el.innerHTML = `<table class="preview-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+        }).catch(() => {});
+    }
+
+    return `
+    <h3>Mapping rate</h3>
+    <div id="star-align-chart" style="width: 100%; height: 320px;"></div>
+    <h3>Counts matrix preview (first 50 × 10)</h3>
+    <div id="star-align-preview">Loading…</div>
+    ${matrixPath ? `<button id="star-to-deseq" data-matrix="${matrixPath}">Use this matrix in DESeq2</button>` : ''}
+    ${previewHtml}
+  `;
+  }
+
+  function renderMappingRateChart(elId, data) {
+    const el = document.getElementById(elId);
+    if (!el || !window.echarts) return;
+    const chart = window.echarts.init(el, ECHART_THEME);
+    chart.setOption({
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { data: ['Unique', 'Multi', 'Unmapped'] },
+      grid: { left: 60, right: 20, top: 40, bottom: 50 },
+      xAxis: { type: 'category', data: data.names },
+      yAxis: { type: 'value', name: 'Reads' },
+      series: [
+        { name: 'Unique',   type: 'bar', stack: 'total', data: data.uniq },
+        { name: 'Multi',    type: 'bar', stack: 'total', data: data.multi },
+        { name: 'Unmapped', type: 'bar', stack: 'total', data: data.unmap },
+      ],
+    });
+  }
+
+
   // ── Differential Expression ────────────────────────────────
   function renderDifferential() {
+    const prefill = (state.prefill && state.prefill.differential) || {};
+    state.prefill = {};
     return `
       <div class="module-layout">
         <div>
@@ -587,11 +703,13 @@
             <div class="panel-body">
               <div class="form-group">
                 <label class="form-label">Count Matrix (TSV)</label>
-                <div class="file-drop-zone" data-module="differential" data-accept=".tsv,.csv,.txt" style="padding:20px">
+                ${prefill.counts_matrix
+                  ? `<input type="text" class="form-input" id="deseq-counts-matrix" value="${prefill.counts_matrix}" placeholder="/path/to/counts_matrix.tsv">`
+                  : `<div class="file-drop-zone" data-module="differential" data-accept=".tsv,.csv,.txt" style="padding:20px">
                   <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="table"></i></div>
                   <div class="file-drop-text" style="font-size:0.85rem">Drop counts matrix file</div>
                   <div class="file-drop-hint">Genes in rows, samples in columns (TSV)</div>
-                </div>
+                </div>`}
               </div>
               <div class="form-group">
                 <label class="form-label">Sample Information (TSV)</label>
@@ -1251,16 +1369,36 @@
       if (e.target.id === 'form-star-index') { e.preventDefault(); submitStarIndex(e.target); }
     });
 
-    // Generic file-pick handler for data-pick-for buttons
+    // STAR Alignment: form submit
+    document.addEventListener('submit', (e) => {
+      if (e.target.id === 'form-star-align') { e.preventDefault(); submitStarAlign(e.target); }
+    });
+
+    // DESeq2 handoff button
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#star-to-deseq');
+      if (!btn) return;
+      state.prefill = state.prefill || {};
+      state.prefill.differential = { counts_matrix: btn.dataset.matrix };
+      navigate('differential');
+    });
+
+    // Generic file-pick handler for data-pick-for buttons (supports data-pick-mode: file|multi|dir)
     document.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-pick-for]');
       if (!btn) return;
-      const field = btn.dataset.pickFor;
-      const picked = await window.__TAURI__.core.invoke('select_files', { multiple: false });
-      if (picked && picked[0]) {
-        const input = btn.parentElement.querySelector(`input[name="${field}"]`);
-        if (input) input.value = picked[0];
+      const mode = btn.dataset.pickMode || 'file';
+      let picked;
+      if (mode === 'dir') {
+        picked = await window.__TAURI__.core.invoke('select_directory');
+      } else {
+        picked = await window.__TAURI__.core.invoke('select_files', { multiple: mode === 'multi' });
       }
+      const field = btn.dataset.pickFor;
+      const input = btn.parentElement.querySelector(`[name="${field}"]`);
+      if (!input) return;
+      if (Array.isArray(picked)) input.value = picked.join(' ');
+      else if (picked) input.value = picked;
     });
 
     // Settings: binary path browse / clear buttons
