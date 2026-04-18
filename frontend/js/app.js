@@ -8,6 +8,7 @@
 
   // ── i18n helper (falls back to key if i18n.js failed to load) ─
   const t = (k, v) => (window.I18N ? window.I18N.t(k, v) : k);
+  const navKey = (id) => 'nav.' + String(id).replace(/-/g, '_');
 
   // ── Configuration ──────────────────────────────────────────
   const MODULES = [
@@ -139,7 +140,7 @@
       const connector = i < MODULES.length - 1
         ? '<div class="pipeline-connector"><div class="pipeline-connector-line"></div></div>'
         : '';
-      const nameKey = 'nav.' + m.id.replace(/-/g, '_');
+      const nameKey = navKey(m.id);
       return `
         <div class="pipeline-stage animate-slide-up" style="animation-delay: ${i * 60}ms">
           <div class="pipeline-node ${m.status}" data-view="${m.id}" style="--node-color: ${COLOR_MAP[m.color]}">
@@ -305,7 +306,7 @@
     if (!mod) return renderEmptyState(t('common.module_not_found'));
 
     const hex = COLOR_MAP[mod.color];
-    const nameKey = 'nav.' + mod.id.replace(/-/g, '_');
+    const nameKey = navKey(mod.id);
     const header = `
       <div class="module-header animate-slide-up">
         <div class="module-icon" style="background: ${hex}12; color: ${hex};">
@@ -1100,7 +1101,7 @@
 
   // ── Coming Soon ────────────────────────────────────────────
   function renderComingSoon(mod) {
-    const nameKey = 'nav.' + mod.id.replace(/-/g, '_');
+    const nameKey = navKey(mod.id);
     return `
       <div class="card animate-slide-up" style="animation-delay:100ms">
         <div class="empty-state" style="padding:64px 24px">
@@ -1648,8 +1649,8 @@
     const st = document.getElementById('statusText');
     const js = document.getElementById('jobStatus');
     const mod = MODULES.find(m => m.id === id);
-    const nameKey = 'nav.' + (mod ? mod.id.replace(/-/g, '_') : id);
-    st.textContent = `${t('status.running_prefix')} ${mod ? t(nameKey) : id}…`;
+    const displayName = mod ? t(navKey(mod.id)) : id;
+    st.textContent = `${t('status.running_prefix')} ${displayName}…`;
     js.textContent = t('status.one_job');
     const badge = document.querySelector(`.nav-item[data-view="${id}"] .nav-badge`);
     if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
