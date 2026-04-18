@@ -12,6 +12,7 @@ fn main() {
     registry.register(Arc::new(rb_deseq2::DeseqModule));
     registry.register(Arc::new(rb_qc::QcModule));
     registry.register(Arc::new(rb_trimming::TrimmingModule));
+    registry.register(Arc::new(rb_gff_convert::GffConvertModule));
     registry.register(Arc::new(rb_star_index::StarIndexModule));
     registry.register(Arc::new(rb_star_align::StarAlignModule));
 
