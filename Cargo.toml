@@ -3,11 +3,12 @@ resolver = "2"
 members = [
     "crates/rb-core",
     "crates/rb-app",
-    "crates/rb-qc",
-    "crates/rb-trimming",
     "crates/rb-deseq2",
-    "crates/rb-star-index",
+    "crates/rb-gff-convert",
+    "crates/rb-qc",
     "crates/rb-star-align",
+    "crates/rb-star-index",
+    "crates/rb-trimming",
 ]
 
 [workspace.dependencies]

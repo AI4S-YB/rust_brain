@@ -1,0 +1,15 @@
+[package]
+name = "rb-gff-convert"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rb-core = { path = "../rb-core" }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
