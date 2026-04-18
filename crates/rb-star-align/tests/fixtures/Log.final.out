@@ -1,0 +1,26 @@
+                                 Started job on |	Apr 18 10:00:00
+                             Started mapping on |	Apr 18 10:00:05
+                                    Finished on |	Apr 18 10:05:00
+       Mapping speed, Million of reads per hour |	120.00
+
+                          Number of input reads |	10000000
+                      Average input read length |	100
+
+                                    UNIQUE READS:
+                   Uniquely mapped reads number |	9000000
+                        Uniquely mapped reads % |	90.00%
+                          Average mapped length |	99.50
+
+                             MULTI-MAPPING READS:
+        Number of reads mapped to multiple loci |	500000
+             % of reads mapped to multiple loci |	5.00%
+        Number of reads mapped to too many loci |	0
+             % of reads mapped to too many loci |	0.00%
+
+                                 UNMAPPED READS:
+ Number of reads unmapped: too many mismatches |	100000
+      % of reads unmapped: too many mismatches |	1.00%
+           Number of reads unmapped: too short |	300000
+                % of reads unmapped: too short |	3.00%
+               Number of reads unmapped: other |	100000
+                    % of reads unmapped: other |	1.00%
