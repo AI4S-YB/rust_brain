@@ -1,4 +1,6 @@
-use rb_core::module::{Module, ModuleError, ModuleResult, Progress, ValidationError};
+use rb_core::cancel::CancellationToken;
+use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
+use rb_core::run_event::RunEvent;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 
@@ -42,7 +44,8 @@ impl Module for QcModule {
         &self,
         params: &serde_json::Value,
         project_dir: &Path,
-        progress_tx: mpsc::Sender<Progress>,
+        events_tx: mpsc::Sender<RunEvent>,
+        _cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError> {
         let errors = self.validate(params);
         if !errors.is_empty() {
@@ -66,8 +69,8 @@ impl Module for QcModule {
 
         for (idx, input_path) in input_files.iter().enumerate() {
             let fraction = idx as f64 / total as f64;
-            let _ = progress_tx
-                .send(Progress {
+            let _ = events_tx
+                .send(RunEvent::Progress {
                     fraction,
                     message: format!(
                         "Processing {} ({}/{})",
@@ -130,8 +133,8 @@ impl Module for QcModule {
             }
         }
 
-        let _ = progress_tx
-            .send(Progress {
+        let _ = events_tx
+            .send(RunEvent::Progress {
                 fraction: 1.0,
                 message: "Done".to_string(),
             })

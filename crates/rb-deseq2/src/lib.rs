@@ -1,4 +1,6 @@
-use rb_core::module::{Module, ModuleError, ModuleResult, Progress, ValidationError};
+use rb_core::cancel::CancellationToken;
+use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
+use rb_core::run_event::RunEvent;
 use std::path::Path;
 use tokio::sync::mpsc;
 
@@ -36,7 +38,8 @@ impl Module for DeseqModule {
         &self,
         params: &serde_json::Value,
         project_dir: &Path,
-        progress_tx: mpsc::Sender<Progress>,
+        events_tx: mpsc::Sender<RunEvent>,
+        _cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError> {
         let errors = self.validate(params);
         if !errors.is_empty() {
@@ -49,8 +52,8 @@ impl Module for DeseqModule {
         let reference = params["reference"].as_str().unwrap().to_string();
         let output_dir = project_dir.to_path_buf();
 
-        let _ = progress_tx
-            .send(Progress {
+        let _ = events_tx
+            .send(RunEvent::Progress {
                 fraction: 0.0,
                 message: "Loading count matrix and coldata...".to_string(),
             })
@@ -83,8 +86,8 @@ impl Module for DeseqModule {
 
         let (gene_results, output_dir) = results;
 
-        let _ = progress_tx
-            .send(Progress {
+        let _ = events_tx
+            .send(RunEvent::Progress {
                 fraction: 0.8,
                 message: "Writing results TSV...".to_string(),
             })
@@ -114,8 +117,8 @@ impl Module for DeseqModule {
             }
         }
 
-        let _ = progress_tx
-            .send(Progress {
+        let _ = events_tx
+            .send(RunEvent::Progress {
                 fraction: 1.0,
                 message: "Done".to_string(),
             })
