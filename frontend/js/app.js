@@ -6,6 +6,9 @@
 (function () {
   'use strict';
 
+  // ── i18n helper (falls back to key if i18n.js failed to load) ─
+  const t = (k, v) => (window.I18N ? window.I18N.t(k, v) : k);
+
   // ── Configuration ──────────────────────────────────────────
   const MODULES = [
     { id: 'qc',             name: 'QC Analysis',          icon: 'microscope',  color: 'teal',   tool: 'fastqc-rs',    status: 'ready' },
@@ -93,14 +96,15 @@
     });
 
     const bc = document.getElementById('breadcrumb');
-    const label = view === 'dashboard' ? 'Dashboard'
-      : view === 'settings' ? 'Settings'
-      : view === 'gff-convert' ? 'GFF Convert'
-      : view === 'star-index' ? 'STAR Index'
-      : view === 'star-align' ? 'STAR Alignment'
-      : MODULES.find(m => m.id === view)?.name || view;
+    const KNOWN_VIEWS = new Set([
+      'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align',
+      ...MODULES.map(m => m.id),
+    ]);
+    const label = KNOWN_VIEWS.has(view)
+      ? t('nav.' + view.replace(/-/g, '_'))
+      : view;
     bc.innerHTML = `
-      <span class="breadcrumb-home">RustBrain</span>
+      <span class="breadcrumb-home">${t('brand.name')}</span>
       <i data-lucide="chevron-right" class="breadcrumb-sep"></i>
       <span class="breadcrumb-current">${label}</span>
     `;
@@ -1568,6 +1572,27 @@
         } catch (err) { alert('Failed: ' + err); }
       }
     });
+
+    // Language toggle (header buttons)
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.I18N) window.I18N.setLang(btn.dataset.lang);
+      });
+    });
+
+    const syncLangButtons = () => {
+      const cur = window.I18N ? window.I18N.getLang() : 'en';
+      document.querySelectorAll('.lang-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === cur);
+      });
+    };
+    syncLangButtons();
+
+    // Re-render dynamic content when language changes
+    window.addEventListener('langchange', () => {
+      syncLangButtons();
+      navigate(state.currentView);
+    });
   }
 
   function handleFileDrop(zone, fileList) {
@@ -1679,6 +1704,7 @@
 
   // ── Init ───────────────────────────────────────────────────
   function init() {
+    if (window.I18N) window.I18N.applyI18n(document);
     setupEvents();
 
     // Tauri event listeners
