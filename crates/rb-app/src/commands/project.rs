@@ -17,17 +17,32 @@ pub struct ProjectInfo {
 
 fn setup_runner(project: Project, app: &AppHandle) -> Runner {
     let project_arc = Arc::new(tokio::sync::Mutex::new(project));
-    let app_handle = app.clone();
-    Runner::new(project_arc).on_progress(Box::new(move |run_id, progress| {
-        let _ = app_handle.emit(
-            "run-progress",
-            serde_json::json!({
-                "runId": run_id,
-                "fraction": progress.fraction,
-                "message": progress.message,
-            }),
-        );
-    }))
+    let app_for_prog = app.clone();
+    let app_for_log = app.clone();
+    Runner::new(project_arc)
+        .on_progress(Box::new(move |run_id, progress| {
+            let _ = app_for_prog.emit(
+                "run-progress",
+                serde_json::json!({
+                    "runId": run_id,
+                    "fraction": progress.fraction,
+                    "message": progress.message,
+                }),
+            );
+        }))
+        .on_log(Box::new(move |run_id, line, stream| {
+            let _ = app_for_log.emit(
+                "run-log",
+                serde_json::json!({
+                    "runId": run_id,
+                    "line": line,
+                    "stream": match stream {
+                        rb_core::run_event::LogStream::Stdout => "stdout",
+                        rb_core::run_event::LogStream::Stderr => "stderr",
+                    },
+                }),
+            );
+        }))
 }
 
 #[tauri::command]
