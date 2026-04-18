@@ -22,6 +22,11 @@ pub const KNOWN_BINARIES: &[KnownBinary] = &[
         display_name: "cutadapt-rs",
         install_hint: "Build from https://github.com/AI4S-YB/cutadapt-rs and set the path in Settings, or add the `cutadapt-rs` binary to PATH.",
     },
+    KnownBinary {
+        id: "gffread-rs",
+        display_name: "gffread-rs",
+        install_hint: "Prebuilt binaries at https://github.com/AI4S-YB/gffread_rs/releases — drop on PATH or set the path in Settings.",
+    },
 ];
 
 #[derive(Debug, thiserror::Error)]
@@ -318,5 +323,6 @@ mod tests {
         let ids: Vec<_> = r.list_known().into_iter().map(|b| b.id).collect();
         assert!(ids.contains(&"star".to_string()));
         assert!(ids.contains(&"cutadapt-rs".to_string()));
+        assert!(ids.contains(&"gffread-rs".to_string()));
     }
 }
