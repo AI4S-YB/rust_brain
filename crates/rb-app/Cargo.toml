@@ -13,6 +13,7 @@ rb-deseq2 = { path = "../rb-deseq2" }
 rb-qc = { path = "../rb-qc" }
 rb-trimming = { path = "../rb-trimming" }
 rb-star-index = { path = "../rb-star-index" }
+rb-star-align = { path = "../rb-star-align" }
 rfd = "0.15"
 
 [build-dependencies]

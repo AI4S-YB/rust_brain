@@ -12,7 +12,7 @@ fn main() {
     registry.register(Arc::new(rb_qc::QcModule));
     registry.register(Arc::new(rb_trimming::TrimmingModule));
     registry.register(Arc::new(rb_star_index::StarIndexModule));
-    // star_align registered in Task 18
+    registry.register(Arc::new(rb_star_align::StarAlignModule));
 
     tauri::Builder::default()
         .manage(AppState::new(registry))
