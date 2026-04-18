@@ -1,0 +1,3 @@
+chr1	handwritten	gene	1	100	.	+	.	gene_id "GENE_TEST";
+chr1	handwritten	transcript	1	100	.	+	.	gene_id "GENE_TEST"; transcript_id "T1";
+chr1	handwritten	exon	1	100	.	+	.	gene_id "GENE_TEST"; transcript_id "T1";
