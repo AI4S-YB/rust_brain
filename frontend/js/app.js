@@ -65,6 +65,11 @@
     listen(event, callback) { return window.__TAURI__.event.listen(event, callback); }
   };
 
+  // ── XSS helper ────────────────────────────────────────────
+  const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+
   // ── TSV export ─────────────────────────────────────────────
   function exportTableAsTSV(tableId, filename) {
     const table = document.getElementById(tableId);
@@ -551,12 +556,13 @@
       <label>genomeSAindexNbases <input type="number" name="genome_sa_index_nbases" value="14" min="1" max="18" /></label>
       <details><summary>Advanced</summary>
         <label>Extra args (one per line)
-          <textarea name="extra_args" placeholder="--limitGenomeGenerateRAM 31000000000"></textarea>
+          <textarea name="extra_args" placeholder="--limitGenomeGenerateRAM&#10;31000000000"></textarea>
         </label>
       </details>
       <button type="submit">Build Index</button>
     </form>
     <div id="star-index-runs"></div>
+    ${renderLogPanel('star_index')}
   `;
   }
 
@@ -573,6 +579,8 @@
     };
     try {
       const runId = await window.__TAURI__.core.invoke('run_module', { moduleId: 'star_index', params });
+      state.runIdToModule = state.runIdToModule || {};
+      state.runIdToModule[runId] = 'star_index';
       navigate('star-index');
     } catch (err) { alert('Failed to start run: ' + err); }
   }
@@ -608,12 +616,13 @@
       </fieldset>
       <details><summary>Advanced</summary>
         <label>Extra args (one per line)
-          <textarea name="extra_args" placeholder="--outFilterMultimapNmax 10"></textarea>
+          <textarea name="extra_args" placeholder="--outFilterMultimapNmax&#10;10"></textarea>
         </label>
       </details>
       <button type="submit">Run Alignment</button>
     </form>
     <div id="star-align-runs"></div>
+    ${renderLogPanel('star_align')}
   `;
   }
 
@@ -634,12 +643,19 @@
     if (params.reads_2.length === 0)     delete params.reads_2;
     try {
       const runId = await window.__TAURI__.core.invoke('run_module', { moduleId: 'star_align', params });
+      state.runIdToModule = state.runIdToModule || {};
+      state.runIdToModule[runId] = 'star_align';
       state.currentRunId = runId;
       navigate('star-align');
     } catch (err) { alert('Failed to start run: ' + err); }
   }
 
-  function renderStarAlignResult(result) {
+  function renderStarAlignResult(result, runId) {
+    const suffix = runId || 'current';
+    const chartId = `star-align-chart-${suffix}`;
+    const previewId = `star-align-preview-${suffix}`;
+    const btnId = `star-to-deseq-${suffix}`;
+
     const samples = (result.summary && result.summary.samples) || [];
     const matrixPath = result.summary && result.summary.counts_matrix;
     const data = {
@@ -648,26 +664,28 @@
       multi: samples.map(s => (s.stats && s.stats.multi_mapped) || 0),
       unmap: samples.map(s => (s.stats && s.stats.unmapped) || 0),
     };
-    setTimeout(() => renderMappingRateChart('star-align-chart', data), 0);
+    setTimeout(() => renderMappingRateChart(chartId, data), 0);
 
-    let previewHtml = '<p><em>No counts matrix produced</em></p>';
+    let previewHtml = '';
     if (matrixPath) {
       window.__TAURI__.core.invoke('read_table_preview', { path: matrixPath, max_rows: 50, max_cols: 10 })
         .then(rows => {
-          const el = document.getElementById('star-align-preview');
+          const el = document.getElementById(previewId);
           if (!el || !rows || rows.length === 0) return;
           const header = rows[0].map(c => `<th>${c}</th>`).join('');
           const body = rows.slice(1).map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
           el.innerHTML = `<table class="preview-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
         }).catch(() => {});
+    } else {
+      previewHtml = '<p><em>No counts matrix produced</em></p>';
     }
 
     return `
     <h3>Mapping rate</h3>
-    <div id="star-align-chart" style="width: 100%; height: 320px;"></div>
+    <div id="${chartId}" style="width: 100%; height: 320px;"></div>
     <h3>Counts matrix preview (first 50 × 10)</h3>
-    <div id="star-align-preview">Loading…</div>
-    ${matrixPath ? `<button id="star-to-deseq" data-matrix="${matrixPath}">Use this matrix in DESeq2</button>` : ''}
+    <div id="${previewId}">Loading…</div>
+    ${matrixPath ? `<button id="${btnId}" data-matrix="${matrixPath}">Use this matrix in DESeq2</button>` : ''}
     ${previewHtml}
   `;
   }
@@ -1028,8 +1046,8 @@
     const rows = statuses.map(s => `
       <tr>
         <td>${s.display_name}</td>
-        <td class="path">${s.configured_path ?? '<em>(not set)</em>'}</td>
-        <td class="path">${s.detected_on_path ?? '<em>(not on PATH)</em>'}</td>
+        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : '<em>(not set)</em>'}</td>
+        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : '<em>(not on PATH)</em>'}</td>
         <td>${s.configured_path || s.detected_on_path ? '<span class="ok">OK</span>' : '<span class="warn">Missing</span>'}</td>
         <td>
           <button data-act="browse" data-id="${s.id}">Browse…</button>
@@ -1050,12 +1068,12 @@
 
   // ── Charts ─────────────────────────────────────────────────
   // ── Per-module result HTML dispatcher ─────────────────────
-  function renderRunResultHtml(moduleId, result) {
+  function renderRunResultHtml(moduleId, result, runId) {
     let html = '';
     switch (moduleId) {
-      case 'star_align': html = renderStarAlignResult(result); break;
-      case 'star_index': html = `<pre>${JSON.stringify(result.summary, null, 2)}</pre>`; break;
-      default: html = `<pre>${JSON.stringify(result, null, 2)}</pre>`; break;
+      case 'star_align': html = renderStarAlignResult(result, runId); break;
+      case 'star_index': html = `<pre>${escapeHtml(JSON.stringify(result.summary, null, 2))}</pre>`; break;
+      default: html = `<pre>${escapeHtml(JSON.stringify(result, null, 2))}</pre>`; break;
     }
     return html;
   }
@@ -1073,7 +1091,7 @@
         const status = run.status || 'unknown';
         const ts = run.finished_at || run.started_at || '';
         const resultHtml = (status === 'Done' && run.result)
-          ? renderRunResultHtml(moduleId, run.result)
+          ? renderRunResultHtml(moduleId, run.result, run.id)
           : `<p><em>Status: ${status}</em></p>`;
         return `<details open><summary>Run ${run.id} &mdash; ${status} ${ts ? '(' + ts + ')' : ''}</summary>${resultHtml}</details>`;
       }).join('');
@@ -1411,7 +1429,7 @@
 
     // DESeq2 handoff button
     document.addEventListener('click', (e) => {
-      const btn = e.target.closest('#star-to-deseq');
+      const btn = e.target.closest('[id^="star-to-deseq"]');
       if (!btn) return;
       state.prefill = state.prefill || {};
       state.prefill.differential = { counts_matrix: btn.dataset.matrix };
@@ -1513,8 +1531,8 @@
 
     const params = collectModuleParams(id);
     try {
-      await api.invoke('validate_params', { module: id, params });
-      const runId = await api.invoke('run_module', { module: id, params });
+      await api.invoke('validate_params', { moduleId: id, params });
+      const runId = await api.invoke('run_module', { moduleId: id, params });
       if (runId) state.runIdToModule[runId] = id;
     } catch (err) {
       console.warn(`[runModule] invoke failed for ${id}:`, err);
@@ -1533,11 +1551,10 @@
   state.runIdToModule = state.runIdToModule || {};
 
   function appendRunLog(runId, line, stream) {
-    const buf = (state.logsByRun[runId] = state.logsByRun[runId] || []);
+    const panelKey = state.runIdToModule[runId] || runId;
+    const buf = (state.logsByRun[panelKey] = state.logsByRun[panelKey] || []);
     buf.push({ line, stream });
     while (buf.length > LOG_BUFFER_MAX) buf.shift();
-    // resolve panel key: prefer module id mapping, fall back to runId
-    const panelKey = state.runIdToModule[runId] || runId;
     const panel = document.querySelector(`[data-log-panel="${panelKey}"] pre`);
     if (panel) {
       const prefix = stream === 'stderr' ? '' : '[out] ';
@@ -1553,7 +1570,7 @@
     const text = existing.map(e => (e.stream === 'stderr' ? '' : '[out] ') + e.line).join('\n');
     return `<details class="log-panel" data-log-panel="${panelKey}">
     <summary>Log</summary>
-    <pre>${text}</pre>
+    <pre>${escapeHtml(text)}</pre>
   </details>`;
   }
 
