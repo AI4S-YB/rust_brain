@@ -364,6 +364,7 @@
               <button class="btn btn-secondary btn-sm" onclick="resetForm('qc')"><i data-lucide="rotate-ccw"></i> Reset</button>
               <button class="btn btn-primary btn-sm" onclick="runModule('qc')"><i data-lucide="play"></i> Run QC</button>
             </div>
+            ${renderLogPanel('qc')}
           </div>
         </div>
         <div>
@@ -473,6 +474,7 @@
               <button class="btn btn-secondary btn-sm" onclick="resetForm('trimming')"><i data-lucide="rotate-ccw"></i> Reset</button>
               <button class="btn btn-primary btn-sm" onclick="runModule('trimming')" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> Run Trimming</button>
             </div>
+            ${renderLogPanel('trimming')}
           </div>
         </div>
         <div>
@@ -571,6 +573,7 @@
               <button class="btn btn-secondary btn-sm" onclick="resetForm('differential')"><i data-lucide="rotate-ccw"></i> Reset</button>
               <button class="btn btn-primary btn-sm" onclick="runModule('differential')" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> Run DESeq2</button>
             </div>
+            ${renderLogPanel('differential')}
           </div>
         </div>
         <div>
@@ -681,6 +684,7 @@
               <button class="btn btn-secondary btn-sm"><i data-lucide="zap"></i> Pick Threshold</button>
               <button class="btn btn-primary btn-sm" onclick="runModule('network')" style="background:var(--mod-green);border-color:var(--mod-green)"><i data-lucide="play"></i> Run WGCNA</button>
             </div>
+            ${renderLogPanel('network')}
           </div>
         </div>
         <div>
@@ -1241,7 +1245,8 @@
     const params = collectModuleParams(id);
     try {
       await api.invoke('validate_params', { module: id, params });
-      await api.invoke('run_module', { module: id, params });
+      const runId = await api.invoke('run_module', { module: id, params });
+      if (runId) state.runIdToModule[runId] = id;
     } catch (err) {
       console.warn(`[runModule] invoke failed for ${id}:`, err);
     }
@@ -1251,6 +1256,46 @@
   };
 
   window.resetForm = function (id) { state.files[id] = []; navigate(id); };
+
+
+  // --- run-log streaming support (shared across all modules) ---
+  const LOG_BUFFER_MAX = 500;
+  state.logsByRun = state.logsByRun || {};
+  state.runIdToModule = state.runIdToModule || {};
+
+  function appendRunLog(runId, line, stream) {
+    const buf = (state.logsByRun[runId] = state.logsByRun[runId] || []);
+    buf.push({ line, stream });
+    while (buf.length > LOG_BUFFER_MAX) buf.shift();
+    // resolve panel key: prefer module id mapping, fall back to runId
+    const panelKey = state.runIdToModule[runId] || runId;
+    const panel = document.querySelector(`[data-log-panel="${panelKey}"] pre`);
+    if (panel) {
+      const prefix = stream === 'stderr' ? '' : '[out] ';
+      panel.textContent += prefix + line + '\n';
+      if (!panel.dataset.userScrolled) {
+        panel.scrollTop = panel.scrollHeight;
+      }
+    }
+  }
+
+  function renderLogPanel(panelKey) {
+    const existing = state.logsByRun[panelKey] || [];
+    const text = existing.map(e => (e.stream === 'stderr' ? '' : '[out] ') + e.line).join('\n');
+    return `<details class="log-panel" data-log-panel="${panelKey}">
+    <summary>Log</summary>
+    <pre>${text}</pre>
+  </details>`;
+  }
+
+  // Attach pre-scroll-watch so auto-scroll respects user intent
+  document.addEventListener('scroll', (e) => {
+    const pre = e.target;
+    if (pre.tagName !== 'PRE' || !pre.closest('[data-log-panel]')) return;
+    const nearBottom = pre.scrollHeight - pre.scrollTop - pre.clientHeight < 20;
+    if (nearBottom) delete pre.dataset.userScrolled;
+    else pre.dataset.userScrolled = '1';
+  }, true);
 
 
   // ── Init ───────────────────────────────────────────────────
@@ -1276,6 +1321,14 @@
       if (st) st.textContent = `Error: ${event.payload?.message || 'Run failed'}`;
       console.error('[run-failed]', event.payload);
     });
+
+    // Wire up run-log streaming
+    if (window.__TAURI__?.event) {
+      window.__TAURI__.event.listen('run-log', (e) => {
+        const { runId, line, stream } = e.payload || {};
+        if (runId) appendRunLog(runId, line, stream);
+      });
+    }
 
     navigate(location.hash.slice(1) || 'dashboard');
     if (window.lucide) lucide.createIcons();
