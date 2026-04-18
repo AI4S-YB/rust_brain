@@ -106,12 +106,92 @@ impl Module for GffConvertModule {
 
     async fn run(
         &self,
-        _params: &serde_json::Value,
-        _project_dir: &Path,
-        _events_tx: mpsc::Sender<RunEvent>,
-        _cancel: CancellationToken,
+        params: &serde_json::Value,
+        project_dir: &Path,
+        events_tx: mpsc::Sender<RunEvent>,
+        cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError> {
-        Err(ModuleError::ToolError("not yet implemented".into()))
+        let errors = self.validate(params);
+        if !errors.is_empty() {
+            return Err(ModuleError::InvalidParams(errors));
+        }
+
+        let resolver = rb_core::binary::BinaryResolver::load()
+            .map_err(|e| ModuleError::ToolError(e.to_string()))?;
+        let bin = resolver
+            .resolve("gffread-rs")
+            .map_err(|e| ModuleError::ToolError(e.to_string()))?;
+
+        let input_str = params["input_file"].as_str().unwrap();
+        let input_path = Path::new(input_str);
+        let target_str = params["target_format"].as_str().unwrap();
+        let target = TargetFormat::from_str(target_str).expect("validated above");
+
+        let extra_args: Vec<String> = params
+            .get("extra_args")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|e| e.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let input_stem = input_path
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "output".into());
+        let output_path = project_dir.join(format!("{input_stem}.{}", target.ext()));
+
+        let _ = events_tx
+            .send(RunEvent::Progress {
+                fraction: 0.0,
+                message: format!("Converting {} → {}", input_str, target.ext().to_uppercase()),
+            })
+            .await;
+
+        let argv = build_argv(input_path, &output_path, target, &extra_args);
+        let start = std::time::Instant::now();
+        subprocess::run_streamed(&bin, &argv, events_tx.clone(), cancel).await?;
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+
+        let input_bytes = std::fs::metadata(input_path).map(|m| m.len()).unwrap_or(0);
+        let output_bytes = match std::fs::metadata(&output_path) {
+            Ok(m) => m.len(),
+            Err(_) => {
+                return Err(ModuleError::ToolError(format!(
+                    "expected output file {:?} was not created",
+                    output_path
+                )));
+            }
+        };
+        if output_bytes == 0 {
+            return Err(ModuleError::ToolError(
+                "gffread-rs produced no output records — check input file validity".into(),
+            ));
+        }
+
+        let _ = events_tx
+            .send(RunEvent::Progress {
+                fraction: 1.0,
+                message: "Done".into(),
+            })
+            .await;
+
+        let summary = serde_json::json!({
+            "input": input_str,
+            "output": output_path.to_string_lossy(),
+            "target_format": target_str,
+            "input_bytes": input_bytes,
+            "output_bytes": output_bytes,
+            "elapsed_ms": elapsed_ms,
+        });
+
+        Ok(ModuleResult {
+            output_files: vec![output_path],
+            summary,
+            log: String::new(),
+        })
     }
 }
 
