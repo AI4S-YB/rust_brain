@@ -101,7 +101,14 @@
     content.scrollTop = 0;
 
     if (view === 'dashboard') content.innerHTML = renderDashboard();
-    else if (view === 'settings') content.innerHTML = renderSettings();
+    else if (view === 'settings') {
+      content.innerHTML = '<h2>Settings — Binary Paths</h2><p>Loading…</p>';
+      renderSettings().then(html => {
+        const root = document.getElementById('content');
+        if (root && state.currentView === 'settings') root.innerHTML = html;
+        if (window.lucide) lucide.createIcons();
+      });
+    }
     else content.innerHTML = renderModule(view);
 
     if (window.lucide) lucide.createIcons();
@@ -843,33 +850,34 @@
   }
 
 
-  // ── Settings ───────────────────────────────────────────────
-  function renderSettings() {
+  // ── Settings View ──────────────────────────────────────────
+  async function renderSettings() {
+    let statuses = [];
+    try {
+      statuses = await window.__TAURI__.core.invoke('get_binary_paths');
+    } catch (e) {
+      return `<div class="error">Failed to load settings: ${e}</div>`;
+    }
+    const rows = statuses.map(s => `
+      <tr>
+        <td>${s.display_name}</td>
+        <td class="path">${s.configured_path ?? '<em>(not set)</em>'}</td>
+        <td class="path">${s.detected_on_path ?? '<em>(not on PATH)</em>'}</td>
+        <td>${s.configured_path || s.detected_on_path ? '<span class="ok">OK</span>' : '<span class="warn">Missing</span>'}</td>
+        <td>
+          <button data-act="browse" data-id="${s.id}">Browse…</button>
+          ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">Clear</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
     return `
-      <div class="module-view">
-        <div class="module-header animate-slide-up">
-          <div class="module-icon" style="background:rgba(59,110,165,0.08);color:var(--mod-blue)"><i data-lucide="settings"></i></div>
-          <div><h1 class="module-title">Settings</h1><p class="module-desc">Configure RustBrain and its tools</p></div>
-        </div>
-        <div class="settings-grid animate-slide-up" style="animation-delay:100ms">
-          <nav class="settings-nav">
-            <div class="settings-nav-item active" data-settings="general"><i data-lucide="sliders-horizontal"></i><span>General</span></div>
-            <div class="settings-nav-item" data-settings="tools"><i data-lucide="wrench"></i><span>Tool Paths</span></div>
-            <div class="settings-nav-item" data-settings="appearance"><i data-lucide="palette"></i><span>Appearance</span></div>
-            <div class="settings-nav-item" data-settings="about"><i data-lucide="info"></i><span>About</span></div>
-          </nav>
-          <div class="settings-content">
-            <h3 style="font-family:var(--font-display);font-size:1.15rem;margin-bottom:20px;color:var(--text-primary)">General Settings</h3>
-            <div class="form-group"><label class="form-label">Default Output Directory</label><input type="text" class="form-input" placeholder="/home/user/rnaseq_results"></div>
-            <div class="form-group"><label class="form-label">Default Threads</label><input type="number" class="form-input" value="4" min="1" max="64" style="width:120px"></div>
-            <div class="form-group"><label class="form-label">Temp Directory</label><input type="text" class="form-input" placeholder="/tmp/rustbrain"></div>
-            <hr class="divider">
-            <div class="form-group"><label class="form-label">Reference Genome Directory</label><input type="text" class="form-input" placeholder="/path/to/genomes"><span class="form-hint">Directory with reference genomes and indices</span></div>
-            <div class="form-group"><label class="form-label">Annotation File (GTF)</label><input type="text" class="form-input" placeholder="/path/to/annotation.gtf"><span class="form-hint">Gene annotation for quantification</span></div>
-            <div style="margin-top:24px"><button class="btn btn-primary btn-sm"><i data-lucide="save"></i> Save Settings</button></div>
-          </div>
-        </div>
-      </div>`;
+      <h2>Settings — Binary Paths</h2>
+      <p>When a binary is not on PATH, configure its full path here. Configured paths override PATH.</p>
+      <table class="settings-table">
+        <thead><tr><th>Tool</th><th>Configured</th><th>Detected on PATH</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    `;
   }
 
 
@@ -1187,6 +1195,28 @@
     window.addEventListener('hashchange', () => {
       const h = location.hash.slice(1) || 'dashboard';
       if (h !== state.currentView) navigate(h);
+    });
+
+    // Settings: binary path browse / clear buttons
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-act="browse"]');
+      if (btn) {
+        const picked = await window.__TAURI__.core.invoke('select_files', { multiple: false });
+        if (picked && picked[0]) {
+          try {
+            await window.__TAURI__.core.invoke('set_binary_path', { name: btn.dataset.id, path: picked[0] });
+            navigate('settings');
+          } catch (err) { alert('Failed: ' + err); }
+        }
+        return;
+      }
+      const clr = e.target.closest('[data-act="clear"]');
+      if (clr) {
+        try {
+          await window.__TAURI__.core.invoke('clear_binary_path', { name: clr.dataset.id });
+          navigate('settings');
+        } catch (err) { alert('Failed: ' + err); }
+      }
     });
   }
 

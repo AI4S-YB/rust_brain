@@ -1684,3 +1684,15 @@ input, select, textarea {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* ── Settings binary paths table ────────────────────────── */
+.settings-table { border-collapse: collapse; width: 100%; }
+.settings-table th, .settings-table td {
+  text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border, #e4decf);
+}
+.settings-table td.path {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+  max-width: 24rem; overflow: hidden; text-overflow: ellipsis;
+}
+.settings-table .ok   { color: var(--accent-teal, #1f6b5e); }
+.settings-table .warn { color: var(--accent-coral, #c46b4b); }

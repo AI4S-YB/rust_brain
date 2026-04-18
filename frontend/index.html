@@ -18,7 +18,19 @@
   <script>
     if (!window.__TAURI__) {
       window.__TAURI__ = {
-        core: { invoke: (cmd, args) => { console.log('[mock invoke]', cmd, args); return Promise.resolve(null); } },
+        core: {
+          invoke: (cmd, args) => {
+            console.log('[mock invoke]', cmd, args);
+            if (cmd === 'get_binary_paths') {
+              return Promise.resolve([
+                { id: 'star', display_name: 'STAR (STAR_rs)', configured_path: null, detected_on_path: null, install_hint: 'cargo install star-rs' },
+                { id: 'cutadapt-rs', display_name: 'cutadapt-rs', configured_path: null, detected_on_path: null, install_hint: 'cargo install cutadapt-rs' },
+              ]);
+            }
+            if (cmd === 'set_binary_path' || cmd === 'clear_binary_path') return Promise.resolve(null);
+            return Promise.resolve(null);
+          }
+        },
         event: { listen: (evt, cb) => { console.log('[mock listen]', evt); return Promise.resolve(() => {}); } },
       };
     }
