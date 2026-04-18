@@ -1,41 +1,45 @@
+use rb_core::binary::BinaryResolver;
 use rb_core::cancel::CancellationToken;
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
-use rb_core::run_event::RunEvent;
+use rb_core::run_event::{LogStream, RunEvent};
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::process::Command;
 use tokio::sync::mpsc;
 
 pub struct TrimmingModule;
 
 #[async_trait::async_trait]
 impl Module for TrimmingModule {
-    fn id(&self) -> &str {
-        "trimming"
-    }
-
-    fn name(&self) -> &str {
-        "Cutadapt Adapter Trimming"
-    }
+    fn id(&self) -> &str { "trimming" }
+    fn name(&self) -> &str { "Cutadapt Adapter Trimming" }
 
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
-
         match params.get("input_files") {
-            None => {
-                errors.push(ValidationError {
-                    field: "input_files".to_string(),
-                    message: "input_files must be a non-empty array".to_string(),
-                });
-            }
+            None => errors.push(ValidationError {
+                field: "input_files".into(),
+                message: "input_files must be a non-empty array".into(),
+            }),
             Some(v) => {
                 if v.as_array().map_or(true, |a| a.is_empty()) {
                     errors.push(ValidationError {
-                        field: "input_files".to_string(),
-                        message: "input_files must be a non-empty array".to_string(),
+                        field: "input_files".into(),
+                        message: "input_files must be a non-empty array".into(),
                     });
                 }
             }
         }
-
+        // Surface resolver errors at validate time for UI feedback.
+        if let Ok(resolver) = BinaryResolver::load() {
+            if let Err(e) = resolver.resolve("cutadapt-rs") {
+                errors.push(ValidationError {
+                    field: "binary".into(),
+                    message: e.to_string(),
+                });
+            }
+        }
         errors
     }
 
@@ -44,34 +48,26 @@ impl Module for TrimmingModule {
         params: &serde_json::Value,
         project_dir: &Path,
         events_tx: mpsc::Sender<RunEvent>,
-        _cancel: CancellationToken,
+        cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError> {
         let errors = self.validate(params);
         if !errors.is_empty() {
             return Err(ModuleError::InvalidParams(errors));
         }
 
+        let resolver = BinaryResolver::load().map_err(|e| ModuleError::ToolError(e.to_string()))?;
+        let bin = resolver
+            .resolve("cutadapt-rs")
+            .map_err(|e| ModuleError::ToolError(e.to_string()))?;
+
         let input_files: Vec<PathBuf> = params["input_files"]
-            .as_array()
-            .unwrap()
-            .iter()
+            .as_array().unwrap().iter()
             .filter_map(|v| v.as_str().map(PathBuf::from))
             .collect();
 
-        // Optional params
-        let adapter = params
-            .get("adapter")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-        let quality_cutoff = params
-            .get("quality_cutoff")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(20);
-        let min_length = params
-            .get("min_length")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(20);
+        let adapter = params.get("adapter").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        let quality_cutoff = params.get("quality_cutoff").and_then(|v| v.as_u64()).unwrap_or(20);
+        let min_length = params.get("min_length").and_then(|v| v.as_u64()).unwrap_or(20);
 
         let output_dir = project_dir.join("trimmed");
         std::fs::create_dir_all(&output_dir)?;
@@ -82,6 +78,9 @@ impl Module for TrimmingModule {
         let mut log_lines = Vec::new();
 
         for (idx, input_path) in input_files.iter().enumerate() {
+            if cancel.is_cancelled() {
+                return Err(ModuleError::Cancelled);
+            }
             let fraction = idx as f64 / total as f64;
             let _ = events_tx
                 .send(RunEvent::Progress {
@@ -91,90 +90,87 @@ impl Module for TrimmingModule {
                 .await;
 
             let input_str = input_path.to_string_lossy().to_string();
-
-            // Build output file path
             let file_name = input_path
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
+                .file_name().map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| format!("output_{}.fastq.gz", idx));
             let output_path = output_dir.join(&file_name);
             let output_str = output_path.to_string_lossy().to_string();
 
-            // Build cutadapt-rs subprocess command
-            let mut cmd = std::process::Command::new("cutadapt-rs");
+            let mut cmd = Command::new(&bin);
             cmd.arg("-o").arg(&output_str);
             cmd.arg("-q").arg(quality_cutoff.to_string());
             cmd.arg("-m").arg(min_length.to_string());
-            if !adapter.is_empty() {
-                cmd.arg("-a").arg(&adapter);
-            }
+            if !adapter.is_empty() { cmd.arg("-a").arg(&adapter); }
             cmd.arg(&input_str);
+            cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-            let child_result = cmd.output();
-
-            match child_result {
-                Ok(output) => {
-                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                    let combined = format!("{}{}", stdout, stderr);
-
-                    // Parse basic statistics from output
-                    let reads_written = parse_stat(&combined, "Reads written");
-                    let bp_written = parse_stat(&combined, "Basepairs written");
-
-                    if output.status.success() {
-                        if output_path.exists() {
-                            output_files.push(output_path.clone());
+            match cmd.spawn() {
+                Ok(mut child) => {
+                    let stdout = child.stdout.take().expect("piped");
+                    let stderr = child.stderr.take().expect("piped");
+                    let tx_out = events_tx.clone();
+                    let tx_err = events_tx.clone();
+                    tokio::spawn(async move {
+                        let mut r = BufReader::new(stdout).lines();
+                        while let Ok(Some(line)) = r.next_line().await {
+                            let _ = tx_out.send(RunEvent::Log { line, stream: LogStream::Stdout }).await;
                         }
-                        file_summaries.push(serde_json::json!({
-                            "file": input_str,
-                            "output": output_str,
-                            "status": "ok",
-                            "reads_written": reads_written,
-                            "bp_written": bp_written,
-                        }));
-                        log_lines.push(format!("OK: {} -> {}", input_str, output_str));
-                        if !combined.is_empty() {
-                            log_lines.push(combined);
+                    });
+                    tokio::spawn(async move {
+                        let mut r = BufReader::new(stderr).lines();
+                        while let Ok(Some(line)) = r.next_line().await {
+                            let _ = tx_err.send(RunEvent::Log { line, stream: LogStream::Stderr }).await;
                         }
-                    } else {
-                        file_summaries.push(serde_json::json!({
-                            "file": input_str,
-                            "status": "error",
-                            "error": combined,
-                        }));
-                        log_lines.push(format!(
-                            "ERROR: {} exit={} {}",
-                            input_str,
-                            output.status.code().unwrap_or(-1),
-                            combined
-                        ));
+                    });
+                    let status_or_cancel = tokio::select! {
+                        s = child.wait() => Ok(s),
+                        _ = cancel.cancelled() => {
+                            let _ = child.kill().await;
+                            Err(ModuleError::Cancelled)
+                        }
+                    };
+                    match status_or_cancel {
+                        Err(e) => return Err(e),
+                        Ok(Ok(status)) => {
+                            if status.success() {
+                                if output_path.exists() { output_files.push(output_path.clone()); }
+                                file_summaries.push(serde_json::json!({
+                                    "file": input_str,
+                                    "output": output_str,
+                                    "status": "ok",
+                                }));
+                                log_lines.push(format!("OK: {} -> {}", input_str, output_str));
+                            } else {
+                                file_summaries.push(serde_json::json!({
+                                    "file": input_str,
+                                    "status": "error",
+                                    "exit_code": status.code(),
+                                }));
+                                log_lines.push(format!("ERROR: {} exit={}", input_str, status.code().unwrap_or(-1)));
+                            }
+                        }
+                        Ok(Err(e)) => {
+                            file_summaries.push(serde_json::json!({
+                                "file": input_str, "status": "error", "error": e.to_string(),
+                            }));
+                            log_lines.push(format!("ERROR waiting for child: {}", e));
+                        }
                     }
                 }
                 Err(e) => {
-                    // cutadapt-rs binary not found — log and continue
                     file_summaries.push(serde_json::json!({
-                        "file": input_str,
-                        "status": "error",
-                        "error": e.to_string(),
+                        "file": input_str, "status": "error", "error": e.to_string(),
                     }));
-                    log_lines.push(format!("ERROR: {} — {}", input_str, e));
+                    log_lines.push(format!("ERROR spawning: {}", e));
                 }
             }
         }
 
         let _ = events_tx
-            .send(RunEvent::Progress {
-                fraction: 1.0,
-                message: "Done".to_string(),
-            })
+            .send(RunEvent::Progress { fraction: 1.0, message: "Done".into() })
             .await;
 
-        let ok_count = file_summaries
-            .iter()
-            .filter(|v| v["status"] == "ok")
-            .count();
-
+        let ok_count = file_summaries.iter().filter(|v| v["status"] == "ok").count();
         let summary = serde_json::json!({
             "total_files": total,
             "trimmed_ok": ok_count,
@@ -191,24 +187,4 @@ impl Module for TrimmingModule {
             log: log_lines.join("\n"),
         })
     }
-}
-
-/// Attempt to extract a numeric value from cutadapt stdout for a given stat label.
-fn parse_stat(output: &str, label: &str) -> Option<u64> {
-    for line in output.lines() {
-        if line.contains(label) {
-            // Lines look like: "Reads written (passing filters):   1,234 (56.7%)"
-            // Extract the first run of digits (ignoring commas)
-            let digits: String = line
-                .chars()
-                .skip_while(|c| !c.is_ascii_digit())
-                .take_while(|c| c.is_ascii_digit() || *c == ',')
-                .filter(|c| c.is_ascii_digit())
-                .collect();
-            if !digits.is_empty() {
-                return digits.parse().ok();
-            }
-        }
-    }
-    None
 }
