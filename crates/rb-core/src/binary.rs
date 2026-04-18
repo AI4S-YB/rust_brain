@@ -57,6 +57,16 @@ pub struct BinaryResolver {
 }
 
 impl BinaryResolver {
+    /// Construct an in-memory resolver with default (empty) settings, anchored at
+    /// the given path. Useful when loading from disk failed and we want to allow
+    /// subsequent saves to recover.
+    pub fn with_defaults_at(settings_path: PathBuf) -> Self {
+        Self {
+            settings_path,
+            settings: SettingsFile::default(),
+        }
+    }
+
     /// Cross-platform settings path using the `directories` crate.
     pub fn default_settings_path() -> PathBuf {
         if let Some(pd) = directories::ProjectDirs::from("", "", "rust_brain") {

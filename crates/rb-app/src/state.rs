@@ -38,8 +38,15 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(registry: ModuleRegistry) -> Self {
-        let resolver = rb_core::binary::BinaryResolver::load()
-            .expect("failed to load binary resolver settings");
+        let resolver = rb_core::binary::BinaryResolver::load().unwrap_or_else(|e| {
+            eprintln!(
+                "warning: failed to load binary settings ({}); using defaults",
+                e
+            );
+            rb_core::binary::BinaryResolver::with_defaults_at(
+                rb_core::binary::BinaryResolver::default_settings_path(),
+            )
+        });
         Self {
             registry: Arc::new(registry),
             runner: Arc::new(Mutex::new(None)),

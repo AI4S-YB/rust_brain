@@ -165,8 +165,12 @@ impl Runner {
 
             let mut proj = self.project.lock().await;
             if let Some(run) = proj.runs.iter_mut().find(|r| r.id == run_id) {
-                run.status = RunStatus::Cancelled;
-                run.finished_at = Some(Utc::now());
+                // Only mark as Cancelled if the task hasn't already transitioned
+                // to a terminal state (Done / Failed) during the grace period.
+                if matches!(run.status, RunStatus::Running) {
+                    run.status = RunStatus::Cancelled;
+                    run.finished_at = Some(Utc::now());
+                }
             }
             let _ = proj.save();
         }
