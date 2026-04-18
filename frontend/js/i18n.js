@@ -650,21 +650,30 @@
   window.I18N = { t, setLang, getLang: () => currentLang, applyI18n };
 
   // Dev-only asymmetry check — logs any keys missing from the other locale.
-  (function checkKeys() {
-    const walk = (obj, prefix = '') => {
-      const out = [];
-      for (const [k, v] of Object.entries(obj)) {
-        const path = prefix ? `${prefix}.${k}` : k;
-        if (v && typeof v === 'object' && !Array.isArray(v)) out.push(...walk(v, path));
-        else out.push(path);
-      }
-      return out;
-    };
-    const en = new Set(walk(DICT.en));
-    const zh = new Set(walk(DICT.zh));
-    const onlyEn = [...en].filter(k => !zh.has(k));
-    const onlyZh = [...zh].filter(k => !en.has(k));
-    if (onlyEn.length) console.warn('[i18n] keys only in en:', onlyEn);
-    if (onlyZh.length) console.warn('[i18n] keys only in zh:', onlyZh);
+  // Guarded to localhost / dev-server hosts so production consoles stay clean.
+  const isDevHost = (() => {
+    try {
+      const h = location.hostname;
+      return h === 'localhost' || h === '127.0.0.1' || h === '' || h === '[::1]';
+    } catch (_) { return false; }
   })();
+  if (isDevHost) {
+    (function checkKeys() {
+      const walk = (obj, prefix = '') => {
+        const out = [];
+        for (const [k, v] of Object.entries(obj)) {
+          const path = prefix ? `${prefix}.${k}` : k;
+          if (v && typeof v === 'object' && !Array.isArray(v)) out.push(...walk(v, path));
+          else out.push(path);
+        }
+        return out;
+      };
+      const en = new Set(walk(DICT.en));
+      const zh = new Set(walk(DICT.zh));
+      const onlyEn = [...en].filter(k => !zh.has(k));
+      const onlyZh = [...zh].filter(k => !en.has(k));
+      if (onlyEn.length) console.warn('[i18n] keys only in en:', onlyEn);
+      if (onlyZh.length) console.warn('[i18n] keys only in zh:', onlyZh);
+    })();
+  }
 })();
