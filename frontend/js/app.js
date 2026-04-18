@@ -95,6 +95,7 @@
     const bc = document.getElementById('breadcrumb');
     const label = view === 'dashboard' ? 'Dashboard'
       : view === 'settings' ? 'Settings'
+      : view === 'gff-convert' ? 'GFF Convert'
       : view === 'star-index' ? 'STAR Index'
       : view === 'star-align' ? 'STAR Alignment'
       : MODULES.find(m => m.id === view)?.name || view;
@@ -116,6 +117,7 @@
         if (window.lucide) lucide.createIcons();
       });
     }
+    else if (view === 'gff-convert') content.innerHTML = renderGffConvert();
     else if (view === 'star-index') content.innerHTML = renderStarIndex();
     else if (view === 'star-align') content.innerHTML = renderStarAlign();
     else content.innerHTML = renderModule(view);
@@ -534,6 +536,12 @@
           </div>
         </div>
       </div>`;
+  }
+
+
+  // ── GFF Convert ───────────────────────────────────────────
+  function renderGffConvert() {
+    return `<h2>GFF Converter</h2><p>Loading…</p>`;
   }
 
 
