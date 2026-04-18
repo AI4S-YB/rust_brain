@@ -51,6 +51,7 @@ pub struct BinaryStatus {
     pub id: String,
     pub display_name: String,
     pub configured_path: Option<PathBuf>,
+    pub bundled_path: Option<PathBuf>,
     pub detected_on_path: Option<PathBuf>,
     pub install_hint: String,
 }
@@ -58,6 +59,10 @@ pub struct BinaryStatus {
 pub struct BinaryResolver {
     settings_path: PathBuf,
     settings: SettingsFile,
+    /// In-memory sidecar registry seeded at startup (e.g. from Tauri's
+    /// bundled resources). Never persisted; the user's settings.json override
+    /// still wins.
+    bundled: HashMap<String, PathBuf>,
 }
 
 impl BinaryResolver {
@@ -68,6 +73,7 @@ impl BinaryResolver {
         Self {
             settings_path,
             settings: SettingsFile::default(),
+            bundled: HashMap::new(),
         }
     }
 
@@ -93,7 +99,15 @@ impl BinaryResolver {
         Ok(Self {
             settings_path: path,
             settings,
+            bundled: HashMap::new(),
         })
+    }
+
+    /// Register a sidecar binary shipped with the app bundle. Only kept in
+    /// memory — not written to settings.json. Used as a fallback between the
+    /// user-configured override and the PATH lookup.
+    pub fn register_bundled(&mut self, name: &str, path: PathBuf) {
+        self.bundled.insert(name.to_string(), path);
     }
 
     pub fn resolve(&self, name: &str) -> Result<PathBuf, BinaryError> {
@@ -103,6 +117,12 @@ impl BinaryResolver {
                 return Ok(p.clone());
             }
             return Err(BinaryError::NotExecutable(p.clone()));
+        }
+        // Bundled sidecar shipped with the app
+        if let Some(p) = self.bundled.get(name) {
+            if is_executable(p) {
+                return Ok(p.clone());
+            }
         }
         // Fall back to PATH
         if let Ok(found) = which::which(name) {
@@ -115,7 +135,11 @@ impl BinaryResolver {
             .unwrap_or_else(|| format!("No install hint registered for '{}'.", name));
         Err(BinaryError::NotFound {
             name: name.to_string(),
-            searched: vec!["settings.json override".into(), "$PATH".into()],
+            searched: vec![
+                "settings.json override".into(),
+                "bundled sidecar".into(),
+                "$PATH".into(),
+            ],
             hint,
         })
     }
@@ -149,11 +173,13 @@ impl BinaryResolver {
             .iter()
             .map(|k| {
                 let configured = self.settings.binary_paths.get(k.id).and_then(|o| o.clone());
+                let bundled = self.bundled.get(k.id).cloned();
                 let detected = which::which(k.id).ok();
                 BinaryStatus {
                     id: k.id.to_string(),
                     display_name: k.display_name.to_string(),
                     configured_path: configured,
+                    bundled_path: bundled,
                     detected_on_path: detected,
                     install_hint: k.install_hint.to_string(),
                 }
@@ -242,6 +268,33 @@ mod tests {
         let mut r = BinaryResolver::load_from(settings).unwrap();
         let res = r.set("star", p);
         assert!(matches!(res, Err(BinaryError::NotExecutable(_))));
+    }
+
+    #[test]
+    fn bundled_used_when_no_override() {
+        let tmp = tempfile::tempdir().unwrap();
+        let fake = write_exec(tmp.path(), "star-bundled");
+        let settings = tmp.path().join("settings.json");
+        let mut r = BinaryResolver::load_from(settings).unwrap();
+        r.register_bundled("star", fake.clone());
+        // Even if PATH has something, bundled wins over PATH (we assume 'star'
+        // is not on the CI PATH; even if it is, the override-less case should
+        // still return the bundled path first).
+        let resolved = r.resolve("star").unwrap();
+        assert_eq!(resolved, fake);
+    }
+
+    #[test]
+    fn override_wins_over_bundled() {
+        let tmp = tempfile::tempdir().unwrap();
+        let override_bin = write_exec(tmp.path(), "star-override");
+        let bundled_bin = write_exec(tmp.path(), "star-bundled");
+        let settings = tmp.path().join("settings.json");
+        let mut r = BinaryResolver::load_from(settings).unwrap();
+        r.register_bundled("star", bundled_bin);
+        r.set("star", override_bin.clone()).unwrap();
+        let resolved = r.resolve("star").unwrap();
+        assert_eq!(resolved, override_bin);
     }
 
     #[test]

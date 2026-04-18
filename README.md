@@ -135,12 +135,31 @@ Raw Reads → QC → Trimming → Alignment → Quantification → DESeq2 → En
 ## STAR_rs dependency
 
 `rb-star-index` and `rb-star-align` invoke the `star` binary from
-https://github.com/AI4S-YB/STAR_rs. Build it and either put it on your PATH or
-configure its full path in the app's Settings view (⚙ in the sidebar):
+https://github.com/AI4S-YB/STAR_rs.
 
-    git clone https://github.com/AI4S-YB/STAR_rs.git
-    cd STAR_rs && cargo build --release
-    # then either add target/release to PATH, or use the Settings view in RustBrain
+**Released builds (`.deb` / `.AppImage` / `.dmg` / `.msi`):** `star` is bundled
+with the app — no separate install needed. The build pipeline downloads the
+matching prebuilt binary from STAR_rs releases and ships it under the app's
+resource directory.
+
+**Developing locally (`cargo tauri dev`):** The repo keeps
+`crates/rb-app/binaries/` empty, so dev builds fall back to `$PATH` (or a user
+override set in the Settings view). Install STAR_rs one of two ways:
+
+- Grab a prebuilt binary from
+  https://github.com/AI4S-YB/STAR_rs/releases and drop it on `$PATH`, e.g.:
+
+        curl -sL https://github.com/AI4S-YB/STAR_rs/releases/download/v0.2.2/star-v0.2.2-x86_64-unknown-linux-gnu.tar.gz \
+          | tar xz -C ~/.local/bin
+
+- Or build from source:
+
+        git clone https://github.com/AI4S-YB/STAR_rs.git
+        cd STAR_rs && cargo build --release
+
+**Resolution order at runtime:** user-configured Settings path → app-bundled
+sidecar → `$PATH`. A Settings override always wins, so you can point dev or
+installed builds at a custom `star` build without uninstalling.
 
 ## cutadapt-rs dependency
 

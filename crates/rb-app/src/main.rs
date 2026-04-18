@@ -5,6 +5,7 @@ mod state;
 
 use state::{AppState, ModuleRegistry};
 use std::sync::Arc;
+use tauri::{path::BaseDirectory, Manager};
 
 fn main() {
     let mut registry = ModuleRegistry::new();
@@ -16,6 +17,10 @@ fn main() {
 
     tauri::Builder::default()
         .manage(AppState::new(registry))
+        .setup(|app| {
+            register_bundled_star(app);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::project::create_project,
             commands::project::open_project,
@@ -34,4 +39,20 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");
+}
+
+fn register_bundled_star(app: &tauri::App) {
+    let exe = if cfg!(windows) { "star.exe" } else { "star" };
+    let path = match app
+        .path()
+        .resolve(format!("binaries/{exe}"), BaseDirectory::Resource)
+    {
+        Ok(p) if p.exists() => p,
+        _ => return,
+    };
+    let state = app.state::<AppState>();
+    let resolver = state.binary_resolver.clone();
+    tauri::async_runtime::block_on(async move {
+        resolver.lock().await.register_bundled("star", path);
+    });
 }

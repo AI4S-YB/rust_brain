@@ -23,8 +23,8 @@
             console.log('[mock invoke]', cmd, args);
             if (cmd === 'get_binary_paths') {
               return Promise.resolve([
-                { id: 'star', display_name: 'STAR (STAR_rs)', configured_path: null, detected_on_path: null, install_hint: 'cargo install star-rs' },
-                { id: 'cutadapt-rs', display_name: 'cutadapt-rs', configured_path: null, detected_on_path: null, install_hint: 'cargo install cutadapt-rs' },
+                { id: 'star', display_name: 'STAR (STAR_rs)', configured_path: null, bundled_path: null, detected_on_path: null, install_hint: 'cargo install star-rs' },
+                { id: 'cutadapt-rs', display_name: 'cutadapt-rs', configured_path: null, bundled_path: null, detected_on_path: null, install_hint: 'cargo install cutadapt-rs' },
               ]);
             }
             if (cmd === 'set_binary_path' || cmd === 'clear_binary_path') return Promise.resolve(null);

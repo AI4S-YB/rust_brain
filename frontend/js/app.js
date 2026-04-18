@@ -1043,23 +1043,27 @@
     } catch (e) {
       return `<div class="error">Failed to load settings: ${e}</div>`;
     }
-    const rows = statuses.map(s => `
+    const rows = statuses.map(s => {
+      const available = s.configured_path || s.bundled_path || s.detected_on_path;
+      return `
       <tr>
         <td>${s.display_name}</td>
         <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : '<em>(not set)</em>'}</td>
+        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : '<em>(not bundled)</em>'}</td>
         <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : '<em>(not on PATH)</em>'}</td>
-        <td>${s.configured_path || s.detected_on_path ? '<span class="ok">OK</span>' : '<span class="warn">Missing</span>'}</td>
+        <td>${available ? '<span class="ok">OK</span>' : '<span class="warn">Missing</span>'}</td>
         <td>
           <button data-act="browse" data-id="${s.id}">Browse…</button>
           ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">Clear</button>` : ''}
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
     return `
       <h2>Settings — Binary Paths</h2>
-      <p>When a binary is not on PATH, configure its full path here. Configured paths override PATH.</p>
+      <p>Resolution order: <strong>configured</strong> (your override) → <strong>bundled</strong> (shipped with the installed app) → <strong>PATH</strong>. Your override always wins.</p>
       <table class="settings-table">
-        <thead><tr><th>Tool</th><th>Configured</th><th>Detected on PATH</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr><th>Tool</th><th>Configured</th><th>Bundled</th><th>Detected on PATH</th><th>Status</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     `;
