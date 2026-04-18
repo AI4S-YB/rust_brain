@@ -28,6 +28,9 @@
               ]);
             }
             if (cmd === 'set_binary_path' || cmd === 'clear_binary_path') return Promise.resolve(null);
+            if (cmd === 'run_module' && args.moduleId === 'star_index') {
+              return Promise.resolve('mock-run-' + Date.now());
+            }
             return Promise.resolve(null);
           }
         },
@@ -117,6 +120,20 @@
           <i data-lucide="target"></i>
           <span>Enrichment</span>
           <span class="nav-badge soon">Soon</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title">Alignment &amp; Quantification</div>
+        <a class="nav-item" data-view="star-index" href="#star-index">
+          <span class="pipeline-dot" style="--dot-color: var(--mod-purple)"></span>
+          <i data-lucide="database"></i>
+          <span>STAR Index</span>
+        </a>
+        <a class="nav-item" data-view="star-align" href="#star-align">
+          <span class="pipeline-dot" style="--dot-color: var(--mod-purple)"></span>
+          <i data-lucide="git-merge"></i>
+          <span>STAR Alignment</span>
         </a>
       </div>
 

@@ -90,6 +90,8 @@
     const bc = document.getElementById('breadcrumb');
     const label = view === 'dashboard' ? 'Dashboard'
       : view === 'settings' ? 'Settings'
+      : view === 'star-index' ? 'STAR Index'
+      : view === 'star-align' ? 'STAR Alignment'
       : MODULES.find(m => m.id === view)?.name || view;
     bc.innerHTML = `
       <span class="breadcrumb-home">RustBrain</span>
@@ -109,6 +111,7 @@
         if (window.lucide) lucide.createIcons();
       });
     }
+    else if (view === 'star-index') content.innerHTML = renderStarIndex();
     else content.innerHTML = renderModule(view);
 
     if (window.lucide) lucide.createIcons();
@@ -525,6 +528,52 @@
           </div>
         </div>
       </div>`;
+  }
+
+
+  // ── STAR Index ────────────────────────────────────────────
+  function renderStarIndex() {
+    return `
+    <h2>STAR Genome Index</h2>
+    <p>Build a STAR index from a reference genome FASTA and GTF annotation. Required before any alignment run.</p>
+    <form id="form-star-index">
+      <label>Genome FASTA
+        <input type="text" name="genome_fasta" data-pick="file" placeholder="/path/to/genome.fa" required />
+        <button type="button" data-pick-for="genome_fasta">Browse…</button>
+      </label>
+      <label>GTF annotation
+        <input type="text" name="gtf_file" data-pick="file" placeholder="/path/to/annotation.gtf" required />
+        <button type="button" data-pick-for="gtf_file">Browse…</button>
+      </label>
+      <label>Threads <input type="number" name="threads" value="4" min="1" /></label>
+      <label>sjdbOverhang <input type="number" name="sjdb_overhang" value="100" min="1" /></label>
+      <label>genomeSAindexNbases <input type="number" name="genome_sa_index_nbases" value="14" min="1" max="18" /></label>
+      <details><summary>Advanced</summary>
+        <label>Extra args (one per line)
+          <textarea name="extra_args" placeholder="--limitGenomeGenerateRAM 31000000000"></textarea>
+        </label>
+      </details>
+      <button type="submit">Build Index</button>
+    </form>
+    <div id="star-index-runs"></div>
+  `;
+  }
+
+  async function submitStarIndex(form) {
+    const fd = new FormData(form);
+    const extra_args = (fd.get('extra_args') || '').toString().split('\n').map(s => s.trim()).filter(Boolean);
+    const params = {
+      genome_fasta: fd.get('genome_fasta'),
+      gtf_file:     fd.get('gtf_file'),
+      threads:      parseInt(fd.get('threads'), 10) || 4,
+      sjdb_overhang: parseInt(fd.get('sjdb_overhang'), 10) || 100,
+      genome_sa_index_nbases: parseInt(fd.get('genome_sa_index_nbases'), 10) || 14,
+      extra_args,
+    };
+    try {
+      const runId = await window.__TAURI__.core.invoke('run_module', { moduleId: 'star_index', params });
+      navigate('star-index');
+    } catch (err) { alert('Failed to start run: ' + err); }
   }
 
 
@@ -1195,6 +1244,23 @@
     window.addEventListener('hashchange', () => {
       const h = location.hash.slice(1) || 'dashboard';
       if (h !== state.currentView) navigate(h);
+    });
+
+    // STAR Index: form submit
+    document.addEventListener('submit', (e) => {
+      if (e.target.id === 'form-star-index') { e.preventDefault(); submitStarIndex(e.target); }
+    });
+
+    // Generic file-pick handler for data-pick-for buttons
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-pick-for]');
+      if (!btn) return;
+      const field = btn.dataset.pickFor;
+      const picked = await window.__TAURI__.core.invoke('select_files', { multiple: false });
+      if (picked && picked[0]) {
+        const input = btn.parentElement.querySelector(`input[name="${field}"]`);
+        if (input) input.value = picked[0];
+      }
     });
 
     // Settings: binary path browse / clear buttons
