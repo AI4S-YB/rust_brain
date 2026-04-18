@@ -590,6 +590,9 @@
 
   // ── STAR Index ────────────────────────────────────────────
   function renderStarIndex() {
+    const prefill = (state.prefill && state.prefill.star_index) || {};
+    state.prefill = {};
+    const gtfValue = prefill.gtf_file || '';
     return `
     <h2>STAR Genome Index</h2>
     <p>Build a STAR index from a reference genome FASTA and GTF annotation. Required before any alignment run.</p>
@@ -599,7 +602,7 @@
         <button type="button" data-pick-for="genome_fasta">Browse…</button>
       </label>
       <label>GTF annotation
-        <input type="text" name="gtf_file" data-pick="file" placeholder="/path/to/annotation.gtf" required />
+        <input type="text" name="gtf_file" data-pick="file" value="${escapeHtml(gtfValue)}" placeholder="/path/to/annotation.gtf" required />
         <button type="button" data-pick-for="gtf_file">Browse…</button>
       </label>
       <label>Threads <input type="number" name="threads" value="4" min="1" /></label>
@@ -739,6 +742,24 @@
     ${matrixPath ? `<button id="${btnId}" data-matrix="${matrixPath}">Use this matrix in DESeq2</button>` : ''}
     ${previewHtml}
   `;
+  }
+
+  function renderGffConvertResult(result, runId) {
+    const s = result.summary || {};
+    const out = (result.output_files && result.output_files[0]) || s.output || '';
+    return `
+      <div class="run-result-card">
+        <h3>Converted ${escapeHtml(String(s.target_format || '').toUpperCase())}</h3>
+        <dl class="result-kv">
+          <dt>Input</dt><dd class="path">${escapeHtml(s.input || '')}</dd>
+          <dt>Output</dt><dd class="path">${escapeHtml(out)}</dd>
+          <dt>Input size</dt><dd>${s.input_bytes ?? '?'} bytes</dd>
+          <dt>Output size</dt><dd>${s.output_bytes ?? '?'} bytes</dd>
+          <dt>Elapsed</dt><dd>${s.elapsed_ms ?? '?'} ms</dd>
+        </dl>
+        <button type="button" data-gff-use-in-star="${escapeHtml(out)}">Use in STAR Index</button>
+      </div>
+    `;
   }
 
   function renderMappingRateChart(elId, data) {
@@ -1496,6 +1517,16 @@
       state.prefill = state.prefill || {};
       state.prefill.differential = { counts_matrix: btn.dataset.matrix };
       navigate('differential');
+    });
+
+    // GFF Convert → STAR Index handoff button
+    document.addEventListener('click', (e) => {
+      const gffBtn = e.target.closest('[data-gff-use-in-star]');
+      if (gffBtn) {
+        state.prefill = state.prefill || {};
+        state.prefill.star_index = { gtf_file: gffBtn.dataset.gffUseInStar };
+        location.hash = '#star-index';
+      }
     });
 
     // Generic file-pick handler for data-pick-for buttons (supports data-pick-mode: file|multi|dir)
