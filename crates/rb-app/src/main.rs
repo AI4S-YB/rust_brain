@@ -11,7 +11,8 @@ fn main() {
     registry.register(Arc::new(rb_deseq2::DeseqModule));
     registry.register(Arc::new(rb_qc::QcModule));
     registry.register(Arc::new(rb_trimming::TrimmingModule));
-    // star_index and star_align registered in Tasks 13 and 18
+    registry.register(Arc::new(rb_star_index::StarIndexModule));
+    // star_align registered in Task 18
 
     tauri::Builder::default()
         .manage(AppState::new(registry))
