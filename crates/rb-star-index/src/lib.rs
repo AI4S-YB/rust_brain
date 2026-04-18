@@ -1,4 +1,4 @@
-mod subprocess;
+pub mod subprocess;
 
 use rb_core::binary::BinaryResolver;
 use rb_core::cancel::CancellationToken;
