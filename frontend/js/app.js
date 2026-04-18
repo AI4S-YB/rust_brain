@@ -30,6 +30,12 @@
     slate:  '#5c7080',
   };
 
+  // Views with localized breadcrumb labels (keys live in i18n.js as `nav.<id>` with '-' → '_').
+  const KNOWN_VIEWS = new Set([
+    'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align',
+    ...MODULES.map(m => m.id),
+  ]);
+
   // ── ECharts theme / helpers ────────────────────────────────
   const ECHART_THEME = {
     backgroundColor: '#faf8f4',
@@ -96,10 +102,6 @@
     });
 
     const bc = document.getElementById('breadcrumb');
-    const KNOWN_VIEWS = new Set([
-      'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align',
-      ...MODULES.map(m => m.id),
-    ]);
     const label = KNOWN_VIEWS.has(view)
       ? t('nav.' + view.replace(/-/g, '_'))
       : view;
