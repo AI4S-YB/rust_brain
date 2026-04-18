@@ -18,7 +18,8 @@ fn main() {
     tauri::Builder::default()
         .manage(AppState::new(registry))
         .setup(|app| {
-            register_bundled_star(app);
+            register_bundled(app, "star", "star");
+            register_bundled(app, "gffread-rs", "gffread-rs");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -41,8 +42,12 @@ fn main() {
         .expect("error while running RustBrain");
 }
 
-fn register_bundled_star(app: &tauri::App) {
-    let exe = if cfg!(windows) { "star.exe" } else { "star" };
+fn register_bundled(app: &tauri::App, binary_id: &str, filename_stem: &str) {
+    let exe = if cfg!(windows) {
+        format!("{filename_stem}.exe")
+    } else {
+        filename_stem.to_string()
+    };
     let path = match app
         .path()
         .resolve(format!("binaries/{exe}"), BaseDirectory::Resource)
@@ -52,7 +57,8 @@ fn register_bundled_star(app: &tauri::App) {
     };
     let state = app.state::<AppState>();
     let resolver = state.binary_resolver.clone();
+    let id = binary_id.to_string();
     tauri::async_runtime::block_on(async move {
-        resolver.lock().await.register_bundled("star", path);
+        resolver.lock().await.register_bundled(&id, path);
     });
 }
