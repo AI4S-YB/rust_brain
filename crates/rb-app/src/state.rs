@@ -33,14 +33,18 @@ pub struct AppState {
     pub registry: Arc<ModuleRegistry>,
     pub runner: Arc<Mutex<Option<Runner>>>,
     pub recent_projects: Arc<Mutex<Vec<PathBuf>>>,
+    pub binary_resolver: Arc<Mutex<rb_core::binary::BinaryResolver>>,
 }
 
 impl AppState {
     pub fn new(registry: ModuleRegistry) -> Self {
+        let resolver = rb_core::binary::BinaryResolver::load()
+            .expect("failed to load binary resolver settings");
         Self {
             registry: Arc::new(registry),
             runner: Arc::new(Mutex::new(None)),
             recent_projects: Arc::new(Mutex::new(Vec::new())),
+            binary_resolver: Arc::new(Mutex::new(resolver)),
         }
     }
 }

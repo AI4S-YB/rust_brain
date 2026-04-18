@@ -11,6 +11,7 @@ fn main() {
     registry.register(Arc::new(rb_deseq2::DeseqModule));
     registry.register(Arc::new(rb_qc::QcModule));
     registry.register(Arc::new(rb_trimming::TrimmingModule));
+    // star_index and star_align registered in Tasks 13 and 18
 
     tauri::Builder::default()
         .manage(AppState::new(registry))
@@ -26,6 +27,9 @@ fn main() {
             commands::files::select_files,
             commands::files::select_directory,
             commands::files::read_table_preview,
+            commands::settings::get_binary_paths,
+            commands::settings::set_binary_path,
+            commands::settings::clear_binary_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");
