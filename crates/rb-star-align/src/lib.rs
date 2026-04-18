@@ -148,13 +148,154 @@ impl Module for StarAlignModule {
 
     async fn run(
         &self,
-        _params: &serde_json::Value,
-        _project_dir: &Path,
-        _events_tx: mpsc::Sender<RunEvent>,
-        _cancel: CancellationToken,
+        params: &serde_json::Value,
+        project_dir: &Path,
+        events_tx: mpsc::Sender<RunEvent>,
+        cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError> {
-        // Implemented in Task 17
-        Err(ModuleError::ToolError("run() not implemented yet".into()))
+        let errors = self.validate(params);
+        if !errors.is_empty() {
+            return Err(ModuleError::InvalidParams(errors));
+        }
+
+        let resolver = BinaryResolver::load().map_err(|e| ModuleError::ToolError(e.to_string()))?;
+        let bin = resolver.resolve("star").map_err(|e| ModuleError::ToolError(e.to_string()))?;
+
+        let genome_dir = params["genome_dir"].as_str().unwrap().to_string();
+        let reads_1: Vec<String> = params["reads_1"].as_array().unwrap().iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string())).collect();
+        let reads_2: Vec<String> = params.get("reads_2").and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+        let sample_names: Vec<String> = match params.get("sample_names").and_then(|v| v.as_array()) {
+            Some(a) => a.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect(),
+            None => reads_1.iter().map(|r| sample_name_from_r1(r)).collect(),
+        };
+        let threads = params.get("threads").and_then(|v| v.as_u64()).unwrap_or(4);
+        let strand_str = params.get("strand").and_then(|v| v.as_str()).unwrap_or("unstranded").to_string();
+        let strand = counts::Strand::from_str(&strand_str).unwrap();
+        let extra: Vec<String> = params.get("extra_args")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+            .unwrap_or_default();
+
+        let run_dir = project_dir.to_path_buf();
+        std::fs::create_dir_all(&run_dir)?;
+
+        let total = reads_1.len();
+        let mut per_sample_counts: Vec<counts::SampleCounts> = Vec::with_capacity(total);
+        let mut samples_summary: Vec<serde_json::Value> = Vec::with_capacity(total);
+        let mut output_files: Vec<PathBuf> = Vec::new();
+        let mut combined_log = String::new();
+
+        for i in 0..total {
+            if cancel.is_cancelled() { return Err(ModuleError::Cancelled); }
+            let name = &sample_names[i];
+            let r1 = &reads_1[i];
+            let r2 = reads_2.get(i);
+            let fraction = i as f64 / total as f64;
+            let _ = events_tx.send(RunEvent::Progress {
+                fraction,
+                message: format!("Aligning {} ({}/{})", name, i + 1, total),
+            }).await;
+
+            let sample_out = run_dir.join(name);
+            std::fs::create_dir_all(&sample_out)?;
+            let prefix = format!("{}/", sample_out.display());
+
+            let is_gz = r1.ends_with(".gz") || r2.map(|p| p.ends_with(".gz")).unwrap_or(false);
+
+            let mut args: Vec<String> = vec![
+                "--runMode".into(),       "alignReads".into(),
+                "--genomeDir".into(),     genome_dir.clone(),
+                "--readFilesIn".into(),   r1.clone(),
+            ];
+            if let Some(r2v) = r2 { args.push(r2v.clone()); }
+            if is_gz {
+                args.push("--readFilesCommand".into());
+                args.push("zcat".into());
+            }
+            args.push("--outFileNamePrefix".into()); args.push(prefix);
+            args.push("--runThreadN".into());        args.push(threads.to_string());
+            args.push("--quantMode".into());         args.push("GeneCounts".into());
+            args.push("--outSAMtype".into()); args.push("BAM".into()); args.push("Unsorted".into());
+            args.extend(extra.iter().cloned());
+
+            let status = subprocess::run_star_streaming(&bin, &args, events_tx.clone(), cancel.clone()).await?;
+
+            let log_final_path  = sample_out.join("Log.final.out");
+            let reads_per_gene  = sample_out.join("ReadsPerGene.out.tab");
+            let bam             = sample_out.join("Aligned.out.bam");
+
+            if !status.success() {
+                samples_summary.push(serde_json::json!({
+                    "name": name, "r1": r1, "r2": r2,
+                    "status": "error",
+                    "exit_code": status.code(),
+                }));
+                combined_log.push_str(&format!("\n[{}] STAR exited with code {}\n", name, status.code().unwrap_or(-1)));
+                // Insert an empty counts entry so matrix alignment stays consistent,
+                // otherwise the sample would be missing from the matrix columns.
+                per_sample_counts.push(counts::SampleCounts {
+                    summary: counts::SampleSummary::default(),
+                    genes: std::collections::BTreeMap::new(),
+                });
+                continue;
+            }
+
+            let log_stats = std::fs::read_to_string(&log_final_path).ok().map(|t| log_final::parse(&t));
+            let sample_counts = counts::read_reads_per_gene(&reads_per_gene, strand)
+                .map_err(|e| ModuleError::ToolError(format!("parse {}: {}", reads_per_gene.display(), e)))?;
+
+            let stats_json = log_stats.as_ref().map(|s| serde_json::json!({
+                "input_reads":           s.input_reads,
+                "uniquely_mapped":       s.uniquely_mapped,
+                "uniquely_mapped_pct":   s.uniquely_mapped_pct,
+                "multi_mapped":          s.multi_mapped,
+                "multi_mapped_pct":      s.multi_mapped_pct,
+                "unmapped":              s.unmapped,
+                "unmapped_pct":          s.unmapped_pct,
+                "n_unmapped":            sample_counts.summary.n_unmapped,
+                "n_multimapping":        sample_counts.summary.n_multimapping,
+                "n_nofeature":           sample_counts.summary.n_nofeature,
+                "n_ambiguous":           sample_counts.summary.n_ambiguous,
+            })).unwrap_or(serde_json::Value::Null);
+
+            samples_summary.push(serde_json::json!({
+                "name": name, "r1": r1, "r2": r2,
+                "status": "ok",
+                "bam": bam.display().to_string(),
+                "reads_per_gene": reads_per_gene.display().to_string(),
+                "log_final":      log_final_path.display().to_string(),
+                "stats": stats_json,
+            }));
+
+            if bam.exists()            { output_files.push(bam); }
+            if reads_per_gene.exists() { output_files.push(reads_per_gene); }
+            if log_final_path.exists() { output_files.push(log_final_path); }
+
+            per_sample_counts.push(sample_counts);
+        }
+
+        let _ = events_tx.send(RunEvent::Progress {
+            fraction: 1.0, message: "Merging counts matrix".into(),
+        }).await;
+
+        let matrix_path = run_dir.join("counts_matrix.tsv");
+        counts::write_counts_matrix(&matrix_path, &sample_names, &per_sample_counts)?;
+        output_files.push(matrix_path.clone());
+
+        let _ = events_tx.send(RunEvent::Progress { fraction: 1.0, message: "Done".into() }).await;
+
+        let summary = serde_json::json!({
+            "run_dir": run_dir.display().to_string(),
+            "counts_matrix": matrix_path.display().to_string(),
+            "strand": strand_str,
+            "genome_dir": genome_dir,
+            "samples": samples_summary,
+        });
+
+        Ok(ModuleResult { output_files, summary, log: combined_log })
     }
 }
 
