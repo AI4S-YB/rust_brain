@@ -1049,12 +1049,47 @@
 
 
   // ── Charts ─────────────────────────────────────────────────
+  // ── Per-module result HTML dispatcher ─────────────────────
+  function renderRunResultHtml(moduleId, result) {
+    let html = '';
+    switch (moduleId) {
+      case 'star_align': html = renderStarAlignResult(result); break;
+      case 'star_index': html = `<pre>${JSON.stringify(result.summary, null, 2)}</pre>`; break;
+      default: html = `<pre>${JSON.stringify(result, null, 2)}</pre>`; break;
+    }
+    return html;
+  }
+
+  async function loadRunsForView(moduleId, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    try {
+      const runs = await window.__TAURI__.core.invoke('list_runs', { moduleId });
+      if (!runs || runs.length === 0) {
+        container.innerHTML = '<p><em>No runs yet.</em></p>';
+        return;
+      }
+      container.innerHTML = runs.map(run => {
+        const status = run.status || 'unknown';
+        const ts = run.finished_at || run.started_at || '';
+        const resultHtml = (status === 'Done' && run.result)
+          ? renderRunResultHtml(moduleId, run.result)
+          : `<p><em>Status: ${status}</em></p>`;
+        return `<details open><summary>Run ${run.id} &mdash; ${status} ${ts ? '(' + ts + ')' : ''}</summary>${resultHtml}</details>`;
+      }).join('');
+    } catch (err) {
+      container.innerHTML = `<p><em>Could not load runs: ${err}</em></p>`;
+    }
+  }
+
   function initChartsForView(view) {
     switch (view) {
       case 'qc':           renderQCCharts(); break;
       case 'trimming':     renderTrimmingCharts(); break;
       case 'differential': renderDESeq2Charts(); break;
       case 'network':      renderWGCNACharts(); break;
+      case 'star-align':   loadRunsForView('star_align', 'star-align-runs'); break;
+      case 'star-index':   loadRunsForView('star_index', 'star-index-runs'); break;
     }
   }
 
