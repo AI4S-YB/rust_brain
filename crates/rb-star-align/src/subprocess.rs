@@ -17,9 +17,9 @@ pub async fn run_star_streaming(
     cmd.args(args);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| ModuleError::ToolError(format!(
-        "failed to spawn {}: {}", bin.display(), e,
-    )))?;
+    let mut child = cmd.spawn().map_err(|e| {
+        ModuleError::ToolError(format!("failed to spawn {}: {}", bin.display(), e,))
+    })?;
 
     let stdout = child.stdout.take().expect("piped stdout");
     let stderr = child.stderr.take().expect("piped stderr");
@@ -28,13 +28,23 @@ pub async fn run_star_streaming(
     tokio::spawn(async move {
         let mut lines = BufReader::new(stdout).lines();
         while let Ok(Some(line)) = lines.next_line().await {
-            let _ = tx_out.send(RunEvent::Log { line, stream: LogStream::Stdout }).await;
+            let _ = tx_out
+                .send(RunEvent::Log {
+                    line,
+                    stream: LogStream::Stdout,
+                })
+                .await;
         }
     });
     tokio::spawn(async move {
         let mut lines = BufReader::new(stderr).lines();
         while let Ok(Some(line)) = lines.next_line().await {
-            let _ = tx_err.send(RunEvent::Log { line, stream: LogStream::Stderr }).await;
+            let _ = tx_err
+                .send(RunEvent::Log {
+                    line,
+                    stream: LogStream::Stderr,
+                })
+                .await;
         }
     });
 

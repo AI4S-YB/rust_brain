@@ -8,6 +8,7 @@ A desktop transcriptomics analysis platform built entirely in Rust. Integrates R
 
 - **QC Analysis** — Powered by [fastqc-rs](https://github.com/AI4S-YB/fastqc-rs), 2.1-4.7x faster than Java FastQC
 - **Adapter Trimming** — Powered by [cutadapt-rs](https://github.com/AI4S-YB/cutadapt-rs), byte-identical output to Python cutadapt
+- **Alignment & Quantification** — Powered by [STAR_rs](https://github.com/AI4S-YB/STAR_rs), splice-aware alignment with per-gene read counting; auto-merges per-sample `ReadsPerGene.out.tab` into a DESeq2-ready counts matrix
 - **Differential Expression** — Powered by [DESeq2_rs](https://github.com/AI4S-YB/DESeq2_rs), 28x faster than R DESeq2 with 99.6% accuracy
 - **Project Management** — Create/open projects with isolated work directories, full run history
 - **Interactive Visualization** — ECharts-based volcano plots, MA plots, quality scores, heatmaps
@@ -24,6 +25,8 @@ rust_brain/
 │   ├── rb-app/           # Tauri v2 desktop app (11 commands)
 │   ├── rb-qc/            # fastqc-rs adapter
 │   ├── rb-trimming/      # cutadapt-rs adapter
+│   ├── rb-star-index/    # STAR_rs genome indexing adapter
+│   ├── rb-star-align/    # STAR_rs alignment + counts matrix merge
 │   └── rb-deseq2/        # DESeq2_rs adapter
 ├── frontend/             # Vanilla HTML/CSS/JS + ECharts
 └── deps/                 # Tool submodules
@@ -86,7 +89,7 @@ Outputs: `.deb` / `.AppImage` (Linux), `.dmg` (macOS), `.msi` (Windows)
 
 ```
 Raw Reads → QC → Trimming → Alignment → Quantification → DESeq2 → Enrichment
-             ✅      ✅                                      ✅
+             ✅      ✅         ✅              ✅           ✅
 ```
 
 ## TODO
@@ -103,8 +106,6 @@ Raw Reads → QC → Trimming → Alignment → Quantification → DESeq2 → En
 ### Module Integration
 
 - [ ] **WGCNA** — Integrate [WGCNA_rs](https://github.com/AI4S-YB/WGCNA_rs) (co-expression network analysis)
-- [ ] **Alignment** — Integrate HISAT2 as subprocess adapter
-- [ ] **Quantification** — Integrate StringTie as subprocess adapter
 - [ ] **Enrichment Analysis** — Implement GO/KEGG enrichment module in Rust
 
 ### Pipeline & Workflow

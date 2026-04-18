@@ -27,7 +27,11 @@ pub const KNOWN_BINARIES: &[KnownBinary] = &[
 #[derive(Debug, thiserror::Error)]
 pub enum BinaryError {
     #[error("binary '{name}' not found. Searched: {searched:?}. {hint}")]
-    NotFound { name: String, searched: Vec<String>, hint: String },
+    NotFound {
+        name: String,
+        searched: Vec<String>,
+        hint: String,
+    },
     #[error("path '{0}' is not an executable file")]
     NotExecutable(PathBuf),
     #[error("settings I/O error: {0}")]
@@ -86,7 +90,10 @@ impl BinaryResolver {
         } else {
             SettingsFile::default()
         };
-        Ok(Self { settings_path: path, settings })
+        Ok(Self {
+            settings_path: path,
+            settings,
+        })
     }
 
     pub fn resolve(&self, name: &str) -> Result<PathBuf, BinaryError> {
@@ -117,7 +124,9 @@ impl BinaryResolver {
         if !is_executable(&path) {
             return Err(BinaryError::NotExecutable(path));
         }
-        self.settings.binary_paths.insert(name.to_string(), Some(path));
+        self.settings
+            .binary_paths
+            .insert(name.to_string(), Some(path));
         self.save()
     }
 
@@ -207,7 +216,11 @@ mod tests {
         let err = r.resolve("star").unwrap_err();
         match err {
             BinaryError::NotFound { hint, .. } => {
-                assert!(hint.contains("STAR_rs"), "hint should reference STAR_rs: {}", hint);
+                assert!(
+                    hint.contains("STAR_rs"),
+                    "hint should reference STAR_rs: {}",
+                    hint
+                );
             }
             _ => {
                 // On CI a real `star` may exist on PATH; in that case, the test is inapplicable.
@@ -216,6 +229,10 @@ mod tests {
         }
     }
 
+    // Unix-only: the executable bit is the authoritative signal. On Windows
+    // there is no mode 0o111 equivalent, so `is_executable` accepts any file
+    // and this check does not apply.
+    #[cfg(unix)]
     #[test]
     fn set_rejects_non_executable() {
         let tmp = tempfile::tempdir().unwrap();

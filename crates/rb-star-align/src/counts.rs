@@ -5,20 +5,29 @@ use std::path::Path;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
-pub enum Strand { Unstranded, Forward, Reverse }
+pub enum Strand {
+    Unstranded,
+    Forward,
+    Reverse,
+}
 
 impl Strand {
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "unstranded" => Some(Self::Unstranded),
-            "forward"    => Some(Self::Forward),
-            "reverse"    => Some(Self::Reverse),
+            "forward" => Some(Self::Forward),
+            "reverse" => Some(Self::Reverse),
             _ => None,
         }
     }
     /// Column index in ReadsPerGene.out.tab (0=geneId, 1=unstranded, 2=forward, 3=reverse)
     pub fn column_index(self) -> usize {
-        match self { Self::Unstranded => 1, Self::Forward => 2, Self::Reverse => 3 }
+        match self {
+            Self::Unstranded => 1,
+            Self::Forward => 2,
+            Self::Reverse => 3,
+        }
     }
 }
 
@@ -46,15 +55,19 @@ pub fn read_reads_per_gene(path: &Path, strand: Strand) -> std::io::Result<Sampl
     for line in reader.lines() {
         let line = line?;
         let fields: Vec<&str> = line.split('\t').collect();
-        if fields.len() < 4 { continue; }
+        if fields.len() < 4 {
+            continue;
+        }
         let id = fields[0];
         let count: u64 = fields[col].parse().unwrap_or(0);
         match id {
-            "N_unmapped"     => summary.n_unmapped = count,
+            "N_unmapped" => summary.n_unmapped = count,
             "N_multimapping" => summary.n_multimapping = count,
-            "N_noFeature"    => summary.n_nofeature = count,
-            "N_ambiguous"    => summary.n_ambiguous = count,
-            _ => { genes.insert(id.to_string(), count); }
+            "N_noFeature" => summary.n_nofeature = count,
+            "N_ambiguous" => summary.n_ambiguous = count,
+            _ => {
+                genes.insert(id.to_string(), count);
+            }
         }
     }
     Ok(SampleCounts { summary, genes })
@@ -97,20 +110,23 @@ mod tests {
     use std::path::PathBuf;
 
     fn fixture(name: &str) -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures").join(name)
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name)
     }
 
     #[test]
     fn strand_from_str() {
         assert_eq!(Strand::from_str("unstranded"), Some(Strand::Unstranded));
-        assert_eq!(Strand::from_str("forward"),    Some(Strand::Forward));
-        assert_eq!(Strand::from_str("reverse"),    Some(Strand::Reverse));
-        assert_eq!(Strand::from_str("junk"),       None);
+        assert_eq!(Strand::from_str("forward"), Some(Strand::Forward));
+        assert_eq!(Strand::from_str("reverse"), Some(Strand::Reverse));
+        assert_eq!(Strand::from_str("junk"), None);
     }
 
     #[test]
     fn reads_summary_and_genes_unstranded() {
-        let s = read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Unstranded).unwrap();
+        let s = read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Unstranded)
+            .unwrap();
         assert_eq!(s.summary.n_multimapping, 12);
         assert_eq!(s.summary.n_nofeature, 34);
         assert_eq!(s.genes.get("GENE_A"), Some(&100));
@@ -119,15 +135,18 @@ mod tests {
 
     #[test]
     fn reads_forward_column_selects_col_2() {
-        let s = read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Forward).unwrap();
+        let s =
+            read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Forward).unwrap();
         assert_eq!(s.genes.get("GENE_A"), Some(&90));
         assert_eq!(s.summary.n_nofeature, 100);
     }
 
     #[test]
     fn merge_unions_genes_and_zero_fills() {
-        let s1 = read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Unstranded).unwrap();
-        let s2 = read_reads_per_gene(&fixture("ReadsPerGene.sample2.out.tab"), Strand::Unstranded).unwrap();
+        let s1 = read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Unstranded)
+            .unwrap();
+        let s2 = read_reads_per_gene(&fixture("ReadsPerGene.sample2.out.tab"), Strand::Unstranded)
+            .unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let out = tmp.path().join("counts.tsv");
         write_counts_matrix(&out, &["S1".into(), "S2".into()], &[s1, s2]).unwrap();
@@ -136,8 +155,8 @@ mod tests {
         assert_eq!(lines[0], "gene_id\tS1\tS2");
         // Alphabetical: GENE_A, GENE_B, GENE_C, GENE_D
         assert_eq!(lines[1], "GENE_A\t100\t50");
-        assert_eq!(lines[2], "GENE_B\t200\t0");  // S2 missing → 0
+        assert_eq!(lines[2], "GENE_B\t200\t0"); // S2 missing → 0
         assert_eq!(lines[3], "GENE_C\t0\t0");
-        assert_eq!(lines[4], "GENE_D\t0\t300");  // S1 missing → 0
+        assert_eq!(lines[4], "GENE_D\t0\t300"); // S1 missing → 0
     }
 }

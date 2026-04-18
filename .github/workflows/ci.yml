@@ -90,6 +90,7 @@ jobs:
         run: >
           cargo clippy
           -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2
+          -p rb-star-index -p rb-star-align
           -- -D warnings
         env:
           RUSTFLAGS: "--cap-lints=warn"
@@ -107,7 +108,7 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2 -- --check
+        run: cargo fmt -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2 -p rb-star-index -p rb-star-align -- --check
 
   build-and-release:
     name: Build & Release (${{ matrix.os }})

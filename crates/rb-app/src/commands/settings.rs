@@ -24,10 +24,7 @@ pub async fn set_binary_path(
 }
 
 #[tauri::command]
-pub async fn clear_binary_path(
-    name: String,
-    state: State<'_, AppState>,
-) -> Result<(), String> {
+pub async fn clear_binary_path(name: String, state: State<'_, AppState>) -> Result<(), String> {
     let mut resolver = state.binary_resolver.lock().await;
     resolver.clear(&name).map_err(|e| e.to_string())
 }

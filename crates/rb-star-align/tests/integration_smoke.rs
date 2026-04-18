@@ -3,7 +3,13 @@
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn end_to_end_index_then_align() {
-    let star_bin = match std::env::var("STAR_BIN") { Ok(v) => v, Err(_) => { eprintln!("STAR_BIN not set; skipping"); return; } };
+    let star_bin = match std::env::var("STAR_BIN") {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!("STAR_BIN not set; skipping");
+            return;
+        }
+    };
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data");
     let tmp = tempfile::tempdir().unwrap();
 
@@ -26,7 +32,9 @@ async fn end_to_end_index_then_align() {
         "sjdb_overhang": 29,
         "genome_sa_index_nbases": 4,
     });
-    let idx_result = idx_mod.run(&idx_params, &idx_dir, tx, token).await
+    let idx_result = idx_mod
+        .run(&idx_params, &idx_dir, tx, token)
+        .await
         .expect("index build failed");
     assert!(idx_result.output_files.iter().any(|p| p.ends_with("SA")));
 
@@ -42,7 +50,9 @@ async fn end_to_end_index_then_align() {
         "threads": 2,
         "strand": "unstranded",
     });
-    let align_result = align_mod.run(&align_params, &align_dir, tx2, token2).await
+    let align_result = align_mod
+        .run(&align_params, &align_dir, tx2, token2)
+        .await
         .expect("alignment failed");
     let matrix = align_result.summary["counts_matrix"].as_str().unwrap();
     let text = std::fs::read_to_string(matrix).unwrap();

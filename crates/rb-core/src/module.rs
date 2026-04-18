@@ -62,9 +62,15 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Module for DummyModule {
-        fn id(&self) -> &str { "dummy" }
-        fn name(&self) -> &str { "Dummy" }
-        fn validate(&self, _params: &serde_json::Value) -> Vec<ValidationError> { vec![] }
+        fn id(&self) -> &str {
+            "dummy"
+        }
+        fn name(&self) -> &str {
+            "Dummy"
+        }
+        fn validate(&self, _params: &serde_json::Value) -> Vec<ValidationError> {
+            vec![]
+        }
         async fn run(
             &self,
             _params: &serde_json::Value,
@@ -73,7 +79,10 @@ mod tests {
             _cancel: CancellationToken,
         ) -> Result<ModuleResult, ModuleError> {
             let _ = events_tx
-                .send(RunEvent::Progress { fraction: 1.0, message: "done".into() })
+                .send(RunEvent::Progress {
+                    fraction: 1.0,
+                    message: "done".into(),
+                })
                 .await;
             Ok(ModuleResult {
                 output_files: vec![],
@@ -89,7 +98,12 @@ mod tests {
         let token = CancellationToken::new();
         let m = DummyModule;
         let res = m
-            .run(&serde_json::json!({}), std::path::Path::new("/tmp"), tx, token)
+            .run(
+                &serde_json::json!({}),
+                std::path::Path::new("/tmp"),
+                tx,
+                token,
+            )
             .await
             .unwrap();
         assert!(res.output_files.is_empty());

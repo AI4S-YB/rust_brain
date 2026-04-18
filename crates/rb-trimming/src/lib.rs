@@ -12,8 +12,12 @@ pub struct TrimmingModule;
 
 #[async_trait::async_trait]
 impl Module for TrimmingModule {
-    fn id(&self) -> &str { "trimming" }
-    fn name(&self) -> &str { "Cutadapt Adapter Trimming" }
+    fn id(&self) -> &str {
+        "trimming"
+    }
+    fn name(&self) -> &str {
+        "Cutadapt Adapter Trimming"
+    }
 
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
@@ -61,13 +65,25 @@ impl Module for TrimmingModule {
             .map_err(|e| ModuleError::ToolError(e.to_string()))?;
 
         let input_files: Vec<PathBuf> = params["input_files"]
-            .as_array().unwrap().iter()
+            .as_array()
+            .unwrap()
+            .iter()
             .filter_map(|v| v.as_str().map(PathBuf::from))
             .collect();
 
-        let adapter = params.get("adapter").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let quality_cutoff = params.get("quality_cutoff").and_then(|v| v.as_u64()).unwrap_or(20);
-        let min_length = params.get("min_length").and_then(|v| v.as_u64()).unwrap_or(20);
+        let adapter = params
+            .get("adapter")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let quality_cutoff = params
+            .get("quality_cutoff")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(20);
+        let min_length = params
+            .get("min_length")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(20);
 
         let output_dir = project_dir.join("trimmed");
         std::fs::create_dir_all(&output_dir)?;
@@ -91,7 +107,8 @@ impl Module for TrimmingModule {
 
             let input_str = input_path.to_string_lossy().to_string();
             let file_name = input_path
-                .file_name().map(|n| n.to_string_lossy().to_string())
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| format!("output_{}.fastq.gz", idx));
             let output_path = output_dir.join(&file_name);
             let output_str = output_path.to_string_lossy().to_string();
@@ -100,7 +117,9 @@ impl Module for TrimmingModule {
             cmd.arg("-o").arg(&output_str);
             cmd.arg("-q").arg(quality_cutoff.to_string());
             cmd.arg("-m").arg(min_length.to_string());
-            if !adapter.is_empty() { cmd.arg("-a").arg(&adapter); }
+            if !adapter.is_empty() {
+                cmd.arg("-a").arg(&adapter);
+            }
             cmd.arg(&input_str);
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
@@ -113,13 +132,23 @@ impl Module for TrimmingModule {
                     tokio::spawn(async move {
                         let mut r = BufReader::new(stdout).lines();
                         while let Ok(Some(line)) = r.next_line().await {
-                            let _ = tx_out.send(RunEvent::Log { line, stream: LogStream::Stdout }).await;
+                            let _ = tx_out
+                                .send(RunEvent::Log {
+                                    line,
+                                    stream: LogStream::Stdout,
+                                })
+                                .await;
                         }
                     });
                     tokio::spawn(async move {
                         let mut r = BufReader::new(stderr).lines();
                         while let Ok(Some(line)) = r.next_line().await {
-                            let _ = tx_err.send(RunEvent::Log { line, stream: LogStream::Stderr }).await;
+                            let _ = tx_err
+                                .send(RunEvent::Log {
+                                    line,
+                                    stream: LogStream::Stderr,
+                                })
+                                .await;
                         }
                     });
                     let status_or_cancel = tokio::select! {
@@ -133,7 +162,9 @@ impl Module for TrimmingModule {
                         Err(e) => return Err(e),
                         Ok(Ok(status)) => {
                             if status.success() {
-                                if output_path.exists() { output_files.push(output_path.clone()); }
+                                if output_path.exists() {
+                                    output_files.push(output_path.clone());
+                                }
                                 file_summaries.push(serde_json::json!({
                                     "file": input_str,
                                     "output": output_str,
@@ -146,7 +177,11 @@ impl Module for TrimmingModule {
                                     "status": "error",
                                     "exit_code": status.code(),
                                 }));
-                                log_lines.push(format!("ERROR: {} exit={}", input_str, status.code().unwrap_or(-1)));
+                                log_lines.push(format!(
+                                    "ERROR: {} exit={}",
+                                    input_str,
+                                    status.code().unwrap_or(-1)
+                                ));
                             }
                         }
                         Ok(Err(e)) => {
@@ -167,10 +202,16 @@ impl Module for TrimmingModule {
         }
 
         let _ = events_tx
-            .send(RunEvent::Progress { fraction: 1.0, message: "Done".into() })
+            .send(RunEvent::Progress {
+                fraction: 1.0,
+                message: "Done".into(),
+            })
             .await;
 
-        let ok_count = file_summaries.iter().filter(|v| v["status"] == "ok").count();
+        let ok_count = file_summaries
+            .iter()
+            .filter(|v| v["status"] == "ok")
+            .count();
         let summary = serde_json::json!({
             "total_files": total,
             "trimmed_ok": ok_count,

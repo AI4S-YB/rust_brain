@@ -114,7 +114,9 @@ impl Runner {
                 proj.run_dir(&rid).unwrap_or_else(|| project_dir.clone())
             };
 
-            let result = module.run(&params, &run_dir, events_tx, cancel_for_module).await;
+            let result = module
+                .run(&params, &run_dir, events_tx, cancel_for_module)
+                .await;
 
             let (status, module_result_opt) = match &result {
                 Ok(mr) => (RunStatus::Done, Some(mr.clone())),
@@ -145,7 +147,13 @@ impl Runner {
 
         {
             let mut active = self.active_runs.lock().await;
-            active.insert(run_id.clone(), ActiveRun { handle, cancel: cancel_token });
+            active.insert(
+                run_id.clone(),
+                ActiveRun {
+                    handle,
+                    cancel: cancel_token,
+                },
+            );
         }
 
         Ok(run_id)
@@ -191,9 +199,15 @@ mod runner_tests {
 
     #[async_trait::async_trait]
     impl Module for EmitsLogModule {
-        fn id(&self) -> &str { "emitslog" }
-        fn name(&self) -> &str { "EmitsLog" }
-        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> { vec![] }
+        fn id(&self) -> &str {
+            "emitslog"
+        }
+        fn name(&self) -> &str {
+            "EmitsLog"
+        }
+        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> {
+            vec![]
+        }
         async fn run(
             &self,
             _p: &serde_json::Value,
@@ -201,13 +215,25 @@ mod runner_tests {
             events_tx: mpsc::Sender<RunEvent>,
             _c: CancellationToken,
         ) -> Result<ModuleResult, ModuleError> {
-            events_tx.send(RunEvent::Log {
-                line: "hello".into(), stream: LogStream::Stderr,
-            }).await.ok();
-            events_tx.send(RunEvent::Progress {
-                fraction: 1.0, message: "done".into(),
-            }).await.ok();
-            Ok(ModuleResult { output_files: vec![], summary: serde_json::json!({}), log: "".into() })
+            events_tx
+                .send(RunEvent::Log {
+                    line: "hello".into(),
+                    stream: LogStream::Stderr,
+                })
+                .await
+                .ok();
+            events_tx
+                .send(RunEvent::Progress {
+                    fraction: 1.0,
+                    message: "done".into(),
+                })
+                .await
+                .ok();
+            Ok(ModuleResult {
+                output_files: vec![],
+                summary: serde_json::json!({}),
+                log: "".into(),
+            })
         }
     }
 
@@ -233,9 +259,16 @@ mod runner_tests {
         // Poll until the run finishes (status leaves Running)
         for _ in 0..50 {
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-            let done = runner.project().lock().await.runs.iter()
+            let done = runner
+                .project()
+                .lock()
+                .await
+                .runs
+                .iter()
                 .any(|r| r.id == id && matches!(r.status, RunStatus::Done));
-            if done { break; }
+            if done {
+                break;
+            }
         }
         assert_eq!(got_log.lock().unwrap().as_slice(), &["hello".to_string()]);
         assert_eq!(got_prog.lock().unwrap().as_slice(), &[1.0]);

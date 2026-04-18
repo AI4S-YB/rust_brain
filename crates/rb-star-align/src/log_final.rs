@@ -18,7 +18,9 @@ pub fn parse(text: &str) -> LogFinalStats {
     let mut saw_unmapped = false;
 
     for line in text.lines() {
-        let Some((key, val)) = line.split_once('|') else { continue; };
+        let Some((key, val)) = line.split_once('|') else {
+            continue;
+        };
         let key = key.trim();
         let val = val.trim();
         match key {

@@ -26,9 +26,8 @@ async fn cancel_kills_subprocess() {
     let args = vec!["30".to_string()];
 
     let cancel_clone = token.clone();
-    let handle = tokio::spawn(async move {
-        run_star_streaming(&bin, &args, tx, cancel_clone).await
-    });
+    let handle =
+        tokio::spawn(async move { run_star_streaming(&bin, &args, tx, cancel_clone).await });
 
     // Cancel after 200 ms; a well-behaved implementation kills /bin/sleep in well under 1s.
     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -39,7 +38,10 @@ async fn cancel_kills_subprocess() {
         .await
         .expect("cancel did not complete in time")
         .expect("task panicked");
-    assert!(matches!(result, Err(rb_core::module::ModuleError::Cancelled)));
+    assert!(matches!(
+        result,
+        Err(rb_core::module::ModuleError::Cancelled)
+    ));
     assert!(start.elapsed() < std::time::Duration::from_secs(3));
 
     // Drain any pending events (make sure the forwarder exits cleanly)
