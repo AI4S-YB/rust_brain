@@ -6,13 +6,18 @@ members = [
     "crates/rb-qc",
     "crates/rb-trimming",
     "crates/rb-deseq2",
+    "crates/rb-star-index",
+    "crates/rb-star-align",
 ]
 
 [workspace.dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "process", "io-util"] }
+tokio-util = { version = "0.7", features = ["rt"] }
 async-trait = "0.1"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
+directories = "5"
+which = "6"
