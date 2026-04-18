@@ -34,6 +34,9 @@
             if (cmd === 'run_module' && args.moduleId === 'star_align') {
               return Promise.resolve('mock-run-align-' + Date.now());
             }
+            if (cmd === 'run_module' && args.moduleId === 'gff_convert') {
+              return Promise.resolve('mock-gff-run-' + Date.now());
+            }
             if (cmd === 'read_table_preview') {
               return Promise.resolve([
                 ['gene_id', 'S1', 'S2'],
