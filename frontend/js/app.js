@@ -1129,24 +1129,38 @@
       return `
       <tr>
         <td>${s.display_name}</td>
-        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : '<em>(not set)</em>'}</td>
-        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : '<em>(not bundled)</em>'}</td>
-        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : '<em>(not on PATH)</em>'}</td>
-        <td>${available ? '<span class="ok">OK</span>' : '<span class="warn">Missing</span>'}</td>
+        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : `<em>${t('settings.not_set')}</em>`}</td>
+        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : `<em>${t('settings.not_bundled')}</em>`}</td>
+        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : `<em>${t('settings.not_on_path')}</em>`}</td>
+        <td>${available ? `<span class="ok">${t('settings.ok')}</span>` : `<span class="warn">${t('settings.missing')}</span>`}</td>
         <td>
-          <button data-act="browse" data-id="${s.id}">Browse…</button>
-          ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">Clear</button>` : ''}
+          <button data-act="browse" data-id="${s.id}">${t('common.browse')}</button>
+          ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">${t('settings.clear')}</button>` : ''}
         </td>
       </tr>
     `;
     }).join('');
+    const cur = window.I18N ? window.I18N.getLang() : 'en';
     return `
-      <h2>Settings — Binary Paths</h2>
-      <p>Resolution order: <strong>configured</strong> (your override) → <strong>bundled</strong> (shipped with the installed app) → <strong>PATH</strong>. Your override always wins.</p>
+      <h2>${t('settings.binary_title')}</h2>
+      <p>${t('settings.binary_intro_html')}</p>
       <table class="settings-table">
-        <thead><tr><th>Tool</th><th>Configured</th><th>Bundled</th><th>Detected on PATH</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr>
+          <th>${t('settings.col_tool')}</th>
+          <th>${t('settings.col_configured')}</th>
+          <th>${t('settings.col_bundled')}</th>
+          <th>${t('settings.col_path')}</th>
+          <th>${t('settings.col_status')}</th>
+          <th>${t('settings.col_actions')}</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
+
+      <h2 style="margin-top:32px">${t('settings.language_section_full')}</h2>
+      <div class="settings-language">
+        <label><input type="radio" name="lang-choice" value="en" ${cur === 'en' ? 'checked' : ''}> ${t('settings.language_en')}</label>
+        <label style="margin-left:16px"><input type="radio" name="lang-choice" value="zh" ${cur === 'zh' ? 'checked' : ''}> ${t('settings.language_zh')}</label>
+      </div>
     `;
   }
 
@@ -1583,6 +1597,12 @@
       btn.addEventListener('click', () => {
         if (window.I18N) window.I18N.setLang(btn.dataset.lang);
       });
+    });
+
+    // Settings: language radio
+    document.addEventListener('change', (e) => {
+      const r = e.target.closest('input[name="lang-choice"]');
+      if (r && window.I18N) window.I18N.setLang(r.value);
     });
 
     const syncLangButtons = () => {
