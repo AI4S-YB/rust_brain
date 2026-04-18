@@ -115,7 +115,7 @@
 
     if (view === 'dashboard') content.innerHTML = renderDashboard();
     else if (view === 'settings') {
-      content.innerHTML = '<h2>Settings — Binary Paths</h2><p>Loading…</p>';
+      content.innerHTML = `<h2>${t('settings.binary_title')}</h2><p>${t('common.loading')}</p>`;
       renderSettings().then(html => {
         const root = document.getElementById('content');
         if (root && state.currentView === 'settings') root.innerHTML = html;
