@@ -5,8 +5,10 @@ use chrono::Utc;
 use serde_json::Value;
 use tokio::sync::{mpsc, Mutex};
 
+use crate::cancel::CancellationToken;
 use crate::module::{Module, ModuleResult, Progress};
 use crate::project::{Project, RunStatus};
+use crate::run_event::RunEvent;
 
 pub type ProgressCallback = Box<dyn Fn(&str, Progress) + Send + Sync>;
 pub type CompletionCallback = Box<dyn Fn(&str, Result<ModuleResult, String>) + Send + Sync>;
@@ -66,8 +68,9 @@ impl Runner {
             proj.root_dir.clone()
         };
 
-        // 3. Create progress channel
-        let (progress_tx, mut progress_rx) = mpsc::channel::<Progress>(64);
+        // 3. Create events channel
+        let (events_tx, mut events_rx) = mpsc::channel::<RunEvent>(64);
+        let cancel = CancellationToken::new();
 
         // Clone everything needed for the spawned tasks
         let project_arc = Arc::clone(&self.project);
@@ -77,13 +80,15 @@ impl Runner {
         let rid = run_id.clone();
         let rid_for_complete = run_id.clone();
 
-        // 4. Spawn progress forwarding task
+        // 4. Spawn event forwarding task (converts RunEvent::Progress → Progress callback)
         let rid_for_progress = run_id.clone();
         let on_progress_for_fwd = on_progress_arc.clone();
         tokio::task::spawn(async move {
-            while let Some(progress) = progress_rx.recv().await {
-                if let Some(cb) = &on_progress_for_fwd {
-                    cb(&rid_for_progress, progress);
+            while let Some(event) = events_rx.recv().await {
+                if let RunEvent::Progress { fraction, message } = event {
+                    if let Some(cb) = &on_progress_for_fwd {
+                        cb(&rid_for_progress, Progress { fraction, message });
+                    }
                 }
             }
         });
@@ -95,7 +100,7 @@ impl Runner {
                 proj.run_dir(&rid).unwrap_or_else(|| project_dir.clone())
             };
 
-            let result = module.run(&params, &run_dir, progress_tx).await;
+            let result = module.run(&params, &run_dir, events_tx, cancel).await;
 
             // progress_tx dropped here, so progress forwarding task will end
 

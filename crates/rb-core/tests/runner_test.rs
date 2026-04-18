@@ -2,8 +2,10 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use rb_core::cancel::CancellationToken;
 use rb_core::module::{Module, ModuleError, ModuleResult, Progress, ValidationError};
 use rb_core::project::{Project, RunStatus};
+use rb_core::run_event::RunEvent;
 use rb_core::runner::Runner;
 use serde_json::Value;
 use tempfile::TempDir;
@@ -29,18 +31,19 @@ impl Module for MockModule {
         &self,
         _params: &Value,
         _project_dir: &Path,
-        progress_tx: mpsc::Sender<Progress>,
+        events_tx: mpsc::Sender<RunEvent>,
+        _cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError> {
-        progress_tx
-            .send(Progress {
+        events_tx
+            .send(RunEvent::Progress {
                 fraction: 0.5,
                 message: "halfway".to_string(),
             })
             .await
             .ok();
 
-        progress_tx
-            .send(Progress {
+        events_tx
+            .send(RunEvent::Progress {
                 fraction: 1.0,
                 message: "done".to_string(),
             })
