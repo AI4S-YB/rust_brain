@@ -541,9 +541,52 @@
 
   // ── GFF Convert ───────────────────────────────────────────
   function renderGffConvert() {
-    return `<h2>GFF Converter</h2><p>Loading…</p>`;
+    return `
+    <h2>GFF Converter</h2>
+    <p>Convert between GFF3 and GTF using gffread-rs. STAR Index requires GTF — if your annotation is GFF3, run this first.</p>
+    <form id="form-gff-convert">
+      <label>Input annotation file
+        <input type="text" name="input_file" data-pick="file" placeholder="/path/to/anno.gff3" required />
+        <button type="button" data-pick-for="input_file">Browse…</button>
+      </label>
+      <label>Target format
+        <select name="target_format" required>
+          <option value="gtf">GTF (for STAR Index, HISAT2, featureCounts, …)</option>
+          <option value="gff3">GFF3</option>
+        </select>
+      </label>
+      <details><summary>Advanced</summary>
+        <label>Extra args (one per line, passed to gffread-rs)
+          <textarea name="extra_args" placeholder="--keep-comments&#10;--force-exons"></textarea>
+        </label>
+      </details>
+      <button type="submit">Convert</button>
+    </form>
+    <div id="gff-convert-runs"></div>
+    ${renderLogPanel('gff_convert')}
+  `;
   }
 
+  async function submitGffConvert(form) {
+    const fd = new FormData(form);
+    const extra_args = (fd.get('extra_args') || '').toString()
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    const params = {
+      input_file: fd.get('input_file'),
+      target_format: fd.get('target_format'),
+      extra_args,
+    };
+    try {
+      const runId = await window.__TAURI__.core.invoke('run_module', {
+        moduleId: 'gff_convert', params,
+      });
+      state.runIdToModule = state.runIdToModule || {};
+      state.runIdToModule[runId] = 'gff_convert';
+      navigate('gff-convert');
+    } catch (err) {
+      alert('Failed to start run: ' + err);
+    }
+  }
 
   // ── STAR Index ────────────────────────────────────────────
   function renderStarIndex() {
@@ -1083,6 +1126,7 @@
   function renderRunResultHtml(moduleId, result, runId) {
     let html = '';
     switch (moduleId) {
+      case 'gff_convert': html = renderGffConvertResult(result, runId); break;
       case 'star_align': html = renderStarAlignResult(result, runId); break;
       case 'star_index': html = `<pre>${escapeHtml(JSON.stringify(result.summary, null, 2))}</pre>`; break;
       default: html = `<pre>${escapeHtml(JSON.stringify(result, null, 2))}</pre>`; break;
@@ -1118,6 +1162,7 @@
       case 'trimming':     renderTrimmingCharts(); break;
       case 'differential': renderDESeq2Charts(); break;
       case 'network':      renderWGCNACharts(); break;
+      case 'gff-convert':  loadRunsForView('gff_convert', 'gff-convert-runs'); break;
       case 'star-align':   loadRunsForView('star_align', 'star-align-runs'); break;
       case 'star-index':   loadRunsForView('star_index', 'star-index-runs'); break;
     }
@@ -1437,6 +1482,11 @@
     // STAR Alignment: form submit
     document.addEventListener('submit', (e) => {
       if (e.target.id === 'form-star-align') { e.preventDefault(); submitStarAlign(e.target); }
+    });
+
+    // GFF Convert: form submit
+    document.addEventListener('submit', (e) => {
+      if (e.target.id === 'form-gff-convert') { e.preventDefault(); submitGffConvert(e.target); }
     });
 
     // DESeq2 handoff button
