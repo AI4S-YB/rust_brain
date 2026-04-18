@@ -113,6 +113,25 @@ impl Module for GffConvertModule {
     }
 }
 
+pub fn build_argv(
+    input: &Path,
+    output: &Path,
+    target: TargetFormat,
+    extra_args: &[String],
+) -> Vec<std::ffi::OsString> {
+    let mut args: Vec<std::ffi::OsString> = Vec::new();
+    args.push(input.as_os_str().to_os_string());
+    if target.needs_t_flag() {
+        args.push("-T".into());
+    }
+    args.push("-o".into());
+    args.push(output.as_os_str().to_os_string());
+    for a in extra_args {
+        args.push(std::ffi::OsString::from(a));
+    }
+    args
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -221,5 +240,53 @@ mod tests {
         // binary error may or may not be present depending on PATH; filter it out.
         let other: Vec<_> = errs.iter().filter(|e| e.field != "binary").collect();
         assert!(other.is_empty(), "unexpected errors: {:?}", other);
+    }
+
+    use std::ffi::OsString;
+    use std::path::PathBuf;
+
+    fn os(s: &str) -> OsString {
+        OsString::from(s)
+    }
+
+    #[test]
+    fn argv_gtf_target() {
+        let input = PathBuf::from("/data/anno.gff3");
+        let output = PathBuf::from("/runs/anno.gtf");
+        let argv = build_argv(&input, &output, TargetFormat::Gtf, &[]);
+        assert_eq!(argv, vec![
+            os("/data/anno.gff3"),
+            os("-T"),
+            os("-o"),
+            os("/runs/anno.gtf"),
+        ]);
+    }
+
+    #[test]
+    fn argv_gff3_target_omits_dash_t() {
+        let input = PathBuf::from("/data/anno.gtf");
+        let output = PathBuf::from("/runs/anno.gff3");
+        let argv = build_argv(&input, &output, TargetFormat::Gff3, &[]);
+        assert_eq!(argv, vec![
+            os("/data/anno.gtf"),
+            os("-o"),
+            os("/runs/anno.gff3"),
+        ]);
+    }
+
+    #[test]
+    fn argv_appends_extra_args_after_output() {
+        let input = PathBuf::from("/data/anno.gff3");
+        let output = PathBuf::from("/runs/anno.gtf");
+        let extras = vec!["--keep-comments".to_string(), "--force-exons".to_string()];
+        let argv = build_argv(&input, &output, TargetFormat::Gtf, &extras);
+        assert_eq!(argv, vec![
+            os("/data/anno.gff3"),
+            os("-T"),
+            os("-o"),
+            os("/runs/anno.gtf"),
+            os("--keep-comments"),
+            os("--force-exons"),
+        ]);
     }
 }
