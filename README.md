@@ -131,6 +131,22 @@ Raw Reads → QC → Trimming → Alignment → Quantification → DESeq2 → En
 - [ ] User settings persistence (save/load AppConfig)
 - [ ] Logging to file (not just in-memory)
 
+## STAR_rs dependency
+
+`rb-star-index` and `rb-star-align` invoke the `star` binary from
+https://github.com/AI4S-YB/STAR_rs. Build it and either put it on your PATH or
+configure its full path in the app's Settings view (⚙ in the sidebar):
+
+    git clone https://github.com/AI4S-YB/STAR_rs.git
+    cd STAR_rs && cargo build --release
+    # then either add target/release to PATH, or use the Settings view in RustBrain
+
+## cutadapt-rs dependency
+
+Similarly, `rb-trimming` invokes the `cutadapt-rs` binary from
+https://github.com/AI4S-YB/cutadapt-rs. Same discovery mechanism: PATH or
+Settings-configured path.
+
 ## License
 
 MIT

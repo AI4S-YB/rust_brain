@@ -35,7 +35,7 @@ sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchel
 
 ## Architecture
 
-### Cargo Workspace (5 crates)
+### Cargo Workspace (7 crates)
 
 **rb-core** — Core library with no tool dependencies. Defines:
 - `Module` trait (`#[async_trait]`) — the central abstraction all analysis modules implement: `id()`, `name()`, `validate()`, `async run()`
@@ -53,6 +53,10 @@ sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchel
 **rb-deseq2** — Adapter wrapping DESeq2_rs. Calls `DESeqDataSet::from_csv()` → `.run()` → `.results(Contrast::LastCoefficient)` in `spawn_blocking`.
 
 **rb-trimming** — Adapter calling cutadapt-rs CLI as subprocess (`std::process::Command`). Cannot use library dep because cutadapt-core uses workspace dependency inheritance incompatible with external path deps.
+
+**rb-star-index** — Adapter invoking STAR_rs `star --runMode genomeGenerate` as a subprocess. Uses `BinaryResolver` for tool discovery (falls back to PATH). Streams stderr lines as `RunEvent::Log`.
+
+**rb-star-align** — Adapter invoking STAR_rs `star --runMode alignReads` per sample. Parses `Log.final.out` for mapping stats and merges per-sample `ReadsPerGene.out.tab` files into a single `counts_matrix.tsv` ready for DESeq2. Streams stderr and honours cooperative cancellation.
 
 ### Tool Submodules (deps/)
 
@@ -83,6 +87,9 @@ Frontend invoke('run_module') → rb-app command → Runner.spawn()
 - **CPU-bound work**: Always wrap in `tokio::task::spawn_blocking` (adapters do this for tool calls)
 - **Params**: Passed as `serde_json::Value` — each adapter deserializes what it needs in `run()` and validates in `validate()`
 - **Project state**: Shared via `Arc<tokio::sync::Mutex<Project>>` between Runner and commands
+- **Adding a subprocess-based module**: Use `rb_core::binary::BinaryResolver` to discover the tool (never hardcode `Command::new("toolname")`); register the binary id + install hint in `KNOWN_BINARIES` in `rb-core/src/binary.rs` so it shows up in Settings.
+- **RunEvent channel**: modules emit `RunEvent::Progress` (progress bar) or `RunEvent::Log` (streaming stderr/stdout shown to user). The Runner forwards both to Tauri as `run-progress` and `run-log` events.
+- **Cancellation**: modules receive a `CancellationToken` and must honour it. Subprocess-based modules use `tokio::select!` on `child.wait()` vs `cancel.cancelled()` and call `child.kill().await` on cancel.
 
 ## CI/CD
 
