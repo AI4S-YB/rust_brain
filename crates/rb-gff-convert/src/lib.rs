@@ -4,6 +4,8 @@ use rb_core::run_event::RunEvent;
 use std::path::Path;
 use tokio::sync::mpsc;
 
+pub mod subprocess;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TargetFormat {
     Gtf,
