@@ -32,7 +32,7 @@
 
   // Views with localized breadcrumb labels (keys live in i18n.js as `nav.<id>` with '-' → '_').
   const KNOWN_VIEWS = new Set([
-    'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align',
+    'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'chat',
     ...MODULES.map(m => m.id),
   ]);
 
@@ -142,12 +142,14 @@
   function navigate(view) {
     state.currentView = view;
 
+    const navMatchView = view.startsWith('chat/') ? 'chat' : view;
     document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.view === view);
+      el.classList.toggle('active', el.dataset.view === navMatchView);
     });
 
     const bc = document.getElementById('breadcrumb');
-    const label = KNOWN_VIEWS.has(view) ? t(navKey(view)) : view;
+    const bcKey = navMatchView;
+    const label = KNOWN_VIEWS.has(bcKey) ? t(navKey(bcKey)) : bcKey;
     bc.innerHTML = `
       <span class="breadcrumb-home">${t('brand.name')}</span>
       <i data-lucide="chevron-right" class="breadcrumb-sep"></i>
@@ -169,6 +171,19 @@
     else if (view === 'gff-convert') content.innerHTML = renderGffConvert();
     else if (view === 'star-index') content.innerHTML = renderStarIndex();
     else if (view === 'star-align') content.innerHTML = renderStarAlign();
+    else if (view === 'chat' || view.startsWith('chat/')) {
+      content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+      const sessionId = view.startsWith('chat/') ? view.slice('chat/'.length) : null;
+      if (sessionId) {
+        import('./js/modules/chat/chat-view.js').then(m => {
+          if (state.currentView === view) m.renderChatView(content, sessionId);
+        });
+      } else {
+        import('./js/modules/chat/session-list.js').then(m => {
+          if (state.currentView === view) m.renderSessionListPage(content);
+        });
+      }
+    }
     else content.innerHTML = renderModule(view);
 
     if (window.lucide) lucide.createIcons();
