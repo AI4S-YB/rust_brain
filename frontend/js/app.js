@@ -14,10 +14,9 @@
   const MODULES = [
     { id: 'qc',             name: 'QC Analysis',          icon: 'microscope',  color: 'teal',   tool: 'fastqc-rs',    status: 'ready' },
     { id: 'trimming',       name: 'Adapter Trimming',     icon: 'scissors',    color: 'blue',   tool: 'cutadapt-rs',  status: 'ready' },
-    { id: 'alignment',      name: 'Read Alignment',       icon: 'git-merge',   color: 'purple', tool: 'HISAT2',       status: 'soon' },
-    { id: 'quantification', name: 'Quantification',       icon: 'bar-chart-3', color: 'gold',   tool: 'StringTie',    status: 'soon' },
+    { id: 'star-align',     name: 'Alignment & Quantification', icon: 'git-merge', color: 'purple', tool: 'STAR_rs', status: 'ready' },
     { id: 'differential',   name: 'Differential Expr.',   icon: 'flame',       color: 'coral',  tool: 'DESeq2_rs',    status: 'ready' },
-    { id: 'network',        name: 'Network Analysis',     icon: 'share-2',     color: 'green',  tool: 'WGCNA_rs',     status: 'ready' },
+    { id: 'network',        name: 'Network Analysis',     icon: 'share-2',     color: 'green',  tool: 'WGCNA_rs',     status: 'ready', utility: true },
     { id: 'enrichment',     name: 'Enrichment',           icon: 'target',      color: 'slate',  tool: 'TBD',          status: 'soon' },
   ];
 
@@ -160,7 +159,7 @@
 
     if (view === 'dashboard') content.innerHTML = renderDashboard();
     else if (view === 'settings') {
-      content.innerHTML = `<h2>${t('settings.binary_title')}</h2><p>${t('common.loading')}</p>`;
+      content.innerHTML = `<div class="module-view">${settingsHeader()}<p class="module-intro">${t('common.loading')}</p></div>`;
       renderSettings().then(html => {
         const root = document.getElementById('content');
         if (root && state.currentView === 'settings') root.innerHTML = html;
@@ -179,8 +178,9 @@
 
   // ── Dashboard ──────────────────────────────────────────────
   function renderDashboard() {
-    const pipelineNodes = MODULES.map((m, i) => {
-      const connector = i < MODULES.length - 1
+    const pipelineModules = MODULES.filter(m => !m.utility);
+    const pipelineNodes = pipelineModules.map((m, i) => {
+      const connector = i < pipelineModules.length - 1
         ? '<div class="pipeline-connector"><div class="pipeline-connector-line"></div></div>'
         : '';
       const nameKey = navKey(m.id);
@@ -230,7 +230,7 @@
         <div class="pipeline-flow-container card animate-slide-up" style="animation-delay: 60ms; padding: 16px 24px;">
           <div class="card-header" style="margin-bottom: 8px">
             <span class="card-title">${t('dashboard.pipeline_section')}</span>
-            <span class="badge badge-teal">${t('dashboard.modules_badge', { n: MODULES.length })}</span>
+            <span class="badge badge-teal">${t('dashboard.modules_badge', { n: pipelineModules.length })}</span>
           </div>
           <div class="pipeline-flow stagger">
             ${pipelineNodes}
@@ -276,6 +276,8 @@
             <div>
               ${renderToolInfo('fastqc-rs', t('dashboard.tool_desc.fastqc'), 'GPL-3.0')}
               ${renderToolInfo('cutadapt-rs', t('dashboard.tool_desc.cutadapt'), 'MIT')}
+              ${renderToolInfo('STAR_rs', t('dashboard.tool_desc.star'), 'MIT')}
+              ${renderToolInfo('gffread_rs', t('dashboard.tool_desc.gffread'), 'MIT')}
               ${renderToolInfo('DESeq2_rs', t('dashboard.tool_desc.deseq2'), 'MIT')}
               ${renderToolInfo('WGCNA_rs', t('dashboard.tool_desc.wgcna'), 'GPL-2.0')}
             </div>
@@ -727,6 +729,10 @@
                   <i data-lucide="folder-open"></i> ${t('common.browse')}
                 </button>
               </div>
+              <span class="form-hint">
+                ${t('star_index.gtf_hint')}
+                <a href="#gff-convert" class="form-hint-link">${t('star_index.gtf_hint_link')}</a>
+              </span>
             </div>
             <div class="form-row three-col">
               <div class="form-group">
@@ -1323,49 +1329,82 @@
 
 
   // ── Settings View ──────────────────────────────────────────
+  function settingsHeader() {
+    return `
+      <div class="module-header animate-slide-up">
+        <div class="module-icon" style="background: rgba(92,112,128,0.08); color: var(--mod-slate);">
+          <i data-lucide="settings"></i>
+        </div>
+        <div>
+          <h1 class="module-title">${t('settings.title')}</h1>
+          <p class="module-desc">${t('settings.description')}</p>
+        </div>
+      </div>`;
+  }
+
   async function renderSettings() {
     let statuses = [];
     try {
       statuses = await window.__TAURI__.core.invoke('get_binary_paths');
     } catch (e) {
-      return `<div class="error">Failed to load settings: ${e}</div>`;
+      return `<div class="module-view">${settingsHeader()}<div class="error">Failed to load settings: ${escapeHtml(String(e))}</div></div>`;
     }
     const rows = statuses.map(s => {
       const available = s.configured_path || s.bundled_path || s.detected_on_path;
       return `
       <tr>
-        <td>${s.display_name}</td>
-        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : `<em>${t('settings.not_set')}</em>`}</td>
-        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : `<em>${t('settings.not_bundled')}</em>`}</td>
-        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : `<em>${t('settings.not_on_path')}</em>`}</td>
-        <td>${available ? `<span class="ok">${t('settings.ok')}</span>` : `<span class="warn">${t('settings.missing')}</span>`}</td>
-        <td>
-          <button data-act="browse" data-id="${s.id}">${t('common.browse')}</button>
-          ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">${t('settings.clear')}</button>` : ''}
+        <td class="tool-col">${escapeHtml(s.display_name)}</td>
+        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : `<em class="text-muted">${t('settings.not_set')}</em>`}</td>
+        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : `<em class="text-muted">${t('settings.not_bundled')}</em>`}</td>
+        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : `<em class="text-muted">${t('settings.not_on_path')}</em>`}</td>
+        <td>${available
+            ? `<span class="badge badge-green">${t('settings.ok')}</span>`
+            : `<span class="badge badge-coral">${t('settings.missing')}</span>`}</td>
+        <td class="actions-col">
+          <button class="btn btn-secondary btn-sm" data-act="browse" data-id="${escapeHtml(s.id)}">
+            <i data-lucide="folder-open"></i> ${t('common.browse')}
+          </button>
+          ${s.configured_path
+            ? `<button class="btn btn-ghost btn-sm" data-act="clear" data-id="${escapeHtml(s.id)}"><i data-lucide="x"></i> ${t('settings.clear')}</button>`
+            : ''}
         </td>
       </tr>
     `;
     }).join('');
     const cur = window.I18N ? window.I18N.getLang() : 'en';
     return `
-      <h2>${t('settings.binary_title')}</h2>
-      <p>${t('settings.binary_intro_html')}</p>
-      <table class="settings-table">
-        <thead><tr>
-          <th>${t('settings.col_tool')}</th>
-          <th>${t('settings.col_configured')}</th>
-          <th>${t('settings.col_bundled')}</th>
-          <th>${t('settings.col_path')}</th>
-          <th>${t('settings.col_status')}</th>
-          <th>${t('settings.col_actions')}</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
+      <div class="module-view">
+        ${settingsHeader()}
 
-      <h2 style="margin-top:32px">${t('settings.language_section_full')}</h2>
-      <div class="settings-language">
-        <label><input type="radio" name="lang-choice" value="en" ${cur === 'en' ? 'checked' : ''}> ${t('settings.language_en')}</label>
-        <label style="margin-left:16px"><input type="radio" name="lang-choice" value="zh" ${cur === 'zh' ? 'checked' : ''}> ${t('settings.language_zh')}</label>
+        <div class="module-panel animate-slide-up" style="animation-delay:100ms">
+          <div class="panel-header"><span class="panel-title">${t('settings.binary_section')}</span></div>
+          <div class="panel-body">
+            <p class="settings-intro">${t('settings.binary_intro_html')}</p>
+            <div class="settings-table-wrap">
+              <table class="settings-table">
+                <thead><tr>
+                  <th>${t('settings.col_tool')}</th>
+                  <th>${t('settings.col_configured')}</th>
+                  <th>${t('settings.col_bundled')}</th>
+                  <th>${t('settings.col_path')}</th>
+                  <th>${t('settings.col_status')}</th>
+                  <th>${t('settings.col_actions')}</th>
+                </tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="module-panel animate-slide-up" style="animation-delay:160ms">
+          <div class="panel-header"><span class="panel-title">${t('settings.language_section')}</span></div>
+          <div class="panel-body">
+            <div class="settings-language">
+              <label class="form-checkbox"><input type="radio" name="lang-choice" value="en" ${cur === 'en' ? 'checked' : ''}> ${t('settings.language_en')}</label>
+              <label class="form-checkbox"><input type="radio" name="lang-choice" value="zh" ${cur === 'zh' ? 'checked' : ''}> ${t('settings.language_zh')}</label>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }

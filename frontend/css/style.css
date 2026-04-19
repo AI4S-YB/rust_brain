@@ -699,6 +699,18 @@ input, select, textarea {
   font-size: 0.75rem;
   color: var(--text-tertiary);
   margin-top: 4px;
+  display: block;
+}
+
+.form-hint-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.form-hint-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
 }
 
 .form-row {
@@ -1799,16 +1811,85 @@ input, select, textarea {
 }
 
 /* ── Settings binary paths table ────────────────────────── */
-.settings-table { border-collapse: collapse; width: 100%; }
-.settings-table th, .settings-table td {
-  text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border, #e4decf);
+.settings-intro {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+.settings-intro strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+.settings-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+.settings-table th {
+  background: var(--bg-page);
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.settings-table td {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.settings-table tr:hover td {
+  background: var(--bg-inset);
+}
+.settings-table .tool-col {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
 }
 .settings-table td.path {
-  font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
-  max-width: 24rem; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.settings-table .ok   { color: var(--accent-teal, #1f6b5e); }
-.settings-table .warn { color: var(--accent-coral, #c46b4b); }
+.settings-table td.path em.text-muted {
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+}
+.settings-table .actions-col {
+  white-space: nowrap;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.settings-language {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
 
 /* ── Modal dialog (custom prompt) ─────────────────────────── */
 .modal-backdrop {
