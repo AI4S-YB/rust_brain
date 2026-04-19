@@ -50,6 +50,20 @@ pub trait Module: Send + Sync {
         events_tx: mpsc::Sender<RunEvent>,
         cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError>;
+
+    /// JSON Schema (draft-07) describing the module's parameters.
+    /// Returning `None` means the module is not exposed to the AI tool registry.
+    /// Override when you're ready for the LLM to call this module.
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        None
+    }
+
+    /// One-paragraph hint, localized to `lang` (`"en"` or `"zh"`),
+    /// telling the LLM when and how to use this module.
+    /// Default is empty (safe — AI will see a tool without guidance).
+    fn ai_hint(&self, _lang: &str) -> String {
+        String::new()
+    }
 }
 
 #[cfg(test)]
@@ -111,5 +125,48 @@ mod tests {
             RunEvent::Progress { fraction, .. } => assert_eq!(fraction, 1.0),
             _ => panic!("expected Progress"),
         }
+    }
+
+    #[test]
+    fn module_default_schema_is_none_and_hint_is_empty() {
+        let m = DummyModule;
+        // Default impls: no schema means not exposed to AI; empty hint.
+        assert!(m.params_schema().is_none());
+        assert_eq!(m.ai_hint("en"), "");
+        assert_eq!(m.ai_hint("zh"), "");
+    }
+
+    struct SchemaModule;
+
+    #[async_trait::async_trait]
+    impl Module for SchemaModule {
+        fn id(&self) -> &str { "schema" }
+        fn name(&self) -> &str { "Schema" }
+        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> { vec![] }
+        fn params_schema(&self) -> Option<serde_json::Value> {
+            Some(serde_json::json!({
+                "type": "object",
+                "properties": { "foo": { "type": "string" } },
+                "required": ["foo"]
+            }))
+        }
+        fn ai_hint(&self, lang: &str) -> String {
+            match lang { "zh" => "测试".into(), _ => "test".into() }
+        }
+        async fn run(
+            &self, _p: &serde_json::Value, _d: &std::path::Path,
+            _tx: tokio::sync::mpsc::Sender<RunEvent>, _c: CancellationToken,
+        ) -> Result<ModuleResult, ModuleError> {
+            Ok(ModuleResult { output_files: vec![], summary: serde_json::json!({}), log: "".into() })
+        }
+    }
+
+    #[test]
+    fn module_can_override_schema_and_hint() {
+        let m = SchemaModule;
+        let schema = m.params_schema().expect("expected Some schema");
+        assert_eq!(schema["type"], "object");
+        assert_eq!(m.ai_hint("zh"), "测试");
+        assert_eq!(m.ai_hint("en"), "test");
     }
 }
