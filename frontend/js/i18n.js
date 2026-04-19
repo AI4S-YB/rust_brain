@@ -78,7 +78,7 @@
         section_title: 'Project',
       },
       common: {
-        run: 'Run', cancel: 'Cancel', save: 'Save', close: 'Close', reset: 'Reset',
+        run: 'Run', cancel: 'Cancel', save: 'Save', close: 'Close', reset: 'Reset', ok: 'OK',
         browse: 'Browse…', select_files: 'Select Files', select_dir: 'Select Directory',
         loading: 'Loading…',
         empty_no_files: 'No files selected',
@@ -86,6 +86,8 @@
         log_panel: 'Log',
         export_tsv: 'Export TSV',
         module_not_found: 'Module not found',
+        parameters: 'Parameters',
+        runs: 'Runs',
       },
       dashboard: {
         title_accent: 'Transcriptomics',
@@ -374,7 +376,7 @@
         section_title: '项目',
       },
       common: {
-        run: '运行', cancel: '取消', save: '保存', close: '关闭', reset: '重置',
+        run: '运行', cancel: '取消', save: '保存', close: '关闭', reset: '重置', ok: '确定',
         browse: '浏览…', select_files: '选择文件', select_dir: '选择目录',
         loading: '加载中…',
         empty_no_files: '尚未选择文件',
@@ -382,6 +384,8 @@
         log_panel: '日志',
         export_tsv: '导出 TSV',
         module_not_found: '未找到该模块',
+        parameters: '参数',
+        runs: '运行记录',
       },
       dashboard: {
         title_accent: '转录组',

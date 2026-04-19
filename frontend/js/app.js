@@ -80,6 +80,51 @@
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
   ));
 
+  // ── Custom Modal dialog (replaces window.prompt) ──────────
+  // Returns a Promise resolving to the entered string, or null if cancelled.
+  function promptModal({ title, message, defaultValue = '', placeholder = '', okLabel, cancelLabel } = {}) {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      const titleId = 'modal-title-' + Math.random().toString(36).slice(2, 8);
+      backdrop.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="${titleId}">
+          ${title ? `<h3 class="modal-title" id="${titleId}">${escapeHtml(title)}</h3>` : ''}
+          ${message ? `<p class="modal-message">${escapeHtml(message)}</p>` : ''}
+          <input type="text" class="modal-input" value="${escapeHtml(defaultValue)}" placeholder="${escapeHtml(placeholder)}" />
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary modal-btn-cancel">${escapeHtml(cancelLabel || t('common.cancel'))}</button>
+            <button type="button" class="btn btn-primary modal-btn-ok">${escapeHtml(okLabel || t('common.ok'))}</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(backdrop);
+
+      const input = backdrop.querySelector('.modal-input');
+      const okBtn = backdrop.querySelector('.modal-btn-ok');
+      const cancelBtn = backdrop.querySelector('.modal-btn-cancel');
+      const prevFocus = document.activeElement;
+
+      const finish = (value) => {
+        document.removeEventListener('keydown', onKey, true);
+        backdrop.remove();
+        if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+        resolve(value);
+      };
+      const onKey = (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); finish(null); }
+        else if (e.key === 'Enter') { e.preventDefault(); finish(input.value); }
+      };
+
+      okBtn.addEventListener('click', () => finish(input.value));
+      cancelBtn.addEventListener('click', () => finish(null));
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) finish(null); });
+      document.addEventListener('keydown', onKey, true);
+
+      requestAnimationFrame(() => { input.focus(); input.select(); });
+    });
+  }
+
   // ── TSV export ─────────────────────────────────────────────
   function exportTableAsTSV(tableId, filename) {
     const table = document.getElementById(tableId);
@@ -264,7 +309,10 @@
 
   // ── Project management helpers ─────────────────────────────
   window.projectNew = async function () {
-    const name = prompt(t('project.prompt_name'));
+    const name = await promptModal({
+      title: t('project.new'),
+      message: t('project.prompt_name'),
+    });
     if (!name) return;
     try {
       const dir = await api.invoke('select_directory', {});
@@ -549,28 +597,70 @@
   // ── GFF Convert ───────────────────────────────────────────
   function renderGffConvert() {
     return `
-    <h2>${t('gff_convert.title')}</h2>
-    <p>${t('gff_convert.desc')}</p>
-    <form id="form-gff-convert">
-      <label>${t('gff_convert.input_file')}
-        <input type="text" name="input_file" data-pick="file" placeholder="/path/to/anno.gff3" required />
-        <button type="button" data-pick-for="input_file">${t('common.browse')}</button>
-      </label>
-      <label>${t('gff_convert.target_format')}
-        <select name="target_format" required>
-          <option value="gtf">${t('gff_convert.target_gtf')}</option>
-          <option value="gff3">${t('gff_convert.target_gff3')}</option>
-        </select>
-      </label>
-      <details><summary>${t('gff_convert.advanced')}</summary>
-        <label>${t('gff_convert.extra_args')}
-          <textarea name="extra_args" placeholder="--keep-comments&#10;--force-exons"></textarea>
-        </label>
-      </details>
-      <button type="submit">${t('gff_convert.submit')}</button>
-    </form>
-    <div id="gff-convert-runs"></div>
-    ${renderLogPanel('gff_convert')}
+    <div class="module-view">
+      <div class="module-header animate-slide-up">
+        <div class="module-icon" style="background: rgba(124,92,191,0.08); color: var(--mod-purple);">
+          <i data-lucide="file-cog"></i>
+        </div>
+        <div>
+          <h1 class="module-title">${t('gff_convert.title')}</h1>
+          <p class="module-desc">${t('module.powered_by')} <strong style="color: var(--mod-purple)">gffread-rs</strong></p>
+          <div class="module-badges">
+            <span class="badge badge-purple">${t('badge.available')}</span>
+          </div>
+        </div>
+      </div>
+      <p class="module-intro">${t('gff_convert.desc')}</p>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:100ms">
+        <div class="panel-header"><span class="panel-title">${t('common.parameters')}</span></div>
+        <div class="panel-body">
+          <form id="form-gff-convert">
+            <div class="form-group">
+              <label class="form-label">${t('gff_convert.input_file')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="input_file" data-pick="file" placeholder="/path/to/anno.gff3" required />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="input_file">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">${t('gff_convert.target_format')}</label>
+              <select class="form-select" name="target_format" required>
+                <option value="gtf">${t('gff_convert.target_gtf')}</option>
+                <option value="gff3">${t('gff_convert.target_gff3')}</option>
+              </select>
+            </div>
+            <div class="collapsible">
+              <button type="button" class="collapsible-trigger" onclick="toggleCollapsible(this)">
+                ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
+              </button>
+              <div class="collapsible-content"><div class="collapsible-body">
+                <div class="form-group">
+                  <label class="form-label">${t('gff_convert.extra_args')}</label>
+                  <textarea class="form-input form-textarea" name="extra_args" rows="3" placeholder="--keep-comments&#10;--force-exons"></textarea>
+                </div>
+              </div></div>
+            </div>
+          </form>
+        </div>
+        <div class="panel-footer">
+          <button type="submit" form="form-gff-convert" class="btn btn-primary btn-sm">
+            <i data-lucide="play"></i> ${t('gff_convert.submit')}
+          </button>
+        </div>
+      </div>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:160ms">
+        <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
+        <div class="panel-body">
+          <div id="gff-convert-runs"></div>
+        </div>
+      </div>
+
+      ${renderLogPanel('gff_convert')}
+    </div>
   `;
   }
 
@@ -601,29 +691,86 @@
     state.prefill = {};
     const gtfValue = prefill.gtf_file || '';
     return `
-    <h2>${t('star_index.title')}</h2>
-    <p>${t('star_index.desc')}</p>
-    <form id="form-star-index">
-      <label>${t('star_index.genome_fasta')}
-        <input type="text" name="genome_fasta" data-pick="file" placeholder="/path/to/genome.fa" required />
-        <button type="button" data-pick-for="genome_fasta">${t('common.browse')}</button>
-      </label>
-      <label>${t('star_index.gtf')}
-        <input type="text" name="gtf_file" data-pick="file" value="${escapeHtml(gtfValue)}" placeholder="/path/to/annotation.gtf" required />
-        <button type="button" data-pick-for="gtf_file">${t('common.browse')}</button>
-      </label>
-      <label>${t('star_index.threads')} <input type="number" name="threads" value="4" min="1" /></label>
-      <label>${t('star_index.sjdb')} <input type="number" name="sjdb_overhang" value="100" min="1" /></label>
-      <label>${t('star_index.sa_nbases')} <input type="number" name="genome_sa_index_nbases" value="14" min="1" max="18" /></label>
-      <details><summary>${t('star_index.advanced')}</summary>
-        <label>${t('star_index.extra_args')}
-          <textarea name="extra_args" placeholder="--limitGenomeGenerateRAM&#10;31000000000"></textarea>
-        </label>
-      </details>
-      <button type="submit">${t('star_index.submit')}</button>
-    </form>
-    <div id="star-index-runs"></div>
-    ${renderLogPanel('star_index')}
+    <div class="module-view">
+      <div class="module-header animate-slide-up">
+        <div class="module-icon" style="background: rgba(124,92,191,0.08); color: var(--mod-purple);">
+          <i data-lucide="database"></i>
+        </div>
+        <div>
+          <h1 class="module-title">${t('star_index.title')}</h1>
+          <p class="module-desc">${t('module.powered_by')} <strong style="color: var(--mod-purple)">STAR_rs</strong></p>
+          <div class="module-badges">
+            <span class="badge badge-purple">${t('badge.available')}</span>
+          </div>
+        </div>
+      </div>
+      <p class="module-intro">${t('star_index.desc')}</p>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:100ms">
+        <div class="panel-header"><span class="panel-title">${t('common.parameters')}</span></div>
+        <div class="panel-body">
+          <form id="form-star-index">
+            <div class="form-group">
+              <label class="form-label">${t('star_index.genome_fasta')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="genome_fasta" data-pick="file" placeholder="/path/to/genome.fa" required />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="genome_fasta">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_index.gtf')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="gtf_file" data-pick="file" value="${escapeHtml(gtfValue)}" placeholder="/path/to/annotation.gtf" required />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="gtf_file">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+            </div>
+            <div class="form-row three-col">
+              <div class="form-group">
+                <label class="form-label">${t('star_index.threads')}</label>
+                <input type="number" class="form-input" name="threads" value="4" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">${t('star_index.sjdb')}</label>
+                <input type="number" class="form-input" name="sjdb_overhang" value="100" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">${t('star_index.sa_nbases')}</label>
+                <input type="number" class="form-input" name="genome_sa_index_nbases" value="14" min="1" max="18" />
+              </div>
+            </div>
+            <div class="collapsible">
+              <button type="button" class="collapsible-trigger" onclick="toggleCollapsible(this)">
+                ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
+              </button>
+              <div class="collapsible-content"><div class="collapsible-body">
+                <div class="form-group">
+                  <label class="form-label">${t('star_index.extra_args')}</label>
+                  <textarea class="form-input form-textarea" name="extra_args" rows="3" placeholder="--limitGenomeGenerateRAM&#10;31000000000"></textarea>
+                </div>
+              </div></div>
+            </div>
+          </form>
+        </div>
+        <div class="panel-footer">
+          <button type="submit" form="form-star-index" class="btn btn-primary btn-sm">
+            <i data-lucide="play"></i> ${t('star_index.submit')}
+          </button>
+        </div>
+      </div>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:160ms">
+        <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
+        <div class="panel-body">
+          <div id="star-index-runs"></div>
+        </div>
+      </div>
+
+      ${renderLogPanel('star_index')}
+    </div>
   `;
   }
 
@@ -650,40 +797,99 @@
   // ── STAR Alignment ────────────────────────────────────────
   function renderStarAlign() {
     return `
-    <h2>${t('star_align.title')}</h2>
-    <p>${t('star_align.desc')}</p>
-    <form id="form-star-align">
-      <label>${t('star_align.genome_dir')}
-        <input type="text" name="genome_dir" required placeholder="/path/to/star_index" />
-        <button type="button" data-pick-for="genome_dir" data-pick-mode="dir">${t('common.browse')}</button>
-      </label>
-      <label>${t('star_align.reads_1')}
-        <input type="text" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz /path/to/S2_R1.fq.gz" />
-        <button type="button" data-pick-for="reads_1" data-pick-mode="multi">${t('common.browse')}</button>
-      </label>
-      <label>${t('star_align.reads_2')}
-        <input type="text" name="reads_2" placeholder="/path/to/S1_R2.fq.gz /path/to/S2_R2.fq.gz" />
-        <button type="button" data-pick-for="reads_2" data-pick-mode="multi">${t('common.browse')}</button>
-      </label>
-      <label>${t('star_align.sample_names')}
-        <textarea name="sample_names" placeholder="S1&#10;S2"></textarea>
-      </label>
-      <label>${t('star_align.threads')} <input type="number" name="threads" value="4" min="1" /></label>
-      <fieldset>
-        <legend>${t('star_align.strand')}</legend>
-        <label><input type="radio" name="strand" value="unstranded" checked /> ${t('star_align.strand_unstranded')}</label>
-        <label><input type="radio" name="strand" value="forward" /> ${t('star_align.strand_forward')}</label>
-        <label><input type="radio" name="strand" value="reverse" /> ${t('star_align.strand_reverse')}</label>
-      </fieldset>
-      <details><summary>${t('star_align.advanced')}</summary>
-        <label>${t('star_align.extra_args')}
-          <textarea name="extra_args" placeholder="--outFilterMultimapNmax&#10;10"></textarea>
-        </label>
-      </details>
-      <button type="submit">${t('star_align.submit')}</button>
-    </form>
-    <div id="star-align-runs"></div>
-    ${renderLogPanel('star_align')}
+    <div class="module-view">
+      <div class="module-header animate-slide-up">
+        <div class="module-icon" style="background: rgba(124,92,191,0.08); color: var(--mod-purple);">
+          <i data-lucide="git-merge"></i>
+        </div>
+        <div>
+          <h1 class="module-title">${t('star_align.title')}</h1>
+          <p class="module-desc">${t('module.powered_by')} <strong style="color: var(--mod-purple)">STAR_rs</strong></p>
+          <div class="module-badges">
+            <span class="badge badge-purple">${t('badge.available')}</span>
+          </div>
+        </div>
+      </div>
+      <p class="module-intro">${t('star_align.desc')}</p>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:100ms">
+        <div class="panel-header"><span class="panel-title">${t('common.parameters')}</span></div>
+        <div class="panel-body">
+          <form id="form-star-align">
+            <div class="form-group">
+              <label class="form-label">${t('star_align.genome_dir')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="genome_dir" required placeholder="/path/to/star_index" />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="genome_dir" data-pick-mode="dir">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_align.reads_1')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz /path/to/S2_R1.fq.gz" />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_1" data-pick-mode="multi">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_align.reads_2')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="reads_2" placeholder="/path/to/S1_R2.fq.gz /path/to/S2_R2.fq.gz" />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_2" data-pick-mode="multi">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_align.sample_names')}</label>
+              <textarea class="form-input form-textarea" name="sample_names" rows="3" placeholder="S1&#10;S2"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">${t('star_align.threads')}</label>
+                <input type="number" class="form-input" name="threads" value="4" min="1" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">${t('star_align.strand')}</label>
+                <div class="segmented">
+                  <label><input type="radio" name="strand" value="unstranded" checked /> <span>${t('star_align.strand_unstranded')}</span></label>
+                  <label><input type="radio" name="strand" value="forward" /> <span>${t('star_align.strand_forward')}</span></label>
+                  <label><input type="radio" name="strand" value="reverse" /> <span>${t('star_align.strand_reverse')}</span></label>
+                </div>
+              </div>
+            </div>
+            <div class="collapsible">
+              <button type="button" class="collapsible-trigger" onclick="toggleCollapsible(this)">
+                ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
+              </button>
+              <div class="collapsible-content"><div class="collapsible-body">
+                <div class="form-group">
+                  <label class="form-label">${t('star_align.extra_args')}</label>
+                  <textarea class="form-input form-textarea" name="extra_args" rows="3" placeholder="--outFilterMultimapNmax&#10;10"></textarea>
+                </div>
+              </div></div>
+            </div>
+          </form>
+        </div>
+        <div class="panel-footer">
+          <button type="submit" form="form-star-align" class="btn btn-primary btn-sm">
+            <i data-lucide="play"></i> ${t('star_align.submit')}
+          </button>
+        </div>
+      </div>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:160ms">
+        <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
+        <div class="panel-body">
+          <div id="star-align-runs"></div>
+        </div>
+      </div>
+
+      ${renderLogPanel('star_align')}
+    </div>
   `;
   }
 
