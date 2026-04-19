@@ -1,4 +1,5 @@
 import { chatApi } from '../../api/chat.js';
+import { attachStream } from './message-stream.js';
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -42,32 +43,19 @@ export async function renderChatView(container, sessionId) {
   const messagesEl = container.querySelector('.chat-messages');
   // Render existing messages.
   (session.messages || []).forEach(m => {
-    if (m.role === 'tool') return; // hide raw tool results until T33
+    if (m.role === 'tool') return;
     const el = bubbleForRole(m.role);
     el.textContent = m.content || '';
     messagesEl.appendChild(el);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
 
-  // Naive stream listener — T33 replaces this with the real dispatcher.
-  let currentAssistant = null;
-  const unlisten = await chatApi.subscribeStream(ev => {
-    if (ev.session_id !== sessionId) return;
-    if (ev.kind === 'Text') {
-      if (!currentAssistant) {
-        currentAssistant = bubbleForRole('assistant');
-        messagesEl.appendChild(currentAssistant);
-      }
-      currentAssistant.textContent = (currentAssistant.textContent || '') + ev.delta;
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    } else if (ev.kind === 'Done') {
-      currentAssistant = null;
-    } else if (ev.kind === 'Error') {
-      const err = document.createElement('div');
-      err.className = 'chat-msg chat-msg-error';
-      err.textContent = `Error: ${ev.message}`;
-      messagesEl.appendChild(err);
-    }
+  // Attach the full streaming dispatcher.
+  const unlisten = await attachStream({
+    container: messagesEl,
+    sessionId,
+    // toolSchemasByName — left empty for Phase 1; Plan Card falls back to raw-JSON form.
+    toolSchemasByName: {},
   });
 
   // Clean up the listener when navigating away.
