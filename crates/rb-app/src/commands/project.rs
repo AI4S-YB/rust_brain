@@ -13,6 +13,7 @@ pub struct ProjectInfo {
     pub name: String,
     pub root_dir: String,
     pub run_count: usize,
+    pub default_view: Option<String>,
 }
 
 fn setup_runner(project: Project, app: &AppHandle) -> Runner {
@@ -49,16 +50,22 @@ fn setup_runner(project: Project, app: &AppHandle) -> Runner {
 pub async fn create_project(
     name: String,
     dir: String,
+    default_view: Option<String>,
     state: State<'_, AppState>,
     app: AppHandle,
 ) -> Result<ProjectInfo, String> {
     let root_dir = PathBuf::from(&dir);
-    let project = Project::create(&name, &root_dir).map_err(|e| e.to_string())?;
+    let mut project = Project::create(&name, &root_dir).map_err(|e| e.to_string())?;
+    if let Some(v) = default_view.clone() {
+        project.default_view = Some(v);
+        project.save().map_err(|e| e.to_string())?;
+    }
 
     let info = ProjectInfo {
         name: project.name.clone(),
         root_dir: project.root_dir.to_string_lossy().to_string(),
         run_count: project.runs.len(),
+        default_view: project.default_view.clone(),
     };
 
     let runner = setup_runner(project, &app);
@@ -87,6 +94,7 @@ pub async fn open_project(
         name: project.name.clone(),
         root_dir: project.root_dir.to_string_lossy().to_string(),
         run_count: project.runs.len(),
+        default_view: project.default_view.clone(),
     };
 
     let runner = setup_runner(project, &app);
