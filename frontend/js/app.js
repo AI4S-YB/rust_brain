@@ -1749,7 +1749,7 @@
     });
     api.listen('run-failed', event => {
       const st = document.getElementById('statusText');
-      if (st) st.textContent = `Error: ${event.payload?.message || 'Run failed'}`;
+      if (st) st.textContent = `${t('status.error_prefix')}: ${event.payload?.message || t('status.run_failed')}`;
       console.error('[run-failed]', event.payload);
     });
 

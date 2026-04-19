@@ -60,6 +60,8 @@
         one_job: '1 active job',
         backend_connected: 'Backend Connected',
         running_prefix: 'Running',
+        error_prefix: 'Error',
+        run_failed: 'Run failed',
       },
       project: {
         no_project: 'No Project',
@@ -350,6 +352,8 @@
         one_job: '1 个活动任务',
         backend_connected: '后端已连接',
         running_prefix: '运行',
+        error_prefix: '错误',
+        run_failed: '运行失败',
       },
       project: {
         no_project: '未选择项目',
