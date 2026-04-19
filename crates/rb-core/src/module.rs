@@ -51,16 +51,14 @@ pub trait Module: Send + Sync {
         cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError>;
 
-    /// JSON Schema (draft-07) describing the module's parameters.
-    /// Returning `None` means the module is not exposed to the AI tool registry.
-    /// Override when you're ready for the LLM to call this module.
+    /// Opt-in: returning `Some(schema)` exposes this module to the AI tool registry.
+    /// Schema is JSON Schema draft-07 describing `run` params.
     fn params_schema(&self) -> Option<serde_json::Value> {
         None
     }
 
-    /// One-paragraph hint, localized to `lang` (`"en"` or `"zh"`),
-    /// telling the LLM when and how to use this module.
-    /// Default is empty (safe — AI will see a tool without guidance).
+    /// One-paragraph hint for the LLM, in `"en"` or `"zh"`. Unknown langs fall back to `"en"`.
+    /// Only consulted when `params_schema` returns `Some(_)`.
     fn ai_hint(&self, _lang: &str) -> String {
         String::new()
     }
@@ -130,7 +128,6 @@ mod tests {
     #[test]
     fn module_default_schema_is_none_and_hint_is_empty() {
         let m = DummyModule;
-        // Default impls: no schema means not exposed to AI; empty hint.
         assert!(m.params_schema().is_none());
         assert_eq!(m.ai_hint("en"), "");
         assert_eq!(m.ai_hint("zh"), "");
@@ -140,9 +137,15 @@ mod tests {
 
     #[async_trait::async_trait]
     impl Module for SchemaModule {
-        fn id(&self) -> &str { "schema" }
-        fn name(&self) -> &str { "Schema" }
-        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> { vec![] }
+        fn id(&self) -> &str {
+            "schema"
+        }
+        fn name(&self) -> &str {
+            "Schema"
+        }
+        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> {
+            vec![]
+        }
         fn params_schema(&self) -> Option<serde_json::Value> {
             Some(serde_json::json!({
                 "type": "object",
@@ -151,13 +154,23 @@ mod tests {
             }))
         }
         fn ai_hint(&self, lang: &str) -> String {
-            match lang { "zh" => "测试".into(), _ => "test".into() }
+            match lang {
+                "zh" => "测试".into(),
+                _ => "test".into(),
+            }
         }
         async fn run(
-            &self, _p: &serde_json::Value, _d: &std::path::Path,
-            _tx: tokio::sync::mpsc::Sender<RunEvent>, _c: CancellationToken,
+            &self,
+            _p: &serde_json::Value,
+            _d: &std::path::Path,
+            _tx: tokio::sync::mpsc::Sender<RunEvent>,
+            _c: CancellationToken,
         ) -> Result<ModuleResult, ModuleError> {
-            Ok(ModuleResult { output_files: vec![], summary: serde_json::json!({}), log: "".into() })
+            Ok(ModuleResult {
+                output_files: vec![],
+                summary: serde_json::json!({}),
+                log: String::new(),
+            })
         }
     }
 
