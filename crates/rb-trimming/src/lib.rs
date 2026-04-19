@@ -19,6 +19,43 @@ impl Module for TrimmingModule {
         "Cutadapt Adapter Trimming"
     }
 
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "input_files": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1,
+                    "description": "FASTQ file paths to trim."
+                },
+                "adapter": {
+                    "type": "string",
+                    "description": "Adapter sequence to remove (3' end, passed as -a). Omit to skip explicit adapter trimming."
+                },
+                "quality_cutoff": {
+                    "type": "integer",
+                    "minimum": 0, "maximum": 40,
+                    "description": "Phred quality threshold for trimming (default 20, passed as -q)."
+                },
+                "min_length": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Discard reads shorter than this after trimming (default 20, passed as -m)."
+                }
+            },
+            "required": ["input_files"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_trimming 调用 cutadapt 去除接头并按质量裁剪 FASTQ。输入是 run_qc 看过的原始 FASTQ,输出会被 run_star_align 使用。参数 adapter、quality_cutoff、min_length 不确定时省略即可,默认值较合理。".into(),
+            _    => "Use run_trimming to remove adapters and quality-trim FASTQ via cutadapt. Input is typically the same raw FASTQ QC has already inspected; output feeds run_star_align. Omit adapter / quality_cutoff / min_length if unsure — defaults are sensible.".into(),
+        }
+    }
+
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
         match params.get("input_files") {
@@ -227,5 +264,25 @@ impl Module for TrimmingModule {
             summary,
             log: log_lines.join("\n"),
         })
+    }
+}
+
+#[cfg(test)]
+mod ai_schema_tests {
+    use super::*;
+    use rb_core::module::Module;
+
+    #[test]
+    fn trimming_schema_declares_required_input_field() {
+        let s = TrimmingModule.params_schema().unwrap();
+        let req = s["required"].as_array().unwrap();
+        assert!(req.iter().any(|v| v == "input_files"));
+        assert_eq!(s["type"], "object");
+    }
+
+    #[test]
+    fn trimming_hint_nonempty_both_languages() {
+        assert!(!TrimmingModule.ai_hint("en").is_empty());
+        assert!(!TrimmingModule.ai_hint("zh").is_empty());
     }
 }
