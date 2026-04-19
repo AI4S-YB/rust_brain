@@ -17,10 +17,33 @@
   <!-- Tauri API shim (browser-mode fallback) -->
   <script>
     if (!window.__TAURI__) {
+      // --- event bus (for mock-driven events like chat-stream) ---
+      const _listeners = new Map();
+      const _mockEmit = (event, payload) => {
+        const ls = _listeners.get(event) || [];
+        ls.forEach(l => l({ payload }));
+      };
+      const _listen = (event, cb) => {
+        const ls = _listeners.get(event) || [];
+        ls.push(cb);
+        _listeners.set(event, ls);
+        console.log('[mock listen]', event);
+        return Promise.resolve(() => {
+          const cur = _listeners.get(event) || [];
+          _listeners.set(event, cur.filter(l => l !== cb));
+        });
+      };
+
+      // --- chat session store (in-memory) ---
+      const _mockSessions = new Map();
+
       window.__TAURI__ = {
+        _mockEmit,
         core: {
           invoke: (cmd, args) => {
             console.log('[mock invoke]', cmd, args);
+
+            // --- existing passthrough handlers ---
             if (cmd === 'get_binary_paths') {
               return Promise.resolve([
                 { id: 'star', display_name: 'STAR (STAR_rs)', configured_path: null, bundled_path: null, detected_on_path: null, install_hint: 'cargo install star-rs' },
@@ -45,10 +68,91 @@
                 ['GENE_D', '0', '300'],
               ]);
             }
+
+            // --- chat session CRUD ---
+            if (cmd === 'chat_list_sessions') {
+              return Promise.resolve({
+                schema_version: 1,
+                sessions: [..._mockSessions.values()].map(s => ({
+                  id: s.id,
+                  title: s.title,
+                  created_at: s.created_at,
+                  updated_at: s.updated_at,
+                  message_count: s.messages.length,
+                  provider_snapshot: null,
+                })),
+              });
+            }
+            if (cmd === 'chat_create_session') {
+              const id = 'ses_mock_' + Math.random().toString(16).slice(2, 10);
+              const now = new Date().toISOString();
+              const s = {
+                id,
+                title: args.title || 'New chat',
+                created_at: now,
+                updated_at: now,
+                messages: [],
+                schema_version: 1,
+                provider_snapshot: null,
+                summary: null,
+              };
+              _mockSessions.set(id, s);
+              return Promise.resolve(s);
+            }
+            if (cmd === 'chat_get_session') {
+              return Promise.resolve(_mockSessions.get(args.sessionId) || null);
+            }
+            if (cmd === 'chat_delete_session') {
+              _mockSessions.delete(args.sessionId);
+              return Promise.resolve(null);
+            }
+            if (cmd === 'chat_rename_session') {
+              const s = _mockSessions.get(args.sessionId);
+              if (s) {
+                s.title = args.title;
+                s.updated_at = new Date().toISOString();
+              }
+              return Promise.resolve(null);
+            }
+
+            // --- chat_send_message — canned streaming via mock events ---
+            if (cmd === 'chat_send_message') {
+              setTimeout(() => {
+                _mockEmit('chat-stream', {
+                  kind: 'Text',
+                  session_id: args.sessionId,
+                  delta: '(mock) I would call tools here in the real app.',
+                });
+                _mockEmit('chat-stream', { kind: 'Done', session_id: args.sessionId });
+              }, 100);
+              return Promise.resolve(null);
+            }
+            if (cmd === 'chat_approve_tool'
+                || cmd === 'chat_reject_tool'
+                || cmd === 'chat_cancel_turn'
+                || cmd === 'chat_cancel_run') {
+              return Promise.resolve(null);
+            }
+
+            // --- ai_* provider/config ---
+            if (cmd === 'ai_get_config') {
+              return Promise.resolve({ default_provider: null, providers: {} });
+            }
+            if (cmd === 'ai_set_provider_config'
+                || cmd === 'ai_set_default_provider'
+                || cmd === 'ai_set_api_key'
+                || cmd === 'ai_clear_api_key') {
+              return Promise.resolve(null);
+            }
+            if (cmd === 'ai_has_api_key') return Promise.resolve(false);
+            if (cmd === 'ai_backend_info') {
+              return Promise.resolve({ keystore_backend: 'memory', config_path: null });
+            }
+
             return Promise.resolve(null);
-          }
+          },
         },
-        event: { listen: (evt, cb) => { console.log('[mock listen]', evt); return Promise.resolve(() => {}); } },
+        event: { listen: _listen },
       };
     }
   </script>
