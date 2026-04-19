@@ -41,19 +41,17 @@ pub async fn build(project: &Arc<Mutex<Project>>) -> String {
     out.push_str("Top-level files:\n");
     match std::fs::read_dir(&root) {
         Ok(rd) => {
-            let mut shown = 0;
-            for ent in rd.flatten() {
-                if shown >= 20 {
-                    out.push_str("  ...\n");
-                    break;
-                }
+            let entries: Vec<_> = rd.flatten().take(21).collect();
+            for ent in entries.iter().take(20) {
                 let name = ent.file_name().to_string_lossy().to_string();
                 let kind = match ent.file_type() {
                     Ok(t) if t.is_dir() => "/",
                     _ => "",
                 };
                 out.push_str(&format!("  {name}{kind}\n"));
-                shown += 1;
+            }
+            if entries.len() > 20 {
+                out.push_str("  ...\n");
             }
         }
         Err(e) => {
