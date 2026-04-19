@@ -6,6 +6,7 @@ A desktop transcriptomics analysis platform built entirely in Rust. Integrates R
 
 ## Features
 
+- **AI analysis mode (Phase 1)** — create a project in AI mode and drive analyses through natural-language chat. The copilot proposes plans, you approve or edit them, and AI-initiated runs share the same run history as the manual UI. Works with any OpenAI-compatible endpoint (OpenAI / DeepSeek / Moonshot / Qwen / vLLM / Ollama `/v1/*`).
 - **QC Analysis** — Powered by [fastqc-rs](https://github.com/AI4S-YB/fastqc-rs), 2.1-4.7x faster than Java FastQC
 - **Adapter Trimming** — Powered by [cutadapt-rs](https://github.com/AI4S-YB/cutadapt-rs), byte-identical output to Python cutadapt
 - **GFF Conversion** — Powered by [gffread_rs](https://github.com/AI4S-YB/gffread_rs), GFF3↔GTF conversion so annotations from any source feed straight into STAR
@@ -29,7 +30,8 @@ rust_brain/
 │   ├── rb-gff-convert/   # gffread-rs adapter (GFF3↔GTF)
 │   ├── rb-star-index/    # STAR_rs genome indexing adapter
 │   ├── rb-star-align/    # STAR_rs alignment + counts matrix merge
-│   └── rb-deseq2/        # DESeq2_rs adapter
+│   ├── rb-deseq2/        # DESeq2_rs adapter
+│   └── rb-ai/            # AI orchestration (provider adapters, tool registry, chat session persistence, orchestrator main loop)
 ├── frontend/             # Vanilla HTML/CSS/JS + ECharts
 └── deps/                 # Tool submodules
 ```
