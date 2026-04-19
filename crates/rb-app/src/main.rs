@@ -108,6 +108,13 @@ fn main() {
             commands::chat::chat_reject_tool,
             commands::chat::chat_cancel_turn,
             commands::chat::chat_cancel_run,
+            commands::ai_provider::ai_get_config,
+            commands::ai_provider::ai_set_provider_config,
+            commands::ai_provider::ai_set_default_provider,
+            commands::ai_provider::ai_set_api_key,
+            commands::ai_provider::ai_clear_api_key,
+            commands::ai_provider::ai_has_api_key,
+            commands::ai_provider::ai_backend_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");
