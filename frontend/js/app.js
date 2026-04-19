@@ -124,6 +124,64 @@
     });
   }
 
+  // Project creation modal — collects name + default_view radio.
+  // Returns { name: string, default_view: "ai" | "manual" } or null if cancelled.
+  function projectNewModal() {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      const titleId = 'pn-title-' + Math.random().toString(36).slice(2, 8);
+      backdrop.innerHTML = `
+        <div class="modal" role="dialog" aria-labelledby="${titleId}" aria-modal="true">
+          <h3 id="${titleId}" class="modal-title">${escapeHtml(t('project.new'))}</h3>
+          <label class="modal-label">
+            <span>${escapeHtml(t('project.prompt_name'))}</span>
+            <input type="text" class="modal-input" autofocus />
+          </label>
+          <fieldset class="modal-view-group">
+            <legend>${escapeHtml(t('project.default_view_legend'))}</legend>
+            <label>
+              <input type="radio" name="default_view" value="ai" />
+              <strong>${escapeHtml(t('project.default_view_ai'))}</strong>
+              <small class="muted"> — ${escapeHtml(t('project.default_view_ai_hint'))}</small>
+            </label>
+            <label>
+              <input type="radio" name="default_view" value="manual" checked />
+              <strong>${escapeHtml(t('project.default_view_manual'))}</strong>
+              <small class="muted"> — ${escapeHtml(t('project.default_view_manual_hint'))}</small>
+            </label>
+            <p class="modal-hint">${escapeHtml(t('project.default_view_note'))}</p>
+          </fieldset>
+          <div class="modal-actions">
+            <button class="btn btn-primary modal-ok">${escapeHtml(t('common.ok'))}</button>
+            <button class="btn modal-cancel">${escapeHtml(t('common.cancel'))}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(backdrop);
+
+      const input = backdrop.querySelector('.modal-input');
+      const ok = backdrop.querySelector('.modal-ok');
+      const cancel = backdrop.querySelector('.modal-cancel');
+
+      const close = (result) => {
+        backdrop.remove();
+        resolve(result);
+      };
+      ok.addEventListener('click', () => {
+        const name = input.value.trim();
+        if (!name) { input.focus(); return; }
+        const sel = backdrop.querySelector('input[name="default_view"]:checked');
+        close({ name, default_view: sel ? sel.value : 'manual' });
+      });
+      cancel.addEventListener('click', () => close(null));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') ok.click();
+        if (e.key === 'Escape') close(null);
+      });
+      input.focus();
+    });
+  }
+
   // ── TSV export ─────────────────────────────────────────────
   function exportTableAsTSV(tableId, filename) {
     const table = document.getElementById(tableId);
@@ -326,37 +384,45 @@
 
   // ── Project management helpers ─────────────────────────────
   window.projectNew = async function () {
-    const name = await promptModal({
-      title: t('project.new'),
-      message: t('project.prompt_name'),
-    });
-    if (!name) return;
+    const picked = await projectNewModal();
+    if (!picked) return;
+    const { name, default_view } = picked;
     try {
       const dir = await api.invoke('select_directory', {});
-      await api.invoke('create_project', { name, directory: dir });
+      const info = await api.invoke('create_project', {
+        name,
+        dir,
+        defaultView: default_view,
+      });
       state.projectOpen = true;
       state.projectName = name;
       document.getElementById('projectName').textContent = name;
+      const el = document.getElementById('dash-proj-name');
+      if (el) el.textContent = name;
+      // Honour the user's default_view preference on create:
+      const dv = (info && info.default_view) || default_view;
+      if (dv === 'ai') location.hash = '#chat';
     } catch (err) {
       console.warn('[projectNew] invoke failed, using local fallback:', err);
       state.projectOpen = true;
       state.projectName = name;
       document.getElementById('projectName').textContent = name;
+      const el = document.getElementById('dash-proj-name');
+      if (el) el.textContent = name;
     }
-    const el = document.getElementById('dash-proj-name');
-    if (el) el.textContent = name;
   };
 
   window.projectOpen = async function () {
     try {
       const dir = await api.invoke('select_directory', {});
-      const result = await api.invoke('open_project', { directory: dir });
+      const result = await api.invoke('open_project', { dir });
       const name = (result && result.name) ? result.name : dir || 'Opened Project';
       state.projectOpen = true;
       state.projectName = name;
       document.getElementById('projectName').textContent = name;
       const el = document.getElementById('dash-proj-name');
       if (el) el.textContent = name;
+      if (result && result.default_view === 'ai') location.hash = '#chat';
     } catch (err) {
       console.warn('[projectOpen] invoke failed:', err);
     }
