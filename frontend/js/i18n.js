@@ -62,6 +62,10 @@
         running_prefix: 'Running',
         error_prefix: 'Error',
         run_failed: 'Run failed',
+        status_label: 'Status',
+        no_runs: 'No runs yet.',
+        load_runs_failed: 'Could not load runs',
+        run_label: 'Run',
       },
       project: {
         no_project: 'No Project',
@@ -354,6 +358,10 @@
         running_prefix: '运行',
         error_prefix: '错误',
         run_failed: '运行失败',
+        status_label: '状态',
+        no_runs: '暂无运行记录。',
+        load_runs_failed: '无法加载运行记录',
+        run_label: '运行',
       },
       project: {
         no_project: '未选择项目',
@@ -433,7 +441,7 @@
       trimming: {
         input_files: '输入文件',
         drop_text: '拖入 FASTQ / FASTA 文件',
-        drop_hint: '支持 .fastq、.fq、.fasta（原文或 gzip）',
+        drop_hint: '支持 .fastq、.fq、.fasta（未压缩或 gzip）',
         adapter_settings: '接头设置',
         adapter_preset: '接头预设',
         preset_illumina: 'Illumina 通用 (AGATCGGAAGAGC)',

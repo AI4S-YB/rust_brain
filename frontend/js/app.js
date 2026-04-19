@@ -1184,7 +1184,7 @@
     try {
       const runs = await window.__TAURI__.core.invoke('list_runs', { moduleId });
       if (!runs || runs.length === 0) {
-        container.innerHTML = '<p><em>No runs yet.</em></p>';
+        container.innerHTML = `<p><em>${t('status.no_runs')}</em></p>`;
         return;
       }
       container.innerHTML = runs.map(run => {
@@ -1192,11 +1192,11 @@
         const ts = run.finished_at || run.started_at || '';
         const resultHtml = (status === 'Done' && run.result)
           ? renderRunResultHtml(moduleId, run.result, run.id)
-          : `<p><em>Status: ${status}</em></p>`;
-        return `<details open><summary>Run ${run.id} &mdash; ${status} ${ts ? '(' + ts + ')' : ''}</summary>${resultHtml}</details>`;
+          : `<p><em>${t('status.status_label')}: ${status}</em></p>`;
+        return `<details open><summary>${t('status.run_label')} ${run.id} &mdash; ${status} ${ts ? '(' + ts + ')' : ''}</summary>${resultHtml}</details>`;
       }).join('');
     } catch (err) {
-      container.innerHTML = `<p><em>Could not load runs: ${err}</em></p>`;
+      container.innerHTML = `<p><em>${t('status.load_runs_failed')}: ${err}</em></p>`;
     }
   }
 
