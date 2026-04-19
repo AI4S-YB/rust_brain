@@ -1,1 +1,3 @@
-// Placeholder; filled in a later task.
+pub mod schema;
+
+pub use schema::{RiskLevel, ToolDef, ToolError};
