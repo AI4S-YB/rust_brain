@@ -103,6 +103,11 @@ fn main() {
             commands::chat::chat_get_session,
             commands::chat::chat_delete_session,
             commands::chat::chat_rename_session,
+            commands::chat::chat_send_message,
+            commands::chat::chat_approve_tool,
+            commands::chat::chat_reject_tool,
+            commands::chat::chat_cancel_turn,
+            commands::chat::chat_cancel_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");

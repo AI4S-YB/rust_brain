@@ -18,6 +18,8 @@ rb-star-index = { path = "../rb-star-index" }
 rb-star-align = { path = "../rb-star-align" }
 rfd = "0.15"
 dirs = "5"
+futures-util = "0.3"
+tracing = "0.1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
