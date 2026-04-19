@@ -45,6 +45,37 @@ impl Module for GffConvertModule {
         "GFF Converter"
     }
 
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "input_file": {
+                    "type": "string",
+                    "description": "Input GFF3 or GTF annotation file path."
+                },
+                "target_format": {
+                    "type": "string",
+                    "enum": ["gtf", "gff3"],
+                    "description": "Desired output format: 'gtf' or 'gff3'."
+                },
+                "extra_args": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Additional CLI flags passed through to gffread-rs."
+                }
+            },
+            "required": ["input_file", "target_format"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_gff_convert 在 GFF3 和 GTF 之间转换注释文件。STAR index 需要 GTF,当用户只提供 GFF3 时先跑这个。".into(),
+            _ => "Use run_gff_convert to translate annotation files between GFF3 and GTF. Call this before run_star_index when the user only has GFF3.".into(),
+        }
+    }
+
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
 
@@ -384,5 +415,26 @@ mod tests {
                 os("--force-exons"),
             ]
         );
+    }
+}
+
+#[cfg(test)]
+mod ai_schema_tests {
+    use super::*;
+    use rb_core::module::Module;
+
+    #[test]
+    fn gff_schema_requires_input_and_target_format_fields() {
+        let s = GffConvertModule.params_schema().unwrap();
+        assert_eq!(s["type"], "object");
+        let req = s["required"].as_array().unwrap();
+        assert!(req.len() >= 2, "expected >=2 required fields");
+        assert!(req.iter().any(|v| v == "input_file"));
+        assert!(req.iter().any(|v| v == "target_format"));
+    }
+    #[test]
+    fn gff_hint_nonempty_both_languages() {
+        assert!(!GffConvertModule.ai_hint("en").is_empty());
+        assert!(!GffConvertModule.ai_hint("zh").is_empty());
     }
 }
