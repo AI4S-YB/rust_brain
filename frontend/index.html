@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -77,90 +77,90 @@
         </svg>
         <div class="logo-text">
           <span class="logo-title"><span class="logo-rust">Rust</span>Brain</span>
-          <span class="logo-sub">Transcriptomics Platform</span>
+          <span class="logo-sub" data-i18n="brand.subtitle">Transcriptomics Platform</span>
         </div>
       </div>
     </div>
 
     <nav class="sidebar-nav">
       <div class="nav-section">
-        <div class="nav-section-title">Overview</div>
+        <div class="nav-section-title" data-i18n="nav.overview">Overview</div>
         <a class="nav-item active" data-view="dashboard" href="#dashboard">
           <i data-lucide="layout-dashboard"></i>
-          <span>Dashboard</span>
+          <span data-i18n="nav.dashboard">Dashboard</span>
         </a>
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">Analysis Pipeline</div>
+        <div class="nav-section-title" data-i18n="nav.pipeline">Analysis Pipeline</div>
         <a class="nav-item" data-view="qc" data-color="teal" href="#qc">
           <span class="pipeline-dot" style="--dot-color: var(--mod-teal)"></span>
           <i data-lucide="microscope"></i>
-          <span>QC Analysis</span>
-          <span class="nav-badge ready">Ready</span>
+          <span data-i18n="nav.qc">QC Analysis</span>
+          <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
         </a>
         <a class="nav-item" data-view="trimming" data-color="blue" href="#trimming">
           <span class="pipeline-dot" style="--dot-color: var(--mod-blue)"></span>
           <i data-lucide="scissors"></i>
-          <span>Adapter Trimming</span>
-          <span class="nav-badge ready">Ready</span>
+          <span data-i18n="nav.trimming">Adapter Trimming</span>
+          <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
         </a>
         <a class="nav-item" data-view="alignment" data-color="purple" href="#alignment">
           <span class="pipeline-dot" style="--dot-color: var(--mod-purple)"></span>
           <i data-lucide="git-merge"></i>
-          <span>Read Alignment</span>
-          <span class="nav-badge soon">Soon</span>
+          <span data-i18n="nav.alignment">Read Alignment</span>
+          <span class="nav-badge soon" data-i18n="badge.soon">Soon</span>
         </a>
         <a class="nav-item" data-view="quantification" data-color="gold" href="#quantification">
           <span class="pipeline-dot" style="--dot-color: var(--mod-gold)"></span>
           <i data-lucide="bar-chart-3"></i>
-          <span>Quantification</span>
-          <span class="nav-badge soon">Soon</span>
+          <span data-i18n="nav.quantification">Quantification</span>
+          <span class="nav-badge soon" data-i18n="badge.soon">Soon</span>
         </a>
         <a class="nav-item" data-view="differential" data-color="coral" href="#differential">
           <span class="pipeline-dot" style="--dot-color: var(--mod-coral)"></span>
           <i data-lucide="flame"></i>
-          <span>Differential Expr.</span>
-          <span class="nav-badge ready">Ready</span>
+          <span data-i18n="nav.differential">Differential Expr.</span>
+          <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
         </a>
         <a class="nav-item" data-view="network" data-color="green" href="#network">
           <span class="pipeline-dot" style="--dot-color: var(--mod-green)"></span>
           <i data-lucide="share-2"></i>
-          <span>Network Analysis</span>
-          <span class="nav-badge ready">Ready</span>
+          <span data-i18n="nav.network">Network Analysis</span>
+          <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
         </a>
         <a class="nav-item" data-view="enrichment" data-color="slate" href="#enrichment">
           <span class="pipeline-dot" style="--dot-color: var(--mod-slate)"></span>
           <i data-lucide="target"></i>
-          <span>Enrichment</span>
-          <span class="nav-badge soon">Soon</span>
+          <span data-i18n="nav.enrichment">Enrichment</span>
+          <span class="nav-badge soon" data-i18n="badge.soon">Soon</span>
         </a>
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">Alignment &amp; Quantification</div>
+        <div class="nav-section-title" data-i18n="nav.alignment_quant">Alignment &amp; Quantification</div>
         <a class="nav-item" data-view="gff-convert" href="#gff-convert">
           <span class="pipeline-dot" style="--dot-color: var(--mod-purple)"></span>
           <i data-lucide="file-cog"></i>
-          <span>GFF Convert</span>
+          <span data-i18n="nav.gff_convert">GFF Convert</span>
         </a>
         <a class="nav-item" data-view="star-index" href="#star-index">
           <span class="pipeline-dot" style="--dot-color: var(--mod-purple)"></span>
           <i data-lucide="database"></i>
-          <span>STAR Index</span>
+          <span data-i18n="nav.star_index">STAR Index</span>
         </a>
         <a class="nav-item" data-view="star-align" href="#star-align">
           <span class="pipeline-dot" style="--dot-color: var(--mod-purple)"></span>
           <i data-lucide="git-merge"></i>
-          <span>STAR Alignment</span>
+          <span data-i18n="nav.star_align">STAR Alignment</span>
         </a>
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">System</div>
+        <div class="nav-section-title" data-i18n="nav.system">System</div>
         <a class="nav-item" data-view="settings" href="#settings">
           <i data-lucide="settings"></i>
-          <span>Settings</span>
+          <span data-i18n="nav.settings">Settings</span>
         </a>
       </div>
     </nav>
@@ -168,7 +168,7 @@
     <div class="sidebar-footer">
       <div class="sidebar-footer-info">
         <span class="status-dot online"></span>
-        <span>Backend Connected</span>
+        <span data-i18n="status.backend_connected">Backend Connected</span>
       </div>
     </div>
   </aside>
@@ -181,15 +181,19 @@
           <i data-lucide="menu"></i>
         </button>
         <div class="breadcrumb" id="breadcrumb">
-          <span class="breadcrumb-home">RustBrain</span>
+          <span class="breadcrumb-home" data-i18n="brand.name">RustBrain</span>
           <i data-lucide="chevron-right" class="breadcrumb-sep"></i>
-          <span class="breadcrumb-current">Dashboard</span>
+          <span class="breadcrumb-current" data-i18n="nav.dashboard">Dashboard</span>
         </div>
       </div>
       <div class="header-right">
+        <div class="lang-toggle" role="group" aria-label="Language">
+          <button type="button" class="lang-btn" data-lang="en">EN</button>
+          <button type="button" class="lang-btn" data-lang="zh">中文</button>
+        </div>
         <div class="project-selector">
           <i data-lucide="folder-open"></i>
-          <span id="projectName">No Project</span>
+          <span id="projectName" data-i18n="project.no_project">No Project</span>
           <i data-lucide="chevron-down" class="small-icon"></i>
         </div>
       </div>
@@ -204,10 +208,10 @@
   <footer class="status-bar">
     <div class="status-left">
       <span class="status-indicator online"></span>
-      <span id="statusText">Ready</span>
+      <span id="statusText" data-i18n="status.ready">Ready</span>
     </div>
     <div class="status-center">
-      <span id="jobStatus">No active jobs</span>
+      <span id="jobStatus" data-i18n="status.no_jobs">No active jobs</span>
     </div>
     <div class="status-right">
       <span class="status-tag">Rust</span>
@@ -215,6 +219,7 @@
     </div>
   </footer>
 
+  <script src="js/i18n.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

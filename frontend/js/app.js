@@ -6,6 +6,10 @@
 (function () {
   'use strict';
 
+  // ── i18n helper (falls back to key if i18n.js failed to load) ─
+  const t = (k, v) => (window.I18N ? window.I18N.t(k, v) : k);
+  const navKey = (id) => 'nav.' + String(id).replace(/-/g, '_');
+
   // ── Configuration ──────────────────────────────────────────
   const MODULES = [
     { id: 'qc',             name: 'QC Analysis',          icon: 'microscope',  color: 'teal',   tool: 'fastqc-rs',    status: 'ready' },
@@ -26,6 +30,12 @@
     green:  '#2d8659',
     slate:  '#5c7080',
   };
+
+  // Views with localized breadcrumb labels (keys live in i18n.js as `nav.<id>` with '-' → '_').
+  const KNOWN_VIEWS = new Set([
+    'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align',
+    ...MODULES.map(m => m.id),
+  ]);
 
   // ── ECharts theme / helpers ────────────────────────────────
   const ECHART_THEME = {
@@ -93,14 +103,9 @@
     });
 
     const bc = document.getElementById('breadcrumb');
-    const label = view === 'dashboard' ? 'Dashboard'
-      : view === 'settings' ? 'Settings'
-      : view === 'gff-convert' ? 'GFF Convert'
-      : view === 'star-index' ? 'STAR Index'
-      : view === 'star-align' ? 'STAR Alignment'
-      : MODULES.find(m => m.id === view)?.name || view;
+    const label = KNOWN_VIEWS.has(view) ? t(navKey(view)) : view;
     bc.innerHTML = `
-      <span class="breadcrumb-home">RustBrain</span>
+      <span class="breadcrumb-home">${t('brand.name')}</span>
       <i data-lucide="chevron-right" class="breadcrumb-sep"></i>
       <span class="breadcrumb-current">${label}</span>
     `;
@@ -110,7 +115,7 @@
 
     if (view === 'dashboard') content.innerHTML = renderDashboard();
     else if (view === 'settings') {
-      content.innerHTML = '<h2>Settings — Binary Paths</h2><p>Loading…</p>';
+      content.innerHTML = `<h2>${t('settings.binary_title')}</h2><p>${t('common.loading')}</p>`;
       renderSettings().then(html => {
         const root = document.getElementById('content');
         if (root && state.currentView === 'settings') root.innerHTML = html;
@@ -133,53 +138,54 @@
       const connector = i < MODULES.length - 1
         ? '<div class="pipeline-connector"><div class="pipeline-connector-line"></div></div>'
         : '';
+      const nameKey = navKey(m.id);
       return `
         <div class="pipeline-stage animate-slide-up" style="animation-delay: ${i * 60}ms">
           <div class="pipeline-node ${m.status}" data-view="${m.id}" style="--node-color: ${COLOR_MAP[m.color]}">
             <div class="pipeline-node-icon"><i data-lucide="${m.icon}"></i></div>
-            <div class="pipeline-node-title">${m.name}</div>
+            <div class="pipeline-node-title">${t(nameKey)}</div>
             <div class="pipeline-node-desc">${m.tool}</div>
             <div class="pipeline-node-status">
               <span class="dot"></span>
-              ${m.status === 'ready' ? 'Available' : 'Coming Soon'}
+              ${m.status === 'ready' ? t('badge.available') : t('badge.coming_soon')}
             </div>
           </div>
           ${connector}
         </div>`;
     }).join('');
 
-    const projName = state.projectOpen ? state.projectName : 'No project open';
+    const projName = state.projectOpen ? state.projectName : t('project.none_open');
     const projStatus = state.projectOpen
-      ? `<span class="badge badge-green" style="margin-left:8px">Open</span>`
-      : `<span class="badge badge-muted" style="margin-left:8px">Closed</span>`;
+      ? `<span class="badge badge-green" style="margin-left:8px">${t('project.open_badge')}</span>`
+      : `<span class="badge badge-muted" style="margin-left:8px">${t('project.closed_badge')}</span>`;
 
     return `
       <div class="module-view">
         <div class="dashboard-hero animate-slide-up">
           <h1 class="dashboard-title">
-            <span class="dashboard-title-accent">Transcriptomics</span> Pipeline
+            <span class="dashboard-title-accent">${t('dashboard.title_accent')}</span> ${t('dashboard.title_rest')}
           </h1>
           <p class="dashboard-subtitle">
-            End-to-end RNA-seq analysis powered by Rust. From raw reads to biological insights.
+            ${t('dashboard.subtitle')}
           </p>
         </div>
 
         <div class="card animate-slide-up" style="animation-delay: 40ms; margin-bottom: 16px; padding: 16px 24px;">
           <div class="card-header" style="margin-bottom: 12px">
-            <span class="card-title"><i data-lucide="folder-open" style="width:15px;height:15px;vertical-align:-2px;margin-right:6px"></i>Project</span>
+            <span class="card-title"><i data-lucide="folder-open" style="width:15px;height:15px;vertical-align:-2px;margin-right:6px"></i>${t('project.section_title')}</span>
             ${projStatus}
           </div>
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
             <span style="font-size:0.9rem;color:var(--text-secondary);flex:1;min-width:120px;" id="dash-proj-name">${projName}</span>
-            <button class="btn btn-secondary btn-sm" onclick="projectNew()"><i data-lucide="folder-plus"></i> New Project</button>
-            <button class="btn btn-secondary btn-sm" onclick="projectOpen()"><i data-lucide="folder-open"></i> Open Project</button>
+            <button class="btn btn-secondary btn-sm" onclick="projectNew()"><i data-lucide="folder-plus"></i> ${t('project.new')}</button>
+            <button class="btn btn-secondary btn-sm" onclick="projectOpen()"><i data-lucide="folder-open"></i> ${t('project.open')}</button>
           </div>
         </div>
 
         <div class="pipeline-flow-container card animate-slide-up" style="animation-delay: 60ms; padding: 16px 24px;">
           <div class="card-header" style="margin-bottom: 8px">
-            <span class="card-title">Analysis Pipeline</span>
-            <span class="badge badge-teal">7 modules</span>
+            <span class="card-title">${t('dashboard.pipeline_section')}</span>
+            <span class="badge badge-teal">${t('dashboard.modules_badge', { n: MODULES.length })}</span>
           </div>
           <div class="pipeline-flow stagger">
             ${pipelineNodes}
@@ -188,19 +194,19 @@
 
         <div class="stats-row stagger">
           <div class="stat-card animate-slide-up">
-            <div class="stat-label">Modules Ready</div>
+            <div class="stat-label">${t('dashboard.stat_modules_ready')}</div>
             <div class="stat-value">4<span class="stat-unit">/ 7</span></div>
           </div>
           <div class="stat-card animate-slide-up">
-            <div class="stat-label">Rust Tools</div>
+            <div class="stat-label">${t('dashboard.stat_rust_tools')}</div>
             <div class="stat-value">4</div>
           </div>
           <div class="stat-card animate-slide-up">
-            <div class="stat-label">Active Jobs</div>
+            <div class="stat-label">${t('dashboard.stat_active_jobs')}</div>
             <div class="stat-value">0</div>
           </div>
           <div class="stat-card animate-slide-up">
-            <div class="stat-label">Speed Gain</div>
+            <div class="stat-label">${t('dashboard.stat_speed_gain')}</div>
             <div class="stat-value">28<span class="stat-unit">x</span></div>
           </div>
         </div>
@@ -208,25 +214,25 @@
         <div class="dashboard-grid">
           <div class="card animate-slide-up" style="animation-delay: 200ms">
             <div class="card-header">
-              <span class="card-title">Quick Start</span>
+              <span class="card-title">${t('dashboard.quick_start')}</span>
             </div>
             <div class="quick-actions">
-              ${renderQuickAction('qc', 'microscope', 'teal', 'Run QC', 'FastQC quality analysis')}
-              ${renderQuickAction('trimming', 'scissors', 'blue', 'Trim Reads', 'Adapter removal')}
-              ${renderQuickAction('differential', 'flame', 'coral', 'DESeq2 Analysis', 'Differential expression')}
-              ${renderQuickAction('network', 'share-2', 'green', 'WGCNA', 'Co-expression network')}
+              ${renderQuickAction('qc', 'microscope', 'teal', t('dashboard.quick.qc_title'), t('dashboard.quick.qc_desc'))}
+              ${renderQuickAction('trimming', 'scissors', 'blue', t('dashboard.quick.trim_title'), t('dashboard.quick.trim_desc'))}
+              ${renderQuickAction('differential', 'flame', 'coral', t('dashboard.quick.deseq_title'), t('dashboard.quick.deseq_desc'))}
+              ${renderQuickAction('network', 'share-2', 'green', t('dashboard.quick.wgcna_title'), t('dashboard.quick.wgcna_desc'))}
             </div>
           </div>
 
           <div class="card animate-slide-up" style="animation-delay: 260ms">
             <div class="card-header">
-              <span class="card-title">Rust Tool Suite</span>
+              <span class="card-title">${t('dashboard.tool_suite')}</span>
             </div>
             <div>
-              ${renderToolInfo('fastqc-rs', '2.1-4.7x faster than Java FastQC', 'GPL-3.0')}
-              ${renderToolInfo('cutadapt-rs', 'Byte-identical to Python cutadapt', 'MIT')}
-              ${renderToolInfo('DESeq2_rs', '28x faster, 99.6% accuracy vs R', 'MIT')}
-              ${renderToolInfo('WGCNA_rs', 'Bit-exact co-expression analysis', 'GPL-2.0')}
+              ${renderToolInfo('fastqc-rs', t('dashboard.tool_desc.fastqc'), 'GPL-3.0')}
+              ${renderToolInfo('cutadapt-rs', t('dashboard.tool_desc.cutadapt'), 'MIT')}
+              ${renderToolInfo('DESeq2_rs', t('dashboard.tool_desc.deseq2'), 'MIT')}
+              ${renderToolInfo('WGCNA_rs', t('dashboard.tool_desc.wgcna'), 'GPL-2.0')}
             </div>
           </div>
         </div>
@@ -258,7 +264,7 @@
 
   // ── Project management helpers ─────────────────────────────
   window.projectNew = async function () {
-    const name = prompt('Enter project name:');
+    const name = prompt(t('project.prompt_name'));
     if (!name) return;
     try {
       const dir = await api.invoke('select_directory', {});
@@ -295,19 +301,20 @@
   // ── Module View ────────────────────────────────────────────
   function renderModule(moduleId) {
     const mod = MODULES.find(m => m.id === moduleId);
-    if (!mod) return renderEmptyState('Module not found');
+    if (!mod) return renderEmptyState(t('common.module_not_found'));
 
     const hex = COLOR_MAP[mod.color];
+    const nameKey = navKey(mod.id);
     const header = `
       <div class="module-header animate-slide-up">
         <div class="module-icon" style="background: ${hex}12; color: ${hex};">
           <i data-lucide="${mod.icon}"></i>
         </div>
         <div>
-          <h1 class="module-title">${mod.name}</h1>
-          <p class="module-desc">Powered by <strong style="color: ${hex}">${mod.tool}</strong></p>
+          <h1 class="module-title">${t(nameKey)}</h1>
+          <p class="module-desc">${t('module.powered_by')} <strong style="color: ${hex}">${mod.tool}</strong></p>
           <div class="module-badges">
-            <span class="badge badge-${mod.color}">${mod.status === 'ready' ? 'Available' : 'Coming Soon'}</span>
+            <span class="badge badge-${mod.color}">${mod.status === 'ready' ? t('badge.available') : t('badge.coming_soon')}</span>
           </div>
         </div>
       </div>`;
@@ -336,75 +343,75 @@
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:100ms">
             <div class="panel-header">
-              <span class="panel-title">Input Files</span>
-              <span class="badge badge-teal">${state.files.qc.length} files</span>
+              <span class="panel-title">${t('qc.input_files')}</span>
+              <span class="badge badge-teal">${t('qc.files_count', { n: state.files.qc.length })}</span>
             </div>
             <div class="panel-body">
               <div class="file-drop-zone" data-module="qc" data-accept=".fastq,.fq,.fastq.gz,.fq.gz,.bam,.sam">
                 <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
-                <div class="file-drop-text">Drop FASTQ / BAM files here</div>
-                <div class="file-drop-hint">Supports .fastq, .fq, .fastq.gz, .bam, .sam</div>
+                <div class="file-drop-text">${t('qc.drop_text')}</div>
+                <div class="file-drop-hint">${t('qc.drop_hint')}</div>
               </div>
               <div class="file-list" id="qc-file-list"></div>
             </div>
           </div>
           <div class="module-panel animate-slide-up" style="animation-delay:160ms">
-            <div class="panel-header"><span class="panel-title">Parameters</span></div>
+            <div class="panel-header"><span class="panel-title">${t('qc.parameters')}</span></div>
             <div class="panel-body">
               <div class="form-row">
                 <div class="form-group">
-                  <label class="form-label">Threads</label>
+                  <label class="form-label">${t('qc.threads')}</label>
                   <input type="number" class="form-input" id="qc-threads" value="4" min="1" max="32">
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Format</label>
+                  <label class="form-label">${t('qc.format')}</label>
                   <select class="form-select" id="qc-format">
-                    <option>Auto-detect</option><option>FASTQ</option><option>BAM</option><option>SAM</option>
+                    <option>${t('qc.format_auto')}</option><option>FASTQ</option><option>BAM</option><option>SAM</option>
                   </select>
                 </div>
               </div>
               <div class="form-group">
-                <label class="form-label">Output Directory</label>
-                <input type="text" class="form-input" id="qc-output" placeholder="/path/to/output">
+                <label class="form-label">${t('qc.output_dir')}</label>
+                <input type="text" class="form-input" id="qc-output" placeholder="${t('qc.output_dir_ph')}">
               </div>
               <div class="collapsible">
                 <button class="collapsible-trigger" onclick="toggleCollapsible(this)">
-                  Advanced Options <i data-lucide="chevron-down"></i>
+                  ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
                 </button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-casava"> CASAVA mode</label></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-nogroup"> Disable base grouping</label></div>
-                  <div class="form-group"><label class="form-label">K-mer Size</label><input type="number" class="form-input" id="qc-kmer" value="7" min="2" max="10"></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-casava"> ${t('qc.casava')}</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-nogroup"> ${t('qc.nogroup')}</label></div>
+                  <div class="form-group"><label class="form-label">${t('qc.kmer')}</label><input type="number" class="form-input" id="qc-kmer" value="7" min="2" max="10"></div>
                 </div></div>
               </div>
             </div>
             <div class="panel-footer">
-              <button class="btn btn-secondary btn-sm" onclick="resetForm('qc')"><i data-lucide="rotate-ccw"></i> Reset</button>
-              <button class="btn btn-primary btn-sm" onclick="runModule('qc')"><i data-lucide="play"></i> Run QC</button>
+              <button class="btn btn-secondary btn-sm" onclick="resetForm('qc')"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
+              <button class="btn btn-primary btn-sm" onclick="runModule('qc')"><i data-lucide="play"></i> ${t('qc.run_qc')}</button>
             </div>
             ${renderLogPanel('qc')}
           </div>
         </div>
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-            <div class="panel-header"><span class="panel-title">Results</span></div>
+            <div class="panel-header"><span class="panel-title">${t('qc.results')}</span></div>
             <div class="panel-body">
               <div class="tabs">
-                <div class="tab active" data-tab="qc-chart">Quality Scores</div>
-                <div class="tab" data-tab="qc-summary">Summary</div>
-                <div class="tab" data-tab="qc-log">Log</div>
+                <div class="tab active" data-tab="qc-chart">${t('qc.tab_quality')}</div>
+                <div class="tab" data-tab="qc-summary">${t('qc.tab_summary')}</div>
+                <div class="tab" data-tab="qc-log">${t('qc.tab_log')}</div>
               </div>
               <div class="tab-content active" data-tab="qc-chart">
                 <div class="chart-container" id="qc-quality-chart" style="height:320px;"></div>
               </div>
               <div class="tab-content" data-tab="qc-summary">
                 <div class="results-summary">
-                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">Pass</div><div class="result-metric-label">Overall</div></div>
-                  <div class="result-metric"><div class="result-metric-value">35.2</div><div class="result-metric-label">Mean Quality</div></div>
-                  <div class="result-metric"><div class="result-metric-value">12.4M</div><div class="result-metric-label">Total Reads</div></div>
-                  <div class="result-metric"><div class="result-metric-value">150</div><div class="result-metric-label">Read Length</div></div>
+                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">Pass</div><div class="result-metric-label">${t('qc.metric_overall')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value">35.2</div><div class="result-metric-label">${t('qc.metric_mean_quality')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value">12.4M</div><div class="result-metric-label">${t('qc.metric_total_reads')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value">150</div><div class="result-metric-label">${t('qc.metric_read_length')}</div></div>
                 </div>
-                <table class="data-table"><thead><tr><th>Module</th><th>Status</th></tr></thead><tbody>
+                <table class="data-table"><thead><tr><th>${t('qc.col_module')}</th><th>${t('qc.col_status')}</th></tr></thead><tbody>
                   <tr><td>Per base sequence quality</td><td><span class="badge badge-green">PASS</span></td></tr>
                   <tr><td>Per sequence quality scores</td><td><span class="badge badge-green">PASS</span></td></tr>
                   <tr><td>Per base sequence content</td><td><span class="badge badge-gold">WARN</span></td></tr>
@@ -436,82 +443,82 @@
       <div class="module-layout">
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:100ms">
-            <div class="panel-header"><span class="panel-title">Input Files</span></div>
+            <div class="panel-header"><span class="panel-title">${t('trimming.input_files')}</span></div>
             <div class="panel-body">
               <div class="file-drop-zone" data-module="trimming" data-accept=".fastq,.fq,.fastq.gz,.fq.gz">
                 <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
-                <div class="file-drop-text">Drop FASTQ / FASTA files here</div>
-                <div class="file-drop-hint">Supports .fastq, .fq, .fasta (plain or gzipped)</div>
+                <div class="file-drop-text">${t('trimming.drop_text')}</div>
+                <div class="file-drop-hint">${t('trimming.drop_hint')}</div>
               </div>
               <div class="file-list" id="trimming-file-list"></div>
             </div>
           </div>
           <div class="module-panel animate-slide-up" style="animation-delay:160ms">
-            <div class="panel-header"><span class="panel-title">Adapter Settings</span></div>
+            <div class="panel-header"><span class="panel-title">${t('trimming.adapter_settings')}</span></div>
             <div class="panel-body">
               <div class="form-group">
-                <label class="form-label">Adapter Preset</label>
+                <label class="form-label">${t('trimming.adapter_preset')}</label>
                 <select class="form-select" id="trim-preset">
-                  <option>Illumina Universal (AGATCGGAAGAGC)</option>
-                  <option>Nextera Transposase</option>
-                  <option>Illumina Small RNA</option>
-                  <option>BGIseq</option>
-                  <option>Custom Sequence</option>
+                  <option>${t('trimming.preset_illumina')}</option>
+                  <option>${t('trimming.preset_nextera')}</option>
+                  <option>${t('trimming.preset_smallrna')}</option>
+                  <option>${t('trimming.preset_bgi')}</option>
+                  <option>${t('trimming.preset_custom')}</option>
                 </select>
               </div>
               <div class="form-group">
-                <label class="form-label">3' Adapter (-a)</label>
+                <label class="form-label">${t('trimming.adapter_3')}</label>
                 <input type="text" class="form-input" id="trim-adapter" value="AGATCGGAAGAGC" placeholder="AGATCGGAAGAGC">
-                <span class="form-hint">Sequence to trim from 3' end</span>
+                <span class="form-hint">${t('trimming.adapter_3_hint')}</span>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Quality Cutoff (-q)</label><input type="number" class="form-input" id="trim-quality" value="20" min="0" max="42"></div>
-                <div class="form-group"><label class="form-label">Min Length (-m)</label><input type="number" class="form-input" id="trim-minlen" value="20" min="1"></div>
+                <div class="form-group"><label class="form-label">${t('trimming.quality_cutoff')}</label><input type="number" class="form-input" id="trim-quality" value="20" min="0" max="42"></div>
+                <div class="form-group"><label class="form-label">${t('trimming.min_length')}</label><input type="number" class="form-input" id="trim-minlen" value="20" min="1"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Max N Bases</label><input type="number" class="form-input" id="trim-maxn" value="-1"><span class="form-hint">-1 = no limit</span></div>
-                <div class="form-group"><label class="form-label">Threads</label><input type="number" class="form-input" id="trim-threads" value="4" min="1" max="16"></div>
+                <div class="form-group"><label class="form-label">${t('trimming.max_n')}</label><input type="number" class="form-input" id="trim-maxn" value="-1"><span class="form-hint">${t('trimming.max_n_hint')}</span></div>
+                <div class="form-group"><label class="form-label">${t('trimming.threads')}</label><input type="number" class="form-input" id="trim-threads" value="4" min="1" max="16"></div>
               </div>
               <div class="collapsible">
-                <button class="collapsible-trigger" onclick="toggleCollapsible(this)">Paired-End Options <i data-lucide="chevron-down"></i></button>
+                <button class="collapsible-trigger" onclick="toggleCollapsible(this)">${t('trimming.paired_options')} <i data-lucide="chevron-down"></i></button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-paired"> Paired-end mode</label></div>
-                  <div class="form-group"><label class="form-label">R2 Adapter (-A)</label><input type="text" class="form-input" id="trim-adapter2" placeholder="AGATCGGAAGAGC"></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-paired"> ${t('trimming.paired_mode')}</label></div>
+                  <div class="form-group"><label class="form-label">${t('trimming.adapter_r2')}</label><input type="text" class="form-input" id="trim-adapter2" placeholder="AGATCGGAAGAGC"></div>
                 </div></div>
               </div>
               <div class="collapsible">
-                <button class="collapsible-trigger" onclick="toggleCollapsible(this)">Trim Galore Mode <i data-lucide="chevron-down"></i></button>
+                <button class="collapsible-trigger" onclick="toggleCollapsible(this)">${t('trimming.trim_galore')} <i data-lucide="chevron-down"></i></button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-galore"> Enable Trim Galore wrapper</label></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-fastqc"> Run FastQC after trimming</label></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-rrbs"> RRBS mode</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-galore"> ${t('trimming.enable_galore')}</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-fastqc"> ${t('trimming.post_fastqc')}</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-rrbs"> ${t('trimming.rrbs')}</label></div>
                 </div></div>
               </div>
             </div>
             <div class="panel-footer">
-              <button class="btn btn-secondary btn-sm" onclick="resetForm('trimming')"><i data-lucide="rotate-ccw"></i> Reset</button>
-              <button class="btn btn-primary btn-sm" onclick="runModule('trimming')" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> Run Trimming</button>
+              <button class="btn btn-secondary btn-sm" onclick="resetForm('trimming')"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
+              <button class="btn btn-primary btn-sm" onclick="runModule('trimming')" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> ${t('trimming.run_trim')}</button>
             </div>
             ${renderLogPanel('trimming')}
           </div>
         </div>
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-            <div class="panel-header"><span class="panel-title">Trimming Results</span></div>
+            <div class="panel-header"><span class="panel-title">${t('trimming.results')}</span></div>
             <div class="panel-body">
               <div class="tabs">
-                <div class="tab active" data-tab="trim-stats">Statistics</div>
-                <div class="tab" data-tab="trim-chart">Length Distribution</div>
-                <div class="tab" data-tab="trim-log">Log</div>
+                <div class="tab active" data-tab="trim-stats">${t('trimming.tab_stats')}</div>
+                <div class="tab" data-tab="trim-chart">${t('trimming.tab_chart')}</div>
+                <div class="tab" data-tab="trim-log">${t('qc.tab_log')}</div>
               </div>
               <div class="tab-content active" data-tab="trim-stats">
                 <div class="results-summary">
-                  <div class="result-metric"><div class="result-metric-value">10.2M</div><div class="result-metric-label">Reads Processed</div></div>
-                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">98.7%</div><div class="result-metric-label">Reads Passing</div></div>
-                  <div class="result-metric"><div class="result-metric-value">4.3%</div><div class="result-metric-label">Adapter Found</div></div>
-                  <div class="result-metric"><div class="result-metric-value">142</div><div class="result-metric-label">Mean Length</div></div>
+                  <div class="result-metric"><div class="result-metric-value">10.2M</div><div class="result-metric-label">${t('trimming.metric_reads_processed')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">98.7%</div><div class="result-metric-label">${t('trimming.metric_reads_passing')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value">4.3%</div><div class="result-metric-label">${t('trimming.metric_adapter_found')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value">142</div><div class="result-metric-label">${t('trimming.metric_mean_length')}</div></div>
                 </div>
-                <table class="data-table"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>
+                <table class="data-table"><thead><tr><th>${t('trimming.col_metric')}</th><th>${t('trimming.col_value')}</th></tr></thead><tbody>
                   <tr><td>Total reads processed</td><td>10,243,891</td></tr>
                   <tr><td>Reads with adapters</td><td>438,215 (4.3%)</td></tr>
                   <tr><td>Reads too short</td><td>132,045 (1.3%)</td></tr>
@@ -542,25 +549,25 @@
   // ── GFF Convert ───────────────────────────────────────────
   function renderGffConvert() {
     return `
-    <h2>GFF Converter</h2>
-    <p>Convert between GFF3 and GTF using gffread-rs. STAR Index requires GTF — if your annotation is GFF3, run this first.</p>
+    <h2>${t('gff_convert.title')}</h2>
+    <p>${t('gff_convert.desc')}</p>
     <form id="form-gff-convert">
-      <label>Input annotation file
+      <label>${t('gff_convert.input_file')}
         <input type="text" name="input_file" data-pick="file" placeholder="/path/to/anno.gff3" required />
-        <button type="button" data-pick-for="input_file">Browse…</button>
+        <button type="button" data-pick-for="input_file">${t('common.browse')}</button>
       </label>
-      <label>Target format
+      <label>${t('gff_convert.target_format')}
         <select name="target_format" required>
-          <option value="gtf">GTF (for STAR Index, HISAT2, featureCounts, …)</option>
-          <option value="gff3">GFF3</option>
+          <option value="gtf">${t('gff_convert.target_gtf')}</option>
+          <option value="gff3">${t('gff_convert.target_gff3')}</option>
         </select>
       </label>
-      <details><summary>Advanced</summary>
-        <label>Extra args (one per line, passed to gffread-rs)
+      <details><summary>${t('gff_convert.advanced')}</summary>
+        <label>${t('gff_convert.extra_args')}
           <textarea name="extra_args" placeholder="--keep-comments&#10;--force-exons"></textarea>
         </label>
       </details>
-      <button type="submit">Convert</button>
+      <button type="submit">${t('gff_convert.submit')}</button>
     </form>
     <div id="gff-convert-runs"></div>
     ${renderLogPanel('gff_convert')}
@@ -594,26 +601,26 @@
     state.prefill = {};
     const gtfValue = prefill.gtf_file || '';
     return `
-    <h2>STAR Genome Index</h2>
-    <p>Build a STAR index from a reference genome FASTA and GTF annotation. Required before any alignment run.</p>
+    <h2>${t('star_index.title')}</h2>
+    <p>${t('star_index.desc')}</p>
     <form id="form-star-index">
-      <label>Genome FASTA
+      <label>${t('star_index.genome_fasta')}
         <input type="text" name="genome_fasta" data-pick="file" placeholder="/path/to/genome.fa" required />
-        <button type="button" data-pick-for="genome_fasta">Browse…</button>
+        <button type="button" data-pick-for="genome_fasta">${t('common.browse')}</button>
       </label>
-      <label>GTF annotation
+      <label>${t('star_index.gtf')}
         <input type="text" name="gtf_file" data-pick="file" value="${escapeHtml(gtfValue)}" placeholder="/path/to/annotation.gtf" required />
-        <button type="button" data-pick-for="gtf_file">Browse…</button>
+        <button type="button" data-pick-for="gtf_file">${t('common.browse')}</button>
       </label>
-      <label>Threads <input type="number" name="threads" value="4" min="1" /></label>
-      <label>sjdbOverhang <input type="number" name="sjdb_overhang" value="100" min="1" /></label>
-      <label>genomeSAindexNbases <input type="number" name="genome_sa_index_nbases" value="14" min="1" max="18" /></label>
-      <details><summary>Advanced</summary>
-        <label>Extra args (one per line)
+      <label>${t('star_index.threads')} <input type="number" name="threads" value="4" min="1" /></label>
+      <label>${t('star_index.sjdb')} <input type="number" name="sjdb_overhang" value="100" min="1" /></label>
+      <label>${t('star_index.sa_nbases')} <input type="number" name="genome_sa_index_nbases" value="14" min="1" max="18" /></label>
+      <details><summary>${t('star_index.advanced')}</summary>
+        <label>${t('star_index.extra_args')}
           <textarea name="extra_args" placeholder="--limitGenomeGenerateRAM&#10;31000000000"></textarea>
         </label>
       </details>
-      <button type="submit">Build Index</button>
+      <button type="submit">${t('star_index.submit')}</button>
     </form>
     <div id="star-index-runs"></div>
     ${renderLogPanel('star_index')}
@@ -643,37 +650,37 @@
   // ── STAR Alignment ────────────────────────────────────────
   function renderStarAlign() {
     return `
-    <h2>STAR Alignment &amp; Quantification</h2>
-    <p>Map FASTQ reads to a pre-built STAR index and produce per-sample BAM, gene counts, and a merged counts matrix.</p>
+    <h2>${t('star_align.title')}</h2>
+    <p>${t('star_align.desc')}</p>
     <form id="form-star-align">
-      <label>Genome index directory
+      <label>${t('star_align.genome_dir')}
         <input type="text" name="genome_dir" required placeholder="/path/to/star_index" />
-        <button type="button" data-pick-for="genome_dir" data-pick-mode="dir">Browse…</button>
+        <button type="button" data-pick-for="genome_dir" data-pick-mode="dir">${t('common.browse')}</button>
       </label>
-      <label>R1 FASTQ files (one per sample)
+      <label>${t('star_align.reads_1')}
         <input type="text" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz /path/to/S2_R1.fq.gz" />
-        <button type="button" data-pick-for="reads_1" data-pick-mode="multi">Browse…</button>
+        <button type="button" data-pick-for="reads_1" data-pick-mode="multi">${t('common.browse')}</button>
       </label>
-      <label>R2 FASTQ files (optional, paired-end)
+      <label>${t('star_align.reads_2')}
         <input type="text" name="reads_2" placeholder="/path/to/S1_R2.fq.gz /path/to/S2_R2.fq.gz" />
-        <button type="button" data-pick-for="reads_2" data-pick-mode="multi">Browse…</button>
+        <button type="button" data-pick-for="reads_2" data-pick-mode="multi">${t('common.browse')}</button>
       </label>
-      <label>Sample names (optional, one per line; defaults from R1 filename)
+      <label>${t('star_align.sample_names')}
         <textarea name="sample_names" placeholder="S1&#10;S2"></textarea>
       </label>
-      <label>Threads <input type="number" name="threads" value="4" min="1" /></label>
+      <label>${t('star_align.threads')} <input type="number" name="threads" value="4" min="1" /></label>
       <fieldset>
-        <legend>Strand</legend>
-        <label><input type="radio" name="strand" value="unstranded" checked /> unstranded</label>
-        <label><input type="radio" name="strand" value="forward" /> forward</label>
-        <label><input type="radio" name="strand" value="reverse" /> reverse</label>
+        <legend>${t('star_align.strand')}</legend>
+        <label><input type="radio" name="strand" value="unstranded" checked /> ${t('star_align.strand_unstranded')}</label>
+        <label><input type="radio" name="strand" value="forward" /> ${t('star_align.strand_forward')}</label>
+        <label><input type="radio" name="strand" value="reverse" /> ${t('star_align.strand_reverse')}</label>
       </fieldset>
-      <details><summary>Advanced</summary>
-        <label>Extra args (one per line)
+      <details><summary>${t('star_align.advanced')}</summary>
+        <label>${t('star_align.extra_args')}
           <textarea name="extra_args" placeholder="--outFilterMultimapNmax&#10;10"></textarea>
         </label>
       </details>
-      <button type="submit">Run Alignment</button>
+      <button type="submit">${t('star_align.submit')}</button>
     </form>
     <div id="star-align-runs"></div>
     ${renderLogPanel('star_align')}
@@ -731,15 +738,15 @@
           el.innerHTML = `<table class="preview-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
         }).catch(() => {});
     } else {
-      previewHtml = '<p><em>No counts matrix produced</em></p>';
+      previewHtml = `<p><em>${t('star_align.no_matrix')}</em></p>`;
     }
 
     return `
-    <h3>Mapping rate</h3>
+    <h3>${t('star_align.mapping_rate')}</h3>
     <div id="${chartId}" style="width: 100%; height: 320px;"></div>
-    <h3>Counts matrix preview (first 50 × 10)</h3>
-    <div id="${previewId}">Loading…</div>
-    ${matrixPath ? `<button id="${btnId}" data-matrix="${matrixPath}">Use this matrix in DESeq2</button>` : ''}
+    <h3>${t('star_align.matrix_preview')}</h3>
+    <div id="${previewId}">${t('common.loading')}</div>
+    ${matrixPath ? `<button id="${btnId}" data-matrix="${matrixPath}">${t('star_align.use_in_deseq')}</button>` : ''}
     ${previewHtml}
   `;
   }
@@ -747,17 +754,18 @@
   function renderGffConvertResult(result, runId) {
     const s = result.summary || {};
     const out = (result.output_files && result.output_files[0]) || s.output || '';
+    const fmt = String(s.target_format || '').toUpperCase();
     return `
       <div class="run-result-card">
-        <h3>Converted ${escapeHtml(String(s.target_format || '').toUpperCase())}</h3>
+        <h3>${t('gff_convert.converted_heading', { format: escapeHtml(fmt) })}</h3>
         <dl class="result-kv">
-          <dt>Input</dt><dd class="path">${escapeHtml(s.input || '')}</dd>
-          <dt>Output</dt><dd class="path">${escapeHtml(out)}</dd>
-          <dt>Input size</dt><dd>${s.input_bytes ?? '?'} bytes</dd>
-          <dt>Output size</dt><dd>${s.output_bytes ?? '?'} bytes</dd>
-          <dt>Elapsed</dt><dd>${s.elapsed_ms ?? '?'} ms</dd>
+          <dt>${t('gff_convert.kv_input')}</dt><dd class="path">${escapeHtml(s.input || '')}</dd>
+          <dt>${t('gff_convert.kv_output')}</dt><dd class="path">${escapeHtml(out)}</dd>
+          <dt>${t('gff_convert.kv_input_size')}</dt><dd>${s.input_bytes ?? '?'} ${t('gff_convert.kv_bytes_suffix')}</dd>
+          <dt>${t('gff_convert.kv_output_size')}</dt><dd>${s.output_bytes ?? '?'} ${t('gff_convert.kv_bytes_suffix')}</dd>
+          <dt>${t('gff_convert.kv_elapsed')}</dt><dd>${s.elapsed_ms ?? '?'} ${t('gff_convert.kv_ms_suffix')}</dd>
         </dl>
-        <button type="button" data-gff-use-in-star="${escapeHtml(out)}">Use in STAR Index</button>
+        <button type="button" data-gff-use-in-star="${escapeHtml(out)}">${t('gff_convert.use_in_star')}</button>
       </div>
     `;
   }
@@ -789,74 +797,74 @@
       <div class="module-layout">
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:100ms">
-            <div class="panel-header"><span class="panel-title">Input Data</span></div>
+            <div class="panel-header"><span class="panel-title">${t('differential.input_data')}</span></div>
             <div class="panel-body">
               <div class="form-group">
-                <label class="form-label">Count Matrix (TSV)</label>
+                <label class="form-label">${t('differential.counts_matrix')}</label>
                 ${prefill.counts_matrix
-                  ? `<input type="text" class="form-input" id="deseq-counts-matrix" value="${prefill.counts_matrix}" placeholder="/path/to/counts_matrix.tsv">`
+                  ? `<input type="text" class="form-input" id="deseq-counts-matrix" value="${prefill.counts_matrix}" placeholder="${t('differential.counts_matrix_ph')}">`
                   : `<div class="file-drop-zone" data-module="differential" data-accept=".tsv,.csv,.txt" style="padding:20px">
                   <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="table"></i></div>
-                  <div class="file-drop-text" style="font-size:0.85rem">Drop counts matrix file</div>
-                  <div class="file-drop-hint">Genes in rows, samples in columns (TSV)</div>
+                  <div class="file-drop-text" style="font-size:0.85rem">${t('differential.drop_counts')}</div>
+                  <div class="file-drop-hint">${t('differential.drop_counts_hint')}</div>
                 </div>`}
               </div>
               <div class="form-group">
-                <label class="form-label">Sample Information (TSV)</label>
+                <label class="form-label">${t('differential.sample_info')}</label>
                 <div class="file-drop-zone" data-module="differential-coldata" data-accept=".tsv,.csv,.txt" style="padding:20px">
                   <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="file-text"></i></div>
-                  <div class="file-drop-text" style="font-size:0.85rem">Drop coldata / sample info</div>
-                  <div class="file-drop-hint">Sample names, conditions, covariates</div>
+                  <div class="file-drop-text" style="font-size:0.85rem">${t('differential.drop_coldata')}</div>
+                  <div class="file-drop-hint">${t('differential.drop_coldata_hint')}</div>
                 </div>
               </div>
             </div>
           </div>
           <div class="module-panel animate-slide-up" style="animation-delay:160ms">
-            <div class="panel-header"><span class="panel-title">DESeq2 Parameters</span></div>
+            <div class="panel-header"><span class="panel-title">${t('differential.parameters')}</span></div>
             <div class="panel-body">
               <div class="form-group">
-                <label class="form-label">Design Variable</label>
-                <input type="text" class="form-input" id="deseq-design" value="condition" placeholder="e.g. condition, treatment">
-                <span class="form-hint">Column in sample info for comparison</span>
+                <label class="form-label">${t('differential.design_var')}</label>
+                <input type="text" class="form-input" id="deseq-design" value="condition" placeholder="${t('differential.design_var_ph')}">
+                <span class="form-hint">${t('differential.design_var_hint')}</span>
               </div>
               <div class="form-group">
-                <label class="form-label">Reference Level</label>
-                <input type="text" class="form-input" id="deseq-ref" value="control" placeholder="e.g. control, untreated">
-                <span class="form-hint">Baseline for fold-change calculation</span>
+                <label class="form-label">${t('differential.ref_level')}</label>
+                <input type="text" class="form-input" id="deseq-ref" value="control" placeholder="${t('differential.ref_level_ph')}">
+                <span class="form-hint">${t('differential.ref_level_hint')}</span>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">padj Cutoff</label><input type="number" class="form-input" id="deseq-padj" value="0.01" step="0.01" min="0" max="1"></div>
-                <div class="form-group"><label class="form-label">|log2FC| Cutoff</label><input type="number" class="form-input" id="deseq-lfc" value="1.0" step="0.1" min="0"></div>
+                <div class="form-group"><label class="form-label">${t('differential.padj')}</label><input type="number" class="form-input" id="deseq-padj" value="0.01" step="0.01" min="0" max="1"></div>
+                <div class="form-group"><label class="form-label">${t('differential.lfc')}</label><input type="number" class="form-input" id="deseq-lfc" value="1.0" step="0.1" min="0"></div>
               </div>
               <div class="form-group">
-                <label class="form-label">Output File</label>
+                <label class="form-label">${t('differential.output_file')}</label>
                 <input type="text" class="form-input" id="deseq-output" value="deseq2_results.tsv" placeholder="results.tsv">
               </div>
             </div>
             <div class="panel-footer">
-              <button class="btn btn-secondary btn-sm" onclick="resetForm('differential')"><i data-lucide="rotate-ccw"></i> Reset</button>
-              <button class="btn btn-primary btn-sm" onclick="runModule('differential')" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> Run DESeq2</button>
+              <button class="btn btn-secondary btn-sm" onclick="resetForm('differential')"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
+              <button class="btn btn-primary btn-sm" onclick="runModule('differential')" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> ${t('differential.run_deseq')}</button>
             </div>
             ${renderLogPanel('differential')}
           </div>
         </div>
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-            <div class="panel-header"><span class="panel-title">Analysis Results</span></div>
+            <div class="panel-header"><span class="panel-title">${t('differential.results')}</span></div>
             <div class="panel-body">
               <div class="tabs">
-                <div class="tab active" data-tab="deseq-volcano">Volcano Plot</div>
-                <div class="tab" data-tab="deseq-ma">MA Plot</div>
-                <div class="tab" data-tab="deseq-table">Results Table</div>
-                <div class="tab" data-tab="deseq-custom">Custom Plot</div>
-                <div class="tab" data-tab="deseq-log">Log</div>
+                <div class="tab active" data-tab="deseq-volcano">${t('differential.tab_volcano')}</div>
+                <div class="tab" data-tab="deseq-ma">${t('differential.tab_ma')}</div>
+                <div class="tab" data-tab="deseq-table">${t('differential.tab_table')}</div>
+                <div class="tab" data-tab="deseq-custom">${t('differential.tab_custom')}</div>
+                <div class="tab" data-tab="deseq-log">${t('qc.tab_log')}</div>
               </div>
               <div class="tab-content active" data-tab="deseq-volcano">
                 <div class="results-summary">
-                  <div class="result-metric"><div class="result-metric-value">64,102</div><div class="result-metric-label">Total Genes</div></div>
-                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-coral)">347</div><div class="result-metric-label">Up-regulated</div></div>
-                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-blue)">325</div><div class="result-metric-label">Down-regulated</div></div>
-                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-teal)">672</div><div class="result-metric-label">Significant</div></div>
+                  <div class="result-metric"><div class="result-metric-value">64,102</div><div class="result-metric-label">${t('differential.metric_total')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-coral)">347</div><div class="result-metric-label">${t('differential.metric_up')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-blue)">325</div><div class="result-metric-label">${t('differential.metric_down')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-teal)">672</div><div class="result-metric-label">${t('differential.metric_sig')}</div></div>
                 </div>
                 <div class="chart-container" id="deseq-volcano-chart" style="height:380px;"></div>
               </div>
@@ -865,10 +873,10 @@
               </div>
               <div class="tab-content" data-tab="deseq-table">
                 <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-                  <button class="btn btn-ghost btn-sm" onclick="exportTableAsTSV('deseq-results-table', 'deseq2_results.tsv')">Export TSV</button>
+                  <button class="btn btn-ghost btn-sm" onclick="exportTableAsTSV('deseq-results-table', 'deseq2_results.tsv')">${t('common.export_tsv')}</button>
                 </div>
                 <div style="max-height:400px;overflow-y:auto;">
-                  <table class="data-table" id="deseq-results-table"><thead><tr><th>Gene</th><th>log2FC</th><th>p-value</th><th>padj</th></tr></thead><tbody></tbody></table>
+                  <table class="data-table" id="deseq-results-table"><thead><tr><th>${t('differential.col_gene')}</th><th>${t('differential.col_lfc')}</th><th>${t('differential.col_pvalue')}</th><th>${t('differential.col_padj')}</th></tr></thead><tbody></tbody></table>
                 </div>
               </div>
               <div class="tab-content" data-tab="deseq-custom">
@@ -898,74 +906,74 @@
       <div class="module-layout">
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:100ms">
-            <div class="panel-header"><span class="panel-title">Input Data</span></div>
+            <div class="panel-header"><span class="panel-title">${t('network.input_data')}</span></div>
             <div class="panel-body">
               <div class="form-group">
-                <label class="form-label">Expression Matrix (CSV)</label>
+                <label class="form-label">${t('network.expr_matrix')}</label>
                 <div class="file-drop-zone" data-module="network" data-accept=".csv,.tsv" style="padding:20px">
                   <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="grid-3x3"></i></div>
-                  <div class="file-drop-text" style="font-size:0.85rem">Drop expression matrix</div>
-                  <div class="file-drop-hint">Samples in rows, genes in columns</div>
+                  <div class="file-drop-text" style="font-size:0.85rem">${t('network.drop_expr')}</div>
+                  <div class="file-drop-hint">${t('network.drop_expr_hint')}</div>
                 </div>
               </div>
               <div class="form-group">
-                <label class="form-label">Trait Data (optional)</label>
+                <label class="form-label">${t('network.trait_data')}</label>
                 <div class="file-drop-zone" data-module="network-trait" data-accept=".csv,.tsv" style="padding:20px">
                   <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="file-text"></i></div>
-                  <div class="file-drop-text" style="font-size:0.85rem">Drop trait data</div>
-                  <div class="file-drop-hint">For module-trait association</div>
+                  <div class="file-drop-text" style="font-size:0.85rem">${t('network.drop_trait')}</div>
+                  <div class="file-drop-hint">${t('network.drop_trait_hint')}</div>
                 </div>
               </div>
             </div>
           </div>
           <div class="module-panel animate-slide-up" style="animation-delay:160ms">
-            <div class="panel-header"><span class="panel-title">WGCNA Parameters</span></div>
+            <div class="panel-header"><span class="panel-title">${t('network.parameters')}</span></div>
             <div class="panel-body">
-              <div class="form-group"><label class="form-label">Correlation Method</label>
-                <select class="form-select" id="wgcna-corr"><option>Pearson</option><option>Biweight Midcorrelation</option></select></div>
-              <div class="form-group"><label class="form-label">Network Type</label>
-                <select class="form-select" id="wgcna-nettype"><option>Signed</option><option>Unsigned</option><option>Signed Hybrid</option></select></div>
+              <div class="form-group"><label class="form-label">${t('network.corr_method')}</label>
+                <select class="form-select" id="wgcna-corr"><option>${t('network.corr_pearson')}</option><option>${t('network.corr_biweight')}</option></select></div>
+              <div class="form-group"><label class="form-label">${t('network.net_type')}</label>
+                <select class="form-select" id="wgcna-nettype"><option>${t('network.net_signed')}</option><option>${t('network.net_unsigned')}</option><option>${t('network.net_signed_hybrid')}</option></select></div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Soft Threshold</label><input type="number" class="form-input" id="wgcna-thresh" value="6" min="1" max="30"><span class="form-hint">Use threshold picker</span></div>
-                <div class="form-group"><label class="form-label">Min Module Size</label><input type="number" class="form-input" id="wgcna-minmod" value="30" min="10"></div>
+                <div class="form-group"><label class="form-label">${t('network.soft_thresh')}</label><input type="number" class="form-input" id="wgcna-thresh" value="6" min="1" max="30"><span class="form-hint">${t('network.soft_thresh_hint')}</span></div>
+                <div class="form-group"><label class="form-label">${t('network.min_module')}</label><input type="number" class="form-input" id="wgcna-minmod" value="30" min="10"></div>
               </div>
               <div class="form-row">
-                <div class="form-group"><label class="form-label">Merge Cut Height</label><input type="number" class="form-input" id="wgcna-mergecut" value="0.25" step="0.05" min="0" max="1"></div>
-                <div class="form-group"><label class="form-label">TOM Type</label>
-                  <select class="form-select" id="wgcna-tom"><option>Signed</option><option>Unsigned</option></select></div>
+                <div class="form-group"><label class="form-label">${t('network.merge_cut')}</label><input type="number" class="form-input" id="wgcna-mergecut" value="0.25" step="0.05" min="0" max="1"></div>
+                <div class="form-group"><label class="form-label">${t('network.tom_type')}</label>
+                  <select class="form-select" id="wgcna-tom"><option>${t('network.net_signed')}</option><option>${t('network.net_unsigned')}</option></select></div>
               </div>
               <div class="collapsible">
-                <button class="collapsible-trigger" onclick="toggleCollapsible(this)">Advanced Options <i data-lucide="chevron-down"></i></button>
+                <button class="collapsible-trigger" onclick="toggleCollapsible(this)">${t('common.advanced_options')} <i data-lucide="chevron-down"></i></button>
                 <div class="collapsible-content"><div class="collapsible-body">
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-pam"> PAM refinement</label></div>
-                  <div class="form-group"><label class="form-label">Deep Split</label>
-                    <select class="form-select" id="wgcna-deepsplit"><option value="0">0</option><option value="1">1</option><option value="2" selected>2 (default)</option><option value="3">3</option><option value="4">4</option></select></div>
-                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-cytoscape"> Export Cytoscape network</label></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-pam"> ${t('network.pam')}</label></div>
+                  <div class="form-group"><label class="form-label">${t('network.deep_split')}</label>
+                    <select class="form-select" id="wgcna-deepsplit"><option value="0">0</option><option value="1">1</option><option value="2" selected>${t('network.deep_default')}</option><option value="3">3</option><option value="4">4</option></select></div>
+                  <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-cytoscape"> ${t('network.cytoscape')}</label></div>
                 </div></div>
               </div>
             </div>
             <div class="panel-footer">
-              <button class="btn btn-secondary btn-sm"><i data-lucide="zap"></i> Pick Threshold</button>
-              <button class="btn btn-primary btn-sm" onclick="runModule('network')" style="background:var(--mod-green);border-color:var(--mod-green)"><i data-lucide="play"></i> Run WGCNA</button>
+              <button class="btn btn-secondary btn-sm"><i data-lucide="zap"></i> ${t('network.pick_threshold')}</button>
+              <button class="btn btn-primary btn-sm" onclick="runModule('network')" style="background:var(--mod-green);border-color:var(--mod-green)"><i data-lucide="play"></i> ${t('network.run_wgcna')}</button>
             </div>
             ${renderLogPanel('network')}
           </div>
         </div>
         <div>
           <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-            <div class="panel-header"><span class="panel-title">Network Results</span></div>
+            <div class="panel-header"><span class="panel-title">${t('network.results')}</span></div>
             <div class="panel-body">
               <div class="tabs">
-                <div class="tab active" data-tab="wgcna-modules">Modules</div>
-                <div class="tab" data-tab="wgcna-trait">Trait Heatmap</div>
-                <div class="tab" data-tab="wgcna-custom">Custom Plot</div>
-                <div class="tab" data-tab="wgcna-log">Log</div>
+                <div class="tab active" data-tab="wgcna-modules">${t('network.tab_modules')}</div>
+                <div class="tab" data-tab="wgcna-trait">${t('network.tab_trait')}</div>
+                <div class="tab" data-tab="wgcna-custom">${t('network.tab_custom')}</div>
+                <div class="tab" data-tab="wgcna-log">${t('qc.tab_log')}</div>
               </div>
               <div class="tab-content active" data-tab="wgcna-modules">
                 <div class="results-summary">
-                  <div class="result-metric"><div class="result-metric-value">5,000</div><div class="result-metric-label">Genes</div></div>
-                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">12</div><div class="result-metric-label">Modules</div></div>
-                  <div class="result-metric"><div class="result-metric-value">R²=0.87</div><div class="result-metric-label">Scale-Free Fit</div></div>
+                  <div class="result-metric"><div class="result-metric-value">5,000</div><div class="result-metric-label">${t('network.metric_genes')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">12</div><div class="result-metric-label">${t('network.metric_modules')}</div></div>
+                  <div class="result-metric"><div class="result-metric-value">R²=0.87</div><div class="result-metric-label">${t('network.metric_fit')}</div></div>
                 </div>
                 <div class="chart-container" id="wgcna-module-chart" style="height:320px;"></div>
               </div>
@@ -1091,13 +1099,14 @@
 
   // ── Coming Soon ────────────────────────────────────────────
   function renderComingSoon(mod) {
+    const nameKey = navKey(mod.id);
     return `
       <div class="card animate-slide-up" style="animation-delay:100ms">
         <div class="empty-state" style="padding:64px 24px">
           <div class="empty-state-icon"><i data-lucide="${mod.icon}"></i></div>
-          <h3 class="empty-state-title">${mod.name}</h3>
-          <p class="empty-state-text">This module is under development. The <strong>${mod.tool}</strong> backend integration is being prepared.</p>
-          <div style="margin-top:20px"><span class="badge badge-muted" style="font-size:0.8rem;padding:6px 14px">In Development</span></div>
+          <h3 class="empty-state-title">${t(nameKey)}</h3>
+          <p class="empty-state-text">${t('module.soon_body', { tool: `<strong>${mod.tool}</strong>` })}</p>
+          <div style="margin-top:20px"><span class="badge badge-muted" style="font-size:0.8rem;padding:6px 14px">${t('badge.in_development')}</span></div>
         </div>
       </div>`;
   }
@@ -1120,24 +1129,38 @@
       return `
       <tr>
         <td>${s.display_name}</td>
-        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : '<em>(not set)</em>'}</td>
-        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : '<em>(not bundled)</em>'}</td>
-        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : '<em>(not on PATH)</em>'}</td>
-        <td>${available ? '<span class="ok">OK</span>' : '<span class="warn">Missing</span>'}</td>
+        <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : `<em>${t('settings.not_set')}</em>`}</td>
+        <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : `<em>${t('settings.not_bundled')}</em>`}</td>
+        <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : `<em>${t('settings.not_on_path')}</em>`}</td>
+        <td>${available ? `<span class="ok">${t('settings.ok')}</span>` : `<span class="warn">${t('settings.missing')}</span>`}</td>
         <td>
-          <button data-act="browse" data-id="${s.id}">Browse…</button>
-          ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">Clear</button>` : ''}
+          <button data-act="browse" data-id="${s.id}">${t('common.browse')}</button>
+          ${s.configured_path ? `<button data-act="clear" data-id="${s.id}">${t('settings.clear')}</button>` : ''}
         </td>
       </tr>
     `;
     }).join('');
+    const cur = window.I18N ? window.I18N.getLang() : 'en';
     return `
-      <h2>Settings — Binary Paths</h2>
-      <p>Resolution order: <strong>configured</strong> (your override) → <strong>bundled</strong> (shipped with the installed app) → <strong>PATH</strong>. Your override always wins.</p>
+      <h2>${t('settings.binary_title')}</h2>
+      <p>${t('settings.binary_intro_html')}</p>
       <table class="settings-table">
-        <thead><tr><th>Tool</th><th>Configured</th><th>Bundled</th><th>Detected on PATH</th><th>Status</th><th>Actions</th></tr></thead>
+        <thead><tr>
+          <th>${t('settings.col_tool')}</th>
+          <th>${t('settings.col_configured')}</th>
+          <th>${t('settings.col_bundled')}</th>
+          <th>${t('settings.col_path')}</th>
+          <th>${t('settings.col_status')}</th>
+          <th>${t('settings.col_actions')}</th>
+        </tr></thead>
         <tbody>${rows}</tbody>
       </table>
+
+      <h2 style="margin-top:32px">${t('settings.language_section_full')}</h2>
+      <div class="settings-language">
+        <label><input type="radio" name="lang-choice" value="en" ${cur === 'en' ? 'checked' : ''}> ${t('settings.language_en')}</label>
+        <label style="margin-left:16px"><input type="radio" name="lang-choice" value="zh" ${cur === 'zh' ? 'checked' : ''}> ${t('settings.language_zh')}</label>
+      </div>
     `;
   }
 
@@ -1161,7 +1184,7 @@
     try {
       const runs = await window.__TAURI__.core.invoke('list_runs', { moduleId });
       if (!runs || runs.length === 0) {
-        container.innerHTML = '<p><em>No runs yet.</em></p>';
+        container.innerHTML = `<p><em>${t('status.no_runs')}</em></p>`;
         return;
       }
       container.innerHTML = runs.map(run => {
@@ -1169,11 +1192,11 @@
         const ts = run.finished_at || run.started_at || '';
         const resultHtml = (status === 'Done' && run.result)
           ? renderRunResultHtml(moduleId, run.result, run.id)
-          : `<p><em>Status: ${status}</em></p>`;
-        return `<details open><summary>Run ${run.id} &mdash; ${status} ${ts ? '(' + ts + ')' : ''}</summary>${resultHtml}</details>`;
+          : `<p><em>${t('status.status_label')}: ${status}</em></p>`;
+        return `<details open><summary>${t('status.run_label')} ${run.id} &mdash; ${status} ${ts ? '(' + ts + ')' : ''}</summary>${resultHtml}</details>`;
       }).join('');
     } catch (err) {
-      container.innerHTML = `<p><em>Could not load runs: ${err}</em></p>`;
+      container.innerHTML = `<p><em>${t('status.load_runs_failed')}: ${err}</em></p>`;
     }
   }
 
@@ -1568,6 +1591,33 @@
         } catch (err) { alert('Failed: ' + err); }
       }
     });
+
+    // Language toggle (header buttons)
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.I18N) window.I18N.setLang(btn.dataset.lang);
+      });
+    });
+
+    // Settings: language radio
+    document.addEventListener('change', (e) => {
+      const r = e.target.closest('input[name="lang-choice"]');
+      if (r && window.I18N) window.I18N.setLang(r.value);
+    });
+
+    const syncLangButtons = () => {
+      const cur = window.I18N ? window.I18N.getLang() : 'en';
+      document.querySelectorAll('.lang-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.lang === cur);
+      });
+    };
+    syncLangButtons();
+
+    // Re-render dynamic content when language changes
+    window.addEventListener('langchange', () => {
+      syncLangButtons();
+      navigate(state.currentView);
+    });
   }
 
   function handleFileDrop(zone, fileList) {
@@ -1617,10 +1667,11 @@
     const st = document.getElementById('statusText');
     const js = document.getElementById('jobStatus');
     const mod = MODULES.find(m => m.id === id);
-    st.textContent = `Running ${mod?.name || id}...`;
-    js.textContent = '1 active job';
+    const displayName = mod ? t(navKey(mod.id)) : id;
+    st.textContent = `${t('status.running_prefix')} ${displayName}…`;
+    js.textContent = t('status.one_job');
     const badge = document.querySelector(`.nav-item[data-view="${id}"] .nav-badge`);
-    if (badge) { badge.className = 'nav-badge running'; badge.textContent = 'Running'; }
+    if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
 
     const params = collectModuleParams(id);
     try {
@@ -1631,8 +1682,8 @@
       console.warn(`[runModule] invoke failed for ${id}:`, err);
     }
 
-    st.textContent = 'Ready'; js.textContent = 'No active jobs';
-    if (badge) { badge.className = 'nav-badge done'; badge.textContent = 'Done'; }
+    st.textContent = t('status.ready'); js.textContent = t('status.no_jobs');
+    if (badge) { badge.className = 'nav-badge done'; badge.textContent = t('badge.done'); }
   };
 
   window.resetForm = function (id) { state.files[id] = []; navigate(id); };
@@ -1662,7 +1713,7 @@
     const existing = state.logsByRun[panelKey] || [];
     const text = existing.map(e => (e.stream === 'stderr' ? '' : '[out] ') + e.line).join('\n');
     return `<details class="log-panel" data-log-panel="${panelKey}">
-    <summary>Log</summary>
+    <summary>${t('common.log_panel')}</summary>
     <pre>${escapeHtml(text)}</pre>
   </details>`;
   }
@@ -1679,25 +1730,26 @@
 
   // ── Init ───────────────────────────────────────────────────
   function init() {
+    if (window.I18N) window.I18N.applyI18n(document);
     setupEvents();
 
     // Tauri event listeners
     api.listen('run-progress', event => {
       const st = document.getElementById('statusText');
       const log = document.querySelector('.log-output');
-      if (st) st.textContent = event.payload?.message || 'Running...';
+      if (st) st.textContent = event.payload?.message || (t('status.running_prefix') + '…');
       if (log) log.innerHTML += `\n<span class="log-info">[INFO]</span> ${event.payload?.message || ''}`;
     });
     api.listen('run-completed', event => {
       const st = document.getElementById('statusText');
       const js = document.getElementById('jobStatus');
-      if (st) st.textContent = 'Ready';
-      if (js) js.textContent = 'No active jobs';
+      if (st) st.textContent = t('status.ready');
+      if (js) js.textContent = t('status.no_jobs');
       if (event.payload?.module) navigate(event.payload.module);
     });
     api.listen('run-failed', event => {
       const st = document.getElementById('statusText');
-      if (st) st.textContent = `Error: ${event.payload?.message || 'Run failed'}`;
+      if (st) st.textContent = `${t('status.error_prefix')}: ${event.payload?.message || t('status.run_failed')}`;
       console.error('[run-failed]', event.payload);
     });
 

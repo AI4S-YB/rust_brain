@@ -401,6 +401,40 @@ input, select, textarea {
   gap: 16px;
 }
 
+.lang-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.lang-btn {
+  font-family: inherit;
+  font-size: 0.78rem;
+  padding: 5px 10px;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.lang-btn + .lang-btn {
+  border-left: 1px solid var(--border-default);
+}
+
+.lang-btn:hover {
+  color: var(--text-primary);
+}
+
+.lang-btn.active {
+  background: var(--bg-elevated, #fff);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
 .project-selector {
   display: flex;
   align-items: center;
