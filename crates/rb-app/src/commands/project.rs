@@ -62,7 +62,7 @@ pub async fn create_project(
     };
 
     let runner = setup_runner(project, &app);
-    *state.runner.lock().await = Some(runner);
+    *state.runner.lock().await = Some(Arc::new(runner));
 
     {
         let mut recent = state.recent_projects.lock().await;
@@ -90,7 +90,7 @@ pub async fn open_project(
     };
 
     let runner = setup_runner(project, &app);
-    *state.runner.lock().await = Some(runner);
+    *state.runner.lock().await = Some(Arc::new(runner));
 
     {
         let mut recent = state.recent_projects.lock().await;
