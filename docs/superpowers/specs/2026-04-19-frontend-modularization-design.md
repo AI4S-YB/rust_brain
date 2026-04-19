@@ -115,6 +115,7 @@ Layer 3 (assembly):
 - `window.I18N` → **removed**. Replace call sites with `import { t } from './i18n/index.js'`.
 - `window.exportTableAsTSV` → **removed**. HTML `onclick="exportTableAsTSV('foo', 'bar.tsv')"` attributes become `data-action="export-tsv" data-table-id="foo" data-filename="bar.tsv"`, handled by event delegation in `events.js`.
 - `window.__TAURI__` → kept (injected by Tauri host; out of our control).
+- **Kept as compatibility shims** (HTML `onclick` handlers depend on them; converting every one is out of scope for this refactor): `window.projectNew`, `window.projectOpen`, `window.toggleCollapsible`, `window.resetForm`, `window.runModule`, `window.renderCustomPlot`. Each is assigned at the end of the owning ESM file, e.g. `window.toggleCollapsible = toggleCollapsible;`. A follow-up refactor may convert these to `data-action` too.
 
 ## index.html Changes
 
