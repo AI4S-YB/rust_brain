@@ -29,20 +29,26 @@ pub async fn run_module(
         .get(&module_id)
         .ok_or_else(|| format!("module '{}' not found", module_id))?;
 
-    let runner_guard = state.runner.lock().await;
-    let runner = runner_guard
-        .as_ref()
-        .ok_or_else(|| "no project open".to_string())?;
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
 
     runner.spawn(module, params).await
 }
 
 #[tauri::command]
 pub async fn cancel_run(run_id: String, state: State<'_, AppState>) -> Result<(), String> {
-    let runner_guard = state.runner.lock().await;
-    let runner = runner_guard
-        .as_ref()
-        .ok_or_else(|| "no project open".to_string())?;
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
     runner.cancel(&run_id).await;
     Ok(())
 }
@@ -52,10 +58,13 @@ pub async fn get_run_result(
     run_id: String,
     state: State<'_, AppState>,
 ) -> Result<Option<RunRecord>, String> {
-    let runner_guard = state.runner.lock().await;
-    let runner = runner_guard
-        .as_ref()
-        .ok_or_else(|| "no project open".to_string())?;
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
 
     let project = runner.project().lock().await;
     let record = project.runs.iter().find(|r| r.id == run_id).cloned();
@@ -67,10 +76,13 @@ pub async fn list_runs(
     module_id: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<RunRecord>, String> {
-    let runner_guard = state.runner.lock().await;
-    let runner = runner_guard
-        .as_ref()
-        .ok_or_else(|| "no project open".to_string())?;
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
 
     let project = runner.project().lock().await;
     let runs: Vec<RunRecord> = project

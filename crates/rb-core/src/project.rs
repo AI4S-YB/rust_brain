@@ -35,6 +35,12 @@ pub struct Project {
     #[serde(skip)]
     pub root_dir: PathBuf,
     pub runs: Vec<RunRecord>,
+    #[serde(default = "default_view_manual")]
+    pub default_view: Option<String>,
+}
+
+fn default_view_manual() -> Option<String> {
+    Some("manual".to_string())
 }
 
 impl Project {
@@ -48,6 +54,7 @@ impl Project {
             created_at: Utc::now(),
             root_dir: root_dir.to_path_buf(),
             runs: Vec::new(),
+            default_view: Some("manual".to_string()),
         };
 
         project.save()?;
@@ -104,5 +111,35 @@ impl Project {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod project_default_view_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn legacy_project_json_without_default_view_loads_as_manual() {
+        let tmp = tempdir().unwrap();
+        std::fs::create_dir_all(tmp.path().join("runs")).unwrap();
+        let legacy = r#"{
+            "name": "legacy",
+            "created_at": "2026-01-01T00:00:00Z",
+            "runs": []
+        }"#;
+        std::fs::write(tmp.path().join("project.json"), legacy).unwrap();
+        let proj = Project::load(tmp.path()).unwrap();
+        assert_eq!(proj.default_view.as_deref(), Some("manual"));
+    }
+
+    #[test]
+    fn newly_created_project_persists_default_view() {
+        let tmp = tempdir().unwrap();
+        let mut p = Project::create("t", tmp.path()).unwrap();
+        p.default_view = Some("ai".into());
+        p.save().unwrap();
+        let reloaded = Project::load(tmp.path()).unwrap();
+        assert_eq!(reloaded.default_view.as_deref(), Some("ai"));
     }
 }

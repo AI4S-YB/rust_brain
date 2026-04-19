@@ -16,6 +16,39 @@ impl Module for DeseqModule {
         "DESeq2 Differential Expression"
     }
 
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "counts_path": {
+                    "type": "string",
+                    "description": "Path to counts matrix TSV (from run_star_align or equivalent)."
+                },
+                "coldata_path": {
+                    "type": "string",
+                    "description": "Path to sample metadata TSV/CSV with a condition column."
+                },
+                "design": {
+                    "type": "string",
+                    "description": "R-style design formula referencing columns in coldata (e.g. '~condition')."
+                },
+                "reference": {
+                    "type": "string",
+                    "description": "Reference level of the design factor used as the baseline for contrasts."
+                }
+            },
+            "required": ["counts_path", "coldata_path", "design", "reference"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_deseq2 做差异表达分析。counts_path 通常是 run_star_align 产出的 counts_matrix.tsv;coldata_path 是用户在项目里提供的样本分组表;design 形如 '~condition',reference 指定该因子的基线水平。".into(),
+            _ => "Use run_deseq2 for differential expression analysis. counts_path is typically the counts_matrix.tsv produced by run_star_align; coldata_path is a user-provided sample metadata table; design is an R-style formula like '~condition' and reference sets the baseline level of that factor.".into(),
+        }
+    }
+
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
 
@@ -168,5 +201,28 @@ impl Module for DeseqModule {
                 total_genes, sig_count, up_count, down_count
             ),
         })
+    }
+}
+
+#[cfg(test)]
+mod ai_schema_tests {
+    use super::*;
+    use rb_core::module::Module;
+
+    #[test]
+    fn deseq2_schema_requires_counts_and_metadata_fields() {
+        let s = DeseqModule.params_schema().unwrap();
+        assert_eq!(s["type"], "object");
+        let req = s["required"].as_array().unwrap();
+        assert!(req.len() >= 2, "expected >=2 required fields");
+        assert!(req.iter().any(|v| v == "counts_path"));
+        assert!(req.iter().any(|v| v == "coldata_path"));
+        assert!(req.iter().any(|v| v == "design"));
+        assert!(req.iter().any(|v| v == "reference"));
+    }
+    #[test]
+    fn deseq2_hint_nonempty_both_languages() {
+        assert!(!DeseqModule.ai_hint("en").is_empty());
+        assert!(!DeseqModule.ai_hint("zh").is_empty());
     }
 }

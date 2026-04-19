@@ -35,7 +35,7 @@ sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchel
 
 ## Architecture
 
-### Cargo Workspace (7 crates)
+### Cargo Workspace (8 crates)
 
 **rb-core** — Core library with no tool dependencies. Defines:
 - `Module` trait (`#[async_trait]`) — the central abstraction all analysis modules implement: `id()`, `name()`, `validate()`, `async run()`
@@ -57,6 +57,8 @@ sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchel
 **rb-star-index** — Adapter invoking STAR_rs `star --runMode genomeGenerate` as a subprocess. Uses `BinaryResolver` for tool discovery (falls back to PATH). Streams stderr lines as `RunEvent::Log`.
 
 **rb-star-align** — Adapter invoking STAR_rs `star --runMode alignReads` per sample. Parses `Log.final.out` for mapping stats and merges per-sample `ReadsPerGene.out.tab` files into a single `counts_matrix.tsv` ready for DESeq2. Streams stderr and honours cooperative cancellation.
+
+**rb-ai** — AI orchestration crate. Owns provider adapters (OpenAI-compatible in Phase 1; Anthropic/Ollama gated behind features), tool registry (builtin Read-risk tools, module-derived `run_*` tools, Phase 3 stubs), chat session persistence at `<project>/chats/`, and the `run_turn` orchestrator loop. Depends on `rb-core`; does not depend on Tauri. Phase 1 ships single-module conversational execution with forward-compatible schema for Phases 2/3 — see `docs/superpowers/specs/2026-04-19-ai-chat-mode-design.md`.
 
 ### Tool Submodules (deps/)
 
@@ -83,7 +85,7 @@ Frontend invoke('run_module') → rb-app command → Runner.spawn()
 
 ## Key Patterns
 
-- **Adding a new module**: Create `crates/rb-{name}/` implementing `Module` trait, register in `rb-app/src/main.rs` via `registry.register(Arc::new(...))`, add frontend view in `app.js`
+- **Adding a new module**: Create `crates/rb-{name}/` implementing `Module` trait, register in `rb-app/src/main.rs` via `registry.register(Arc::new(...))`, add frontend view in `app.js`. Modules should also override `params_schema()` (JSON Schema for the params the adapter accepts) and `ai_hint()` (short description of when to invoke) so the AI tool registry can auto-derive a `run_{id}` tool for the copilot.
 - **CPU-bound work**: Always wrap in `tokio::task::spawn_blocking` (adapters do this for tool calls)
 - **Params**: Passed as `serde_json::Value` — each adapter deserializes what it needs in `run()` and validates in `validate()`
 - **Project state**: Shared via `Arc<tokio::sync::Mutex<Project>>` between Runner and commands

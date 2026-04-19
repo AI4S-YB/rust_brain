@@ -39,6 +39,60 @@ impl Module for StarAlignModule {
         "STAR Alignment & Quantification"
     }
 
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "genome_dir": {
+                    "type": "string",
+                    "description": "Path to STAR index directory produced by run_star_index (must contain an SA file)."
+                },
+                "reads_1": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1,
+                    "description": "FASTQ paths for mate 1 (or single-end reads), one entry per sample."
+                },
+                "reads_2": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "FASTQ paths for mate 2. Omit or leave empty for single-end. If provided, length must match reads_1."
+                },
+                "sample_names": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Optional sample names (must match reads_1 length, chars [A-Za-z0-9_.-]). Defaults are derived from reads_1 filenames."
+                },
+                "strand": {
+                    "type": "string",
+                    "enum": ["unstranded", "forward", "reverse"],
+                    "default": "unstranded",
+                    "description": "Library strandedness; selects which column of ReadsPerGene.out.tab to use."
+                },
+                "threads": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 4,
+                    "description": "Threads passed to STAR via --runThreadN."
+                },
+                "extra_args": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Additional raw STAR CLI flags appended verbatim (escape hatch for power users/AI)."
+                }
+            },
+            "required": ["genome_dir", "reads_1"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_star_align 把测序 reads 比对到基因组,并产出 counts_matrix.tsv 供 run_deseq2 使用。genome_dir 用 run_star_index 的输出目录;reads_1 是 mate1/单端 FASTQ 列表,双端时用 reads_2 提供等长的 mate2 列表。".into(),
+            _    => "Use run_star_align to align reads to the genome and produce a counts_matrix.tsv consumed by run_deseq2. `genome_dir` is the output of run_star_index; `reads_1` lists mate-1 (or single-end) FASTQs and `reads_2` lists the matching mate-2 files for paired-end data.".into(),
+        }
+    }
+
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
 
@@ -465,5 +519,26 @@ mod tests {
             "genome_dir": gd, "reads_1": [r1], "strand": "weird",
         }));
         assert!(errs.iter().any(|e| e.field == "strand"));
+    }
+}
+
+#[cfg(test)]
+mod ai_schema_tests {
+    use super::*;
+    use rb_core::module::Module;
+
+    #[test]
+    fn star_align_schema_is_object_with_required_fields() {
+        let s = StarAlignModule.params_schema().unwrap();
+        assert_eq!(s["type"], "object");
+        let req = s["required"].as_array().unwrap();
+        assert!(req.iter().any(|v| v == "genome_dir"));
+        assert!(req.iter().any(|v| v == "reads_1"));
+        assert!(req.len() >= 2);
+    }
+    #[test]
+    fn star_align_hint_nonempty_both_languages() {
+        assert!(!StarAlignModule.ai_hint("en").is_empty());
+        assert!(!StarAlignModule.ai_hint("zh").is_empty());
     }
 }

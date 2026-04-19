@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::ai_state::AiState;
+
 pub struct ModuleRegistry {
     modules: HashMap<String, Arc<dyn Module>>,
 }
@@ -31,13 +33,14 @@ impl ModuleRegistry {
 
 pub struct AppState {
     pub registry: Arc<ModuleRegistry>,
-    pub runner: Arc<Mutex<Option<Runner>>>,
+    pub runner: Arc<Mutex<Option<Arc<Runner>>>>,
     pub recent_projects: Arc<Mutex<Vec<PathBuf>>>,
     pub binary_resolver: Arc<Mutex<rb_core::binary::BinaryResolver>>,
+    pub ai: Arc<AiState>,
 }
 
 impl AppState {
-    pub fn new(registry: ModuleRegistry) -> Self {
+    pub fn new(registry: ModuleRegistry, ai: Arc<AiState>) -> Self {
         let resolver = rb_core::binary::BinaryResolver::load().unwrap_or_else(|e| {
             eprintln!(
                 "warning: failed to load binary settings ({}); using defaults",
@@ -52,6 +55,7 @@ impl AppState {
             runner: Arc::new(Mutex::new(None)),
             recent_projects: Arc::new(Mutex::new(Vec::new())),
             binary_resolver: Arc::new(Mutex::new(resolver)),
+            ai,
         }
     }
 }

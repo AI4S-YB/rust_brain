@@ -16,6 +16,32 @@ impl Module for QcModule {
         "FastQC Quality Control"
     }
 
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "input_files": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "description": "Absolute path to a FASTQ or FASTQ.gz file."
+                    },
+                    "minItems": 1,
+                    "description": "Input FASTQ file paths. May be a single file or multiple samples."
+                }
+            },
+            "required": ["input_files"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_qc 对用户提供的 FASTQ 文件做质量评估。通常是流水线的第一步 (修剪之前)。参数 input_files 接受一个 FASTQ 文件路径数组,每个样本一个条目。".into(),
+            _    => "Use run_qc to assess read quality for raw FASTQ input. This is typically the first step of a pipeline, before trimming. The `input_files` array takes one FASTQ path per sample.".into(),
+        }
+    }
+
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
 
@@ -167,4 +193,29 @@ fn strip_seq_extensions(name: &str) -> String {
         }
     }
     s
+}
+
+#[cfg(test)]
+mod ai_schema_tests {
+    use super::*;
+    use rb_core::module::Module;
+
+    #[test]
+    fn qc_schema_requires_input() {
+        let schema = QcModule.params_schema().expect("qc exposes a schema");
+        assert_eq!(schema["type"], "object");
+        let required = schema["required"].as_array().expect("required list");
+        assert!(
+            required.iter().any(|v| v == "input_files"),
+            "QC schema must require 'input_files'"
+        );
+    }
+
+    #[test]
+    fn qc_hint_mentions_fastq_in_both_languages() {
+        let en = QcModule.ai_hint("en").to_lowercase();
+        let zh = QcModule.ai_hint("zh");
+        assert!(en.contains("fastq"), "en hint should mention fastq");
+        assert!(!zh.is_empty(), "zh hint must not be empty");
+    }
 }

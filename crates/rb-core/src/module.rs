@@ -50,6 +50,18 @@ pub trait Module: Send + Sync {
         events_tx: mpsc::Sender<RunEvent>,
         cancel: CancellationToken,
     ) -> Result<ModuleResult, ModuleError>;
+
+    /// Opt-in: returning `Some(schema)` exposes this module to the AI tool registry.
+    /// Schema is JSON Schema draft-07 describing `run` params.
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        None
+    }
+
+    /// One-paragraph hint for the LLM, in `"en"` or `"zh"`. Unknown langs fall back to `"en"`.
+    /// Only consulted when `params_schema` returns `Some(_)`.
+    fn ai_hint(&self, _lang: &str) -> String {
+        String::new()
+    }
 }
 
 #[cfg(test)]
@@ -111,5 +123,63 @@ mod tests {
             RunEvent::Progress { fraction, .. } => assert_eq!(fraction, 1.0),
             _ => panic!("expected Progress"),
         }
+    }
+
+    #[test]
+    fn module_default_schema_is_none_and_hint_is_empty() {
+        let m = DummyModule;
+        assert!(m.params_schema().is_none());
+        assert_eq!(m.ai_hint("en"), "");
+        assert_eq!(m.ai_hint("zh"), "");
+    }
+
+    struct SchemaModule;
+
+    #[async_trait::async_trait]
+    impl Module for SchemaModule {
+        fn id(&self) -> &str {
+            "schema"
+        }
+        fn name(&self) -> &str {
+            "Schema"
+        }
+        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> {
+            vec![]
+        }
+        fn params_schema(&self) -> Option<serde_json::Value> {
+            Some(serde_json::json!({
+                "type": "object",
+                "properties": { "foo": { "type": "string" } },
+                "required": ["foo"]
+            }))
+        }
+        fn ai_hint(&self, lang: &str) -> String {
+            match lang {
+                "zh" => "测试".into(),
+                _ => "test".into(),
+            }
+        }
+        async fn run(
+            &self,
+            _p: &serde_json::Value,
+            _d: &std::path::Path,
+            _tx: tokio::sync::mpsc::Sender<RunEvent>,
+            _c: CancellationToken,
+        ) -> Result<ModuleResult, ModuleError> {
+            Ok(ModuleResult {
+                output_files: vec![],
+                summary: serde_json::json!({}),
+                log: String::new(),
+            })
+        }
+    }
+
+    #[test]
+    fn module_can_override_schema_and_hint() {
+        let m = SchemaModule;
+        let schema = m.params_schema().expect("expected Some schema");
+        assert_eq!(schema["type"], "object");
+        assert_eq!(m.ai_hint("zh"), "测试");
+        assert_eq!(m.ai_hint("en"), "test");
     }
 }

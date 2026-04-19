@@ -32,7 +32,7 @@
 
   // Views with localized breadcrumb labels (keys live in i18n.js as `nav.<id>` with '-' → '_').
   const KNOWN_VIEWS = new Set([
-    'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align',
+    'dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'chat',
     ...MODULES.map(m => m.id),
   ]);
 
@@ -124,6 +124,64 @@
     });
   }
 
+  // Project creation modal — collects name + default_view radio.
+  // Returns { name: string, default_view: "ai" | "manual" } or null if cancelled.
+  function projectNewModal() {
+    return new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      const titleId = 'pn-title-' + Math.random().toString(36).slice(2, 8);
+      backdrop.innerHTML = `
+        <div class="modal" role="dialog" aria-labelledby="${titleId}" aria-modal="true">
+          <h3 id="${titleId}" class="modal-title">${escapeHtml(t('project.new'))}</h3>
+          <label class="modal-label">
+            <span>${escapeHtml(t('project.prompt_name'))}</span>
+            <input type="text" class="modal-input" autofocus />
+          </label>
+          <fieldset class="modal-view-group">
+            <legend>${escapeHtml(t('project.default_view_legend'))}</legend>
+            <label>
+              <input type="radio" name="default_view" value="ai" />
+              <strong>${escapeHtml(t('project.default_view_ai'))}</strong>
+              <small class="muted"> — ${escapeHtml(t('project.default_view_ai_hint'))}</small>
+            </label>
+            <label>
+              <input type="radio" name="default_view" value="manual" checked />
+              <strong>${escapeHtml(t('project.default_view_manual'))}</strong>
+              <small class="muted"> — ${escapeHtml(t('project.default_view_manual_hint'))}</small>
+            </label>
+            <p class="modal-hint">${escapeHtml(t('project.default_view_note'))}</p>
+          </fieldset>
+          <div class="modal-actions">
+            <button class="btn btn-primary modal-ok">${escapeHtml(t('common.ok'))}</button>
+            <button class="btn modal-cancel">${escapeHtml(t('common.cancel'))}</button>
+          </div>
+        </div>`;
+      document.body.appendChild(backdrop);
+
+      const input = backdrop.querySelector('.modal-input');
+      const ok = backdrop.querySelector('.modal-ok');
+      const cancel = backdrop.querySelector('.modal-cancel');
+
+      const close = (result) => {
+        backdrop.remove();
+        resolve(result);
+      };
+      ok.addEventListener('click', () => {
+        const name = input.value.trim();
+        if (!name) { input.focus(); return; }
+        const sel = backdrop.querySelector('input[name="default_view"]:checked');
+        close({ name, default_view: sel ? sel.value : 'manual' });
+      });
+      cancel.addEventListener('click', () => close(null));
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') ok.click();
+        if (e.key === 'Escape') close(null);
+      });
+      input.focus();
+    });
+  }
+
   // ── TSV export ─────────────────────────────────────────────
   function exportTableAsTSV(tableId, filename) {
     const table = document.getElementById(tableId);
@@ -142,12 +200,14 @@
   function navigate(view) {
     state.currentView = view;
 
+    const navMatchView = view.startsWith('chat/') ? 'chat' : view;
     document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.view === view);
+      el.classList.toggle('active', el.dataset.view === navMatchView);
     });
 
     const bc = document.getElementById('breadcrumb');
-    const label = KNOWN_VIEWS.has(view) ? t(navKey(view)) : view;
+    const bcKey = navMatchView;
+    const label = KNOWN_VIEWS.has(bcKey) ? t(navKey(bcKey)) : bcKey;
     bc.innerHTML = `
       <span class="breadcrumb-home">${t('brand.name')}</span>
       <i data-lucide="chevron-right" class="breadcrumb-sep"></i>
@@ -169,6 +229,19 @@
     else if (view === 'gff-convert') content.innerHTML = renderGffConvert();
     else if (view === 'star-index') content.innerHTML = renderStarIndex();
     else if (view === 'star-align') content.innerHTML = renderStarAlign();
+    else if (view === 'chat' || view.startsWith('chat/')) {
+      content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+      const sessionId = view.startsWith('chat/') ? view.slice('chat/'.length) : null;
+      if (sessionId) {
+        import('./js/modules/chat/chat-view.js').then(m => {
+          if (state.currentView === view) m.renderChatView(content, sessionId);
+        });
+      } else {
+        import('./js/modules/chat/session-list.js').then(m => {
+          if (state.currentView === view) m.renderSessionListPage(content);
+        });
+      }
+    }
     else content.innerHTML = renderModule(view);
 
     if (window.lucide) lucide.createIcons();
@@ -311,37 +384,45 @@
 
   // ── Project management helpers ─────────────────────────────
   window.projectNew = async function () {
-    const name = await promptModal({
-      title: t('project.new'),
-      message: t('project.prompt_name'),
-    });
-    if (!name) return;
+    const picked = await projectNewModal();
+    if (!picked) return;
+    const { name, default_view } = picked;
     try {
       const dir = await api.invoke('select_directory', {});
-      await api.invoke('create_project', { name, directory: dir });
+      const info = await api.invoke('create_project', {
+        name,
+        dir,
+        defaultView: default_view,
+      });
       state.projectOpen = true;
       state.projectName = name;
       document.getElementById('projectName').textContent = name;
+      const el = document.getElementById('dash-proj-name');
+      if (el) el.textContent = name;
+      // Honour the user's default_view preference on create:
+      const dv = (info && info.default_view) || default_view;
+      if (dv === 'ai') location.hash = '#chat';
     } catch (err) {
       console.warn('[projectNew] invoke failed, using local fallback:', err);
       state.projectOpen = true;
       state.projectName = name;
       document.getElementById('projectName').textContent = name;
+      const el = document.getElementById('dash-proj-name');
+      if (el) el.textContent = name;
     }
-    const el = document.getElementById('dash-proj-name');
-    if (el) el.textContent = name;
   };
 
   window.projectOpen = async function () {
     try {
       const dir = await api.invoke('select_directory', {});
-      const result = await api.invoke('open_project', { directory: dir });
+      const result = await api.invoke('open_project', { dir });
       const name = (result && result.name) ? result.name : dir || 'Opened Project';
       state.projectOpen = true;
       state.projectName = name;
       document.getElementById('projectName').textContent = name;
       const el = document.getElementById('dash-proj-name');
       if (el) el.textContent = name;
+      if (result && result.default_view === 'ai') location.hash = '#chat';
     } catch (err) {
       console.warn('[projectOpen] invoke failed:', err);
     }
@@ -1372,7 +1453,8 @@
     `;
     }).join('');
     const cur = window.I18N ? window.I18N.getLang() : 'en';
-    return `
+    const aiSection = renderAiProviderSection();
+    const html = `
       <div class="module-view">
         ${settingsHeader()}
 
@@ -1405,8 +1487,138 @@
             </div>
           </div>
         </div>
+
+        ${aiSection.html}
       </div>
     `;
+
+    // Bind after the HTML is in the DOM. renderSettings is awaited by
+    // navigate(), which sets content.innerHTML AFTER renderSettings resolves,
+    // so we attach via a microtask that reads #content once it's live.
+    queueMicrotask(async () => {
+      const root = document.getElementById('content');
+      if (root) await aiSection.bind(root);
+    });
+
+    return html;
+  }
+
+  function renderAiProviderSection() {
+    const html = `
+      <div class="module-panel animate-slide-up" style="animation-delay:220ms">
+        <div class="panel-header"><span class="panel-title">${escapeHtml(t('settings.ai_section'))}</span></div>
+        <div class="panel-body">
+          <form class="settings-ai-form">
+            <div class="form-row">
+              <label class="form-label">${escapeHtml(t('settings.ai_provider'))}</label>
+              <select name="provider_id">
+                <option value="openai-compat">OpenAI-compatible</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label class="form-label">${escapeHtml(t('settings.ai_base_url'))}</label>
+              <input type="url" name="base_url" value="https://api.openai.com/v1" />
+            </div>
+            <div class="form-row">
+              <label class="form-label">${escapeHtml(t('settings.ai_model'))}</label>
+              <input type="text" name="model" placeholder="gpt-4o-mini / deepseek-chat / qwen-max …" />
+            </div>
+            <div class="form-row">
+              <label class="form-label">${escapeHtml(t('settings.ai_temperature'))}</label>
+              <input type="range" name="temperature" min="0" max="2" step="0.05" value="0.2" />
+              <span class="temp-readout">0.2</span>
+            </div>
+            <div class="form-row">
+              <label class="form-label">${escapeHtml(t('settings.ai_api_key'))}</label>
+              <input type="password" name="api_key" autocomplete="off" placeholder="${escapeHtml(t('settings.ai_api_key_placeholder'))}" />
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-primary ai-save">${escapeHtml(t('common.save'))}</button>
+              <button type="button" class="btn ai-clear-key">${escapeHtml(t('settings.ai_clear_key'))}</button>
+              <span class="ai-key-state muted"></span>
+            </div>
+          </form>
+        </div>
+      </div>`;
+
+    async function bind(root) {
+      const form = root.querySelector('.settings-ai-form');
+      if (!form) return;
+      const setState = (text) => {
+        const el = form.querySelector('.ai-key-state');
+        if (el) el.textContent = text;
+      };
+
+      // Populate current config.
+      try {
+        const cfg = await window.__TAURI__.core.invoke('ai_get_config');
+        const pc = cfg && cfg.providers && cfg.providers['openai-compat'];
+        if (pc) {
+          if (pc.base_url) form.querySelector('[name="base_url"]').value = pc.base_url;
+          if (pc.model) form.querySelector('[name="model"]').value = pc.model;
+          if (pc.temperature != null) form.querySelector('[name="temperature"]').value = pc.temperature;
+        }
+      } catch (e) {
+        console.warn('[ai_get_config] failed:', e);
+      }
+      // Reflect the current range as text.
+      const temp = form.querySelector('[name="temperature"]');
+      const readout = form.querySelector('.temp-readout');
+      const updateReadout = () => { if (readout) readout.textContent = temp.value; };
+      if (temp && readout) {
+        temp.addEventListener('input', updateReadout);
+        updateReadout();
+      }
+
+      // Key-present badge.
+      const refreshKeyState = async () => {
+        try {
+          const has = await window.__TAURI__.core.invoke('ai_has_api_key', { providerId: 'openai-compat' });
+          setState(has ? t('settings.ai_key_saved') : t('settings.ai_no_key'));
+        } catch (e) {
+          setState('');
+        }
+      };
+      refreshKeyState();
+
+      form.querySelector('.ai-save').addEventListener('click', async () => {
+        const config = {
+          base_url: form.querySelector('[name="base_url"]').value.trim(),
+          model: form.querySelector('[name="model"]').value.trim(),
+          temperature: parseFloat(form.querySelector('[name="temperature"]').value),
+        };
+        try {
+          await window.__TAURI__.core.invoke('ai_set_provider_config', {
+            providerId: 'openai-compat',
+            config,
+          });
+          const keyInput = form.querySelector('[name="api_key"]');
+          const key = keyInput.value;
+          if (key) {
+            await window.__TAURI__.core.invoke('ai_set_api_key', {
+              providerId: 'openai-compat',
+              key,
+            });
+            keyInput.value = '';
+          }
+          await refreshKeyState();
+          alert(t('settings.ai_saved'));
+        } catch (e) {
+          alert(t('settings.ai_save_failed') + ': ' + e);
+        }
+      });
+
+      form.querySelector('.ai-clear-key').addEventListener('click', async () => {
+        try {
+          await window.__TAURI__.core.invoke('ai_clear_api_key', { providerId: 'openai-compat' });
+          await refreshKeyState();
+        } catch (e) {
+          alert(t('settings.ai_clear_failed') + ': ' + e);
+        }
+      });
+    }
+
+    return { html, bind };
   }
 
 

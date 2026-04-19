@@ -19,6 +19,54 @@ impl Module for StarIndexModule {
         "STAR Genome Index"
     }
 
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "genome_fasta": {
+                    "type": "string",
+                    "description": "Reference genome FASTA path."
+                },
+                "gtf_file": {
+                    "type": "string",
+                    "description": "Matching annotation GTF path (use run_gff_convert if only GFF3 is available)."
+                },
+                "sjdb_overhang": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 100,
+                    "description": "--sjdbOverhang value; set to read length - 1."
+                },
+                "genome_sa_index_nbases": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 14,
+                    "description": "--genomeSAindexNbases; reduce for small genomes (min(14, log2(GenomeLength)/2 - 1))."
+                },
+                "threads": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "default": 4,
+                    "description": "Number of threads (--runThreadN)."
+                },
+                "extra_args": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Extra CLI flags forwarded verbatim to STAR."
+                }
+            },
+            "required": ["genome_fasta", "gtf_file"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_star_index 为 STAR 比对生成基因组索引。每个参考基因组只需做一次,生成的索引目录之后喂给 run_star_align 的 genome_dir。".into(),
+            _ => "Use run_star_index to build a STAR genome index — a one-time setup per reference. The resulting directory is passed to run_star_align as `genome_dir`.".into(),
+        }
+    }
+
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
         let mut errors = Vec::new();
 
@@ -243,5 +291,25 @@ mod tests {
             "extra_args": "not-an-array",
         }));
         assert!(errs.iter().any(|e| e.field == "extra_args"));
+    }
+}
+
+#[cfg(test)]
+mod ai_schema_tests {
+    use super::*;
+    use rb_core::module::Module;
+
+    #[test]
+    fn star_index_requires_genome_and_annotation_fields() {
+        let s = StarIndexModule.params_schema().unwrap();
+        assert_eq!(s["type"], "object");
+        let req = s["required"].as_array().unwrap();
+        assert!(req.iter().any(|v| v == "genome_fasta"));
+        assert!(req.iter().any(|v| v == "gtf_file"));
+    }
+    #[test]
+    fn star_index_hint_nonempty_both_languages() {
+        assert!(!StarIndexModule.ai_hint("en").is_empty());
+        assert!(!StarIndexModule.ai_hint("zh").is_empty());
     }
 }

@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/rb-core",
+    "crates/rb-ai",
     "crates/rb-app",
     "crates/rb-deseq2",
     "crates/rb-gff-convert",
