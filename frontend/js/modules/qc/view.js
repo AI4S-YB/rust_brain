@@ -58,7 +58,7 @@ function renderQCBody() {
           </div>
           <div class="panel-footer">
             <button type="button" class="btn btn-secondary btn-sm" data-act="reset-form" data-mod="qc"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
-            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="qc"><i data-lucide="play"></i> ${t('qc.run_qc')}</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="qc" data-run-button data-run-button-act="run-module" data-run-button-type="button" data-run-label-key="qc.run_qc" data-run-icon="play"><i data-lucide="play"></i> ${t('qc.run_qc')}</button>
           </div>
           ${renderLogPanel('qc')}
         </div>

@@ -37,3 +37,14 @@ export const ECHART_THEME = {
 };
 
 export const LOG_BUFFER_MAX = 500;
+
+export const MAX_COMPUTE_LOAD = 8;
+
+export const RUN_TASKS = {
+  qc:           { backend: 'qc',          computeCost: 4 },
+  trimming:     { backend: 'trimming',    computeCost: 4 },
+  differential: { backend: 'deseq2',      computeCost: 2 },
+  'star-index': { backend: 'star_index',  computeCost: 6 },
+  'star-align': { backend: 'star_align',  computeCost: 7 },
+  'gff-convert': { backend: 'gff_convert', computeCost: 1 },
+};

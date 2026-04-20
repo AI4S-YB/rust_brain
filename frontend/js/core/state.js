@@ -8,6 +8,9 @@ export const state = {
   projectName: '',
   logsByRun: {},
   runIdToModule: {},
+  activeRunByModule: {},
+  pendingRunByModule: {},
+  cancelRequestedByModule: {},
   prefill: {},
 };
 

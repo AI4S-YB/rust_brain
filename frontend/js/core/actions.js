@@ -5,6 +5,15 @@ import { navigate } from './router.js';
 import { modulesApi } from '../api/modules.js';
 import { loadRunsForView } from '../modules/run-result.js';
 import { runStartedToast } from '../ui/modal.js';
+import {
+  canStartModuleRun,
+  cancelModuleRun,
+  clearModuleRunState,
+  isModuleBusy,
+  markModuleRunPending,
+  registerStartedRun,
+  showComputeBudgetToast,
+} from './run-controls.js';
 
 export function collectModuleParams() {
   const params = {};
@@ -47,44 +56,50 @@ export async function runModule(id) {
     console.warn(`[runModule] module '${id}' has no backend — skipped`);
     return;
   }
+  if (isModuleBusy(id)) {
+    cancelModuleRun(id);
+    return;
+  }
+  if (!canStartModuleRun(id)) {
+    showComputeBudgetToast(id);
+    return;
+  }
   const backendId = mod.backend;
   const st = document.getElementById('statusText');
-  const js = document.getElementById('jobStatus');
   const displayName = t(navKey(mod.id));
   const badge = document.querySelector(`.nav-item[data-view="${id}"] .nav-badge`);
-  const btn = document.querySelector(`.module-view [data-act="run-module"][data-mod="${id}"]`);
-  if (btn) btn.disabled = true;
 
   const params = collectModuleParams();
+  markModuleRunPending(id);
   try {
     const errors = await modulesApi.validate(backendId, params);
     if (Array.isArray(errors) && errors.length > 0) {
+      clearModuleRunState(id);
       const msg = errors.map(e => `• ${e.field}: ${e.message}`).join('\n');
       alert(`${t('status.error_prefix')}:\n${msg}`);
       return;
     }
 
     if (st) st.textContent = `${t('status.running_prefix')} ${displayName}…`;
-    if (js) js.textContent = t('status.one_job');
     if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
 
     const runId = await modulesApi.run(backendId, params);
     if (runId) {
-      state.runIdToModule[runId] = id;
+      const started = await registerStartedRun(id, runId);
       const containerId = `${id}-runs`;
       if (document.getElementById(containerId)) {
         loadRunsForView(backendId, containerId);
       }
-      runStartedToast({ module: displayName, runId });
+      if (started) runStartedToast({ module: displayName, runId });
+    } else {
+      clearModuleRunState(id);
     }
   } catch (err) {
     console.warn(`[runModule] invoke failed for ${id} (backend=${backendId}):`, err);
+    clearModuleRunState(id);
     alert(`${t('status.error_prefix')}: ${err}`);
     if (st) st.textContent = t('status.ready');
-    if (js) js.textContent = t('status.no_jobs');
     if (badge) { badge.className = 'nav-badge'; badge.textContent = ''; }
-  } finally {
-    if (btn) btn.disabled = false;
   }
 }
 

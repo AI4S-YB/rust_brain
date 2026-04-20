@@ -11,6 +11,7 @@ import { filesApi } from '../api/files.js';
 import { alertModal } from '../ui/modal.js';
 import { projectNew, projectOpen } from '../modules/dashboard/project.js';
 import { runModule, resetForm } from './actions.js';
+import { cancelModuleRun } from './run-controls.js';
 import { toggleCollapsible } from '../ui/collapsible.js';
 import { exportTableAsTSV } from '../ui/export-tsv.js';
 
@@ -175,6 +176,9 @@ function dispatchAction(el) {
   switch (el.dataset.act) {
     case 'run-module':
       runModule(el.dataset.mod);
+      return true;
+    case 'cancel-run':
+      cancelModuleRun(el.dataset.mod);
       return true;
     case 'reset-form':
       resetForm(el.dataset.mod);

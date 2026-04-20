@@ -4,6 +4,7 @@ import { t, navKey } from './i18n-helpers.js';
 import { renderComingSoon, renderEmptyState } from '../ui/coming-soon.js';
 import { renderDashboardView } from '../modules/dashboard/view.js';
 import { loadRunsForView } from '../modules/run-result.js';
+import { syncRunButtons } from './run-controls.js';
 
 export async function navigate(view) {
   state.currentView = view;
@@ -57,6 +58,7 @@ export async function navigate(view) {
     await renderModuleView(content, view);
   }
 
+  syncRunButtons(content);
   if (window.lucide) window.lucide.createIcons();
   requestAnimationFrame(() => initChartsForView(view));
 }

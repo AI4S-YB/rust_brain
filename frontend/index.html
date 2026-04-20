@@ -78,6 +78,12 @@
             if (cmd === 'run_module' && args.moduleId === 'gff_convert') {
               return Promise.resolve('mock-gff-run-' + Date.now());
             }
+            if (cmd === 'run_module') {
+              return Promise.resolve(`mock-${args.moduleId}-run-` + Date.now());
+            }
+            if (cmd === 'cancel_run') {
+              return Promise.resolve(null);
+            }
             if (cmd === 'read_table_preview') {
               return Promise.resolve([
                 ['gene_id', 'S1', 'S2'],

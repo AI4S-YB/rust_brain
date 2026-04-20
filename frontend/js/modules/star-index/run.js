@@ -1,10 +1,26 @@
-import { state } from '../../core/state.js';
 import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
 import { alertModal, runStartedToast } from '../../ui/modal.js';
 import { t, navKey } from '../../core/i18n-helpers.js';
+import {
+  canStartModuleRun,
+  cancelModuleRun,
+  clearModuleRunState,
+  isModuleBusy,
+  markModuleRunPending,
+  registerStartedRun,
+  showComputeBudgetToast,
+} from '../../core/run-controls.js';
 
 export async function submitStarIndex(form) {
+  if (isModuleBusy('star-index')) {
+    cancelModuleRun('star-index');
+    return;
+  }
+  if (!canStartModuleRun('star-index')) {
+    showComputeBudgetToast('star-index');
+    return;
+  }
   const fd = new FormData(form);
   const extra_args = (fd.get('extra_args') || '').toString().split('\n').map(s => s.trim()).filter(Boolean);
   const params = {
@@ -15,12 +31,15 @@ export async function submitStarIndex(form) {
     genome_sa_index_nbases: parseInt(fd.get('genome_sa_index_nbases'), 10) || 14,
     extra_args,
   };
+  markModuleRunPending('star-index');
   try {
     const runId = await modulesApi.run('star_index', params);
-    state.runIdToModule[runId] = 'star-index';
+    const started = runId ? await registerStartedRun('star-index', runId) : false;
     navigate('star-index');
-    runStartedToast({ module: t(navKey('star-index')), runId });
+    if (started) runStartedToast({ module: t(navKey('star-index')), runId });
+    else if (!runId) clearModuleRunState('star-index');
   } catch (err) {
+    clearModuleRunState('star-index');
     alertModal({ title: 'Error', message: 'Failed to start run: ' + err });
   }
 }

@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { MODULES } from './constants.js';
 import { appendRunLog } from '../ui/log-panel.js';
 import { loadRunsForView } from '../modules/run-result.js';
+import { clearModuleRunStateByRunId, getBusyTaskCount } from './run-controls.js';
 
 function refreshRunsForRun(runId) {
   if (!runId) return;
@@ -26,9 +27,12 @@ export function installRuntimeListeners() {
 
   api.listen('run-completed', event => {
     const st = document.getElementById('statusText');
-    const js = document.getElementById('jobStatus');
-    if (st) st.textContent = t('status.ready');
-    if (js) js.textContent = t('status.no_jobs');
+    clearModuleRunStateByRunId(event.payload?.runId);
+    if (st) {
+      st.textContent = getBusyTaskCount() > 0
+        ? `${t('status.running_prefix')}…`
+        : t('status.ready');
+    }
     const viewId = refreshRunsForRun(event.payload?.runId);
     if (viewId) {
       const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
@@ -39,9 +43,8 @@ export function installRuntimeListeners() {
   api.listen('run-failed', event => {
     const err = event.payload?.error || t('status.run_failed');
     const st = document.getElementById('statusText');
-    const js = document.getElementById('jobStatus');
+    clearModuleRunStateByRunId(event.payload?.runId);
     if (st) st.textContent = `${t('status.error_prefix')}: ${err}`;
-    if (js) js.textContent = t('status.no_jobs');
     console.error('[run-failed]', event.payload);
     const viewId = refreshRunsForRun(event.payload?.runId);
     if (viewId) {

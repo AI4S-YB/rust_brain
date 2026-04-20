@@ -66,7 +66,7 @@ function renderTrimmingBody() {
           </div>
           <div class="panel-footer">
             <button type="button" class="btn btn-secondary btn-sm" data-act="reset-form" data-mod="trimming"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
-            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="trimming" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> ${t('trimming.run_trim')}</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="trimming" data-run-button data-run-button-act="run-module" data-run-button-type="button" data-run-label-key="trimming.run_trim" data-run-icon="play" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> ${t('trimming.run_trim')}</button>
           </div>
           ${renderLogPanel('trimming')}
         </div>

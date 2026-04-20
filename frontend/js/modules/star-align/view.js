@@ -81,7 +81,7 @@ export function renderStarAlignView(container) {
           </form>
         </div>
         <div class="panel-footer">
-          <button type="submit" form="form-star-align" class="btn btn-primary btn-sm">
+          <button type="submit" form="form-star-align" class="btn btn-primary btn-sm" data-mod="star-align" data-run-button data-run-button-type="submit" data-run-label-key="star_align.submit" data-run-icon="play">
             <i data-lucide="play"></i> ${t('star_align.submit')}
           </button>
         </div>

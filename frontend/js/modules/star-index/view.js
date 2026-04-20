@@ -77,7 +77,7 @@ export function renderStarIndexView(container) {
           </form>
         </div>
         <div class="panel-footer">
-          <button type="submit" form="form-star-index" class="btn btn-primary btn-sm">
+          <button type="submit" form="form-star-index" class="btn btn-primary btn-sm" data-mod="star-index" data-run-button data-run-button-type="submit" data-run-label-key="star_index.submit" data-run-icon="play">
             <i data-lucide="play"></i> ${t('star_index.submit')}
           </button>
         </div>

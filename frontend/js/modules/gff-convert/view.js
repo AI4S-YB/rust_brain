@@ -52,7 +52,7 @@ export function renderGffConvertView(container) {
           </form>
         </div>
         <div class="panel-footer">
-          <button type="submit" form="form-gff-convert" class="btn btn-primary btn-sm">
+          <button type="submit" form="form-gff-convert" class="btn btn-primary btn-sm" data-mod="gff-convert" data-run-button data-run-button-type="submit" data-run-label-key="gff_convert.submit" data-run-icon="play">
             <i data-lucide="play"></i> ${t('gff_convert.submit')}
           </button>
         </div>

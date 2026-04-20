@@ -61,7 +61,7 @@ function renderDifferentialBody() {
           </div>
           <div class="panel-footer">
             <button type="button" class="btn btn-secondary btn-sm" data-act="reset-form" data-mod="differential"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
-            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="differential" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> ${t('differential.run_deseq')}</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="differential" data-run-button data-run-button-act="run-module" data-run-button-type="button" data-run-label-key="differential.run_deseq" data-run-icon="play" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> ${t('differential.run_deseq')}</button>
           </div>
           ${renderLogPanel('differential')}
         </div>
