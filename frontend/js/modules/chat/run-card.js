@@ -14,8 +14,8 @@ export function createRunCard({ runId, moduleId }) {
     <div class="run-progress"><div class="run-bar"></div></div>
     <div class="run-status">starting…</div>
     <footer class="run-actions">
-      <button class="btn btn-small btn-run-cancel">Cancel run</button>
-      <button class="btn btn-small btn-run-open" hidden>View details</button>
+      <button class="btn btn-sm btn-run-cancel">Cancel run</button>
+      <button class="btn btn-sm btn-run-open" hidden>View details</button>
     </footer>`;
 
   el.querySelector('.btn-run-cancel').addEventListener('click', () => {

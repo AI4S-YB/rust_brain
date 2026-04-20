@@ -26,7 +26,7 @@ export function renderStarAlignResult(result, runId) {
         if (!el || !rows || rows.length === 0) return;
         const header = rows[0].map(c => `<th>${c}</th>`).join('');
         const body = rows.slice(1).map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
-        el.innerHTML = `<table class="preview-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
+        el.innerHTML = `<table class="data-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
       }).catch(() => {});
   } else {
     previewHtml = `<p><em>${t('star_align.no_matrix')}</em></p>`;

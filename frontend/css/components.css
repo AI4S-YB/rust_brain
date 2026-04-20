@@ -705,6 +705,68 @@
   margin-top: 18px;
 }
 
+.modal-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 14px;
+}
+.modal-label > span {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.modal-view-group {
+  margin: 0;
+  padding: 8px 14px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+}
+.modal-view-group > legend {
+  padding: 0 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+.modal-view-group > label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 8px;
+  margin: 2px -4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+.modal-view-group > label:hover {
+  background: var(--bg-hover);
+}
+.modal-view-group > label > strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.modal-view-group > label > small {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  line-height: 1.4;
+}
+.modal-view-group input[type="radio"] {
+  accent-color: var(--accent);
+  margin: 0;
+  flex-shrink: 0;
+  transform: translateY(1px);
+}
+
+.modal-hint {
+  margin: 10px 4px 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  line-height: 1.45;
+}
+
 @keyframes modal-fade-in {
   from { opacity: 0; }
   to   { opacity: 1; }
