@@ -58,7 +58,7 @@ export function setupEvents() {
       api.invoke('select_files', { accept: z.dataset.accept || '*' })
         .then(files => {
           if (files && Array.isArray(files) && files.length > 0) {
-            handleFileDrop(z, files.map(f => ({ name: f.split('/').pop(), size: 0 })));
+            handleFileDrop(z, files.map(f => ({ name: f.split(/[\\/]/).pop(), size: 0, path: f })));
           } else {
             throw new Error('no files');
           }

@@ -33,6 +33,10 @@ async function runModule(id) {
   if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
 
   const params = collectModuleParams();
+  const picked = state.files[id] || [];
+  if (picked.length > 0) {
+    params.input_files = picked.map(f => f.path || f.name);
+  }
   try {
     await modulesApi.validate(id, params);
     const runId = await modulesApi.run(id, params);

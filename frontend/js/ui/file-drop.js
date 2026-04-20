@@ -12,7 +12,9 @@ export function handleFileDrop(zone, fileList) {
   if (!mid || !state.files[mid]) state.files[mid] = [];
   Array.from(fileList).forEach(f => {
     if (!state.files[mid]) state.files[mid] = [];
-    state.files[mid].push({ name: f.name || f, size: f.size || 0 });
+    const name = f.name || f;
+    const path = f.path || (typeof f === 'string' ? f : name);
+    state.files[mid].push({ name, size: f.size || 0, path });
   });
   const list = document.getElementById(`${mid}-file-list`);
   if (list) renderFileList(list, mid);
@@ -23,8 +25,8 @@ export function renderFileList(el, mid) {
   el.innerHTML = files.map((f, i) => `
     <div class="file-item">
       <i data-lucide="file" style="width:14px;height:14px;color:var(--text-muted);flex-shrink:0"></i>
-      <span class="file-item-name" title="${f.name}">${f.name}</span>
-      <span class="file-item-size">${fmtSize(f.size)}</span>
+      <span class="file-item-name" title="${f.path || f.name}">${f.name}</span>
+      ${f.size ? `<span class="file-item-size">${fmtSize(f.size)}</span>` : ''}
       <span class="file-item-remove" data-module="${mid}" data-index="${i}"><i data-lucide="x"></i></span>
     </div>`).join('');
   if (window.lucide) window.lucide.createIcons();
