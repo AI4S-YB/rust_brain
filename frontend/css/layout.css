@@ -220,6 +220,8 @@
   flex-shrink: 0;
   background: rgba(253, 252, 250, 0.85);
   backdrop-filter: blur(8px);
+  position: relative;
+  z-index: 20;
 }
 
 .header-left {
@@ -297,6 +299,7 @@
 
 .project-selector-wrap {
   position: relative;
+  z-index: 21;
 }
 
 .project-selector {
@@ -441,4 +444,3 @@
   font-family: var(--font-mono);
   font-size: 0.7rem;
 }
-
