@@ -64,7 +64,7 @@ export function renderStarIndexView(container) {
               </div>
             </div>
             <div class="collapsible">
-              <button type="button" class="collapsible-trigger" onclick="toggleCollapsible(this)">
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
                 ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
               </button>
               <div class="collapsible-content"><div class="collapsible-body">
@@ -90,7 +90,7 @@ export function renderStarIndexView(container) {
         </div>
       </div>
 
-      ${renderLogPanel('star_index')}
+      ${renderLogPanel('star-index')}
     </div>
   `;
 }

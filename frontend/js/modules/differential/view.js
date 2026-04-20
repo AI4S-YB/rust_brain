@@ -60,8 +60,8 @@ function renderDifferentialBody() {
             </div>
           </div>
           <div class="panel-footer">
-            <button class="btn btn-secondary btn-sm" onclick="resetForm('differential')"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
-            <button class="btn btn-primary btn-sm" onclick="runModule('differential')" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> ${t('differential.run_deseq')}</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-act="reset-form" data-mod="differential"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="differential" style="background:var(--mod-coral);border-color:var(--mod-coral)"><i data-lucide="play"></i> ${t('differential.run_deseq')}</button>
           </div>
           ${renderLogPanel('differential')}
         </div>

@@ -39,7 +39,7 @@ export function renderGffConvertView(container) {
               </select>
             </div>
             <div class="collapsible">
-              <button type="button" class="collapsible-trigger" onclick="toggleCollapsible(this)">
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
                 ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
               </button>
               <div class="collapsible-content"><div class="collapsible-body">
@@ -65,7 +65,7 @@ export function renderGffConvertView(container) {
         </div>
       </div>
 
-      ${renderLogPanel('gff_convert')}
+      ${renderLogPanel('gff-convert')}
     </div>
   `;
 }

@@ -51,6 +51,24 @@
               ]);
             }
             if (cmd === 'set_binary_path' || cmd === 'clear_binary_path') return Promise.resolve(null);
+
+            // --- browser fallbacks for native file/folder pickers ---
+            if (cmd === 'select_files') {
+              return new Promise(resolve => {
+                const inp = document.createElement('input');
+                inp.type = 'file';
+                inp.multiple = true;
+                if (args && args.accept) inp.accept = args.accept;
+                inp.onchange = () => resolve(Array.from(inp.files).map(f => f.name));
+                inp.oncancel = () => resolve([]);
+                inp.click();
+              });
+            }
+            if (cmd === 'select_directory') {
+              const hint = 'Browser preview cannot open a native folder picker.\nEnter an absolute path:';
+              const p = window.prompt(hint, '');
+              return Promise.resolve(p && p.trim() ? p.trim() : null);
+            }
             if (cmd === 'run_module' && args.moduleId === 'star_index') {
               return Promise.resolve('mock-run-' + Date.now());
             }

@@ -49,14 +49,14 @@ function renderTrimmingBody() {
               <div class="form-group"><label class="form-label">${t('trimming.threads')}</label><input type="number" class="form-input" id="trim-threads" value="4" min="1" max="16"></div>
             </div>
             <div class="collapsible">
-              <button class="collapsible-trigger" onclick="toggleCollapsible(this)">${t('trimming.paired_options')} <i data-lucide="chevron-down"></i></button>
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">${t('trimming.paired_options')} <i data-lucide="chevron-down"></i></button>
               <div class="collapsible-content"><div class="collapsible-body">
                 <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-paired"> ${t('trimming.paired_mode')}</label></div>
                 <div class="form-group"><label class="form-label">${t('trimming.adapter_r2')}</label><input type="text" class="form-input" id="trim-adapter2" placeholder="AGATCGGAAGAGC"></div>
               </div></div>
             </div>
             <div class="collapsible">
-              <button class="collapsible-trigger" onclick="toggleCollapsible(this)">${t('trimming.trim_galore')} <i data-lucide="chevron-down"></i></button>
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">${t('trimming.trim_galore')} <i data-lucide="chevron-down"></i></button>
               <div class="collapsible-content"><div class="collapsible-body">
                 <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-galore"> ${t('trimming.enable_galore')}</label></div>
                 <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="trim-fastqc"> ${t('trimming.post_fastqc')}</label></div>
@@ -65,8 +65,8 @@ function renderTrimmingBody() {
             </div>
           </div>
           <div class="panel-footer">
-            <button class="btn btn-secondary btn-sm" onclick="resetForm('trimming')"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
-            <button class="btn btn-primary btn-sm" onclick="runModule('trimming')" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> ${t('trimming.run_trim')}</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-act="reset-form" data-mod="trimming"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="trimming" style="background:var(--mod-blue);border-color:var(--mod-blue)"><i data-lucide="play"></i> ${t('trimming.run_trim')}</button>
           </div>
           ${renderLogPanel('trimming')}
         </div>

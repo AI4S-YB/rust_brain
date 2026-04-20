@@ -20,7 +20,7 @@ export async function submitStarAlign(form) {
   if (params.reads_2.length === 0) delete params.reads_2;
   try {
     const runId = await modulesApi.run('star_align', params);
-    state.runIdToModule[runId] = 'star_align';
+    state.runIdToModule[runId] = 'star-align';
     state.currentRunId = runId;
     navigate('star-align');
   } catch (err) {

@@ -68,7 +68,7 @@ export function renderStarAlignView(container) {
               </div>
             </div>
             <div class="collapsible">
-              <button type="button" class="collapsible-trigger" onclick="toggleCollapsible(this)">
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
                 ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
               </button>
               <div class="collapsible-content"><div class="collapsible-body">
@@ -94,7 +94,7 @@ export function renderStarAlignView(container) {
         </div>
       </div>
 
-      ${renderLogPanel('star_align')}
+      ${renderLogPanel('star-align')}
     </div>
   `;
 }

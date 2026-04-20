@@ -49,7 +49,7 @@ function renderNetworkBody() {
                 <select class="form-select" id="wgcna-tom"><option>${t('network.net_signed')}</option><option>${t('network.net_unsigned')}</option></select></div>
             </div>
             <div class="collapsible">
-              <button class="collapsible-trigger" onclick="toggleCollapsible(this)">${t('common.advanced_options')} <i data-lucide="chevron-down"></i></button>
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">${t('common.advanced_options')} <i data-lucide="chevron-down"></i></button>
               <div class="collapsible-content"><div class="collapsible-body">
                 <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="wgcna-pam"> ${t('network.pam')}</label></div>
                 <div class="form-group"><label class="form-label">${t('network.deep_split')}</label>

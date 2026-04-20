@@ -10,9 +10,15 @@ import { binaryApi } from '../api/binary.js';
 import { filesApi } from '../api/files.js';
 import { alertModal } from '../ui/modal.js';
 import { projectNew, projectOpen } from '../modules/dashboard/project.js';
+import { runModule, resetForm } from './actions.js';
+import { toggleCollapsible } from '../ui/collapsible.js';
+import { exportTableAsTSV } from '../ui/export-tsv.js';
 
 export function setupEvents() {
   document.addEventListener('click', e => {
+    const act = e.target.closest('[data-act]');
+    if (act && dispatchAction(act)) return;
+
     const nav = e.target.closest('[data-view]');
     if (nav) {
       e.preventDefault();
@@ -163,6 +169,27 @@ export function setupEvents() {
     syncLangButtons();
     navigate(state.currentView);
   });
+}
+
+function dispatchAction(el) {
+  switch (el.dataset.act) {
+    case 'run-module':
+      runModule(el.dataset.mod);
+      return true;
+    case 'reset-form':
+      resetForm(el.dataset.mod);
+      return true;
+    case 'collapsible-toggle':
+      toggleCollapsible(el);
+      return true;
+    case 'export-tsv':
+      exportTableAsTSV(el.dataset.table, el.dataset.filename);
+      return true;
+    default:
+      // 'browse' / 'clear' (settings) and 'project-new'/'project-open' (menu)
+      // are handled by their own targeted listeners elsewhere.
+      return false;
+  }
 }
 
 function setupProjectMenu() {

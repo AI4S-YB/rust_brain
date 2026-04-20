@@ -16,7 +16,7 @@ export async function submitStarIndex(form) {
   };
   try {
     const runId = await modulesApi.run('star_index', params);
-    state.runIdToModule[runId] = 'star_index';
+    state.runIdToModule[runId] = 'star-index';
     navigate('star-index');
   } catch (err) {
     alertModal({ title: 'Error', message: 'Failed to start run: ' + err });

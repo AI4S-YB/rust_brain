@@ -14,7 +14,7 @@ export async function submitGffConvert(form) {
   };
   try {
     const runId = await modulesApi.run('gff_convert', params);
-    state.runIdToModule[runId] = 'gff_convert';
+    state.runIdToModule[runId] = 'gff-convert';
     navigate('gff-convert');
   } catch (err) {
     alertModal({ title: 'Error', message: 'Failed to start run: ' + err });

@@ -46,7 +46,7 @@ function renderQCBody() {
               <input type="text" class="form-input" id="qc-output" placeholder="${t('qc.output_dir_ph')}">
             </div>
             <div class="collapsible">
-              <button class="collapsible-trigger" onclick="toggleCollapsible(this)">
+              <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
                 ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
               </button>
               <div class="collapsible-content"><div class="collapsible-body">
@@ -57,8 +57,8 @@ function renderQCBody() {
             </div>
           </div>
           <div class="panel-footer">
-            <button class="btn btn-secondary btn-sm" onclick="resetForm('qc')"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
-            <button class="btn btn-primary btn-sm" onclick="runModule('qc')"><i data-lucide="play"></i> ${t('qc.run_qc')}</button>
+            <button type="button" class="btn btn-secondary btn-sm" data-act="reset-form" data-mod="qc"><i data-lucide="rotate-ccw"></i> ${t('common.reset')}</button>
+            <button type="button" class="btn btn-primary btn-sm" data-act="run-module" data-mod="qc"><i data-lucide="play"></i> ${t('qc.run_qc')}</button>
           </div>
           ${renderLogPanel('qc')}
         </div>
