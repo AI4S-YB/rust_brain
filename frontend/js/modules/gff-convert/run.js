@@ -1,7 +1,8 @@
 import { state } from '../../core/state.js';
 import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
-import { alertModal } from '../../ui/modal.js';
+import { alertModal, runStartedToast } from '../../ui/modal.js';
+import { t, navKey } from '../../core/i18n-helpers.js';
 
 export async function submitGffConvert(form) {
   const fd = new FormData(form);
@@ -16,6 +17,7 @@ export async function submitGffConvert(form) {
     const runId = await modulesApi.run('gff_convert', params);
     state.runIdToModule[runId] = 'gff-convert';
     navigate('gff-convert');
+    runStartedToast({ module: t(navKey('gff-convert')), runId });
   } catch (err) {
     alertModal({ title: 'Error', message: 'Failed to start run: ' + err });
   }

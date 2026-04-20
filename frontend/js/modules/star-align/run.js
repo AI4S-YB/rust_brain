@@ -1,7 +1,8 @@
 import { state } from '../../core/state.js';
 import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
-import { alertModal } from '../../ui/modal.js';
+import { alertModal, runStartedToast } from '../../ui/modal.js';
+import { t, navKey } from '../../core/i18n-helpers.js';
 
 export async function submitStarAlign(form) {
   const fd = new FormData(form);
@@ -23,6 +24,7 @@ export async function submitStarAlign(form) {
     state.runIdToModule[runId] = 'star-align';
     state.currentRunId = runId;
     navigate('star-align');
+    runStartedToast({ module: t(navKey('star-align')), runId });
   } catch (err) {
     alertModal({ title: 'Error', message: 'Failed to start run: ' + err });
   }

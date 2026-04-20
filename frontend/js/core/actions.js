@@ -4,6 +4,7 @@ import { t, navKey } from './i18n-helpers.js';
 import { navigate } from './router.js';
 import { modulesApi } from '../api/modules.js';
 import { loadRunsForView } from '../modules/run-result.js';
+import { runStartedToast } from '../ui/modal.js';
 
 export function collectModuleParams() {
   const params = {};
@@ -74,6 +75,7 @@ export async function runModule(id) {
       if (document.getElementById(containerId)) {
         loadRunsForView(backendId, containerId);
       }
+      runStartedToast({ module: displayName, runId });
     }
   } catch (err) {
     console.warn(`[runModule] invoke failed for ${id} (backend=${backendId}):`, err);
