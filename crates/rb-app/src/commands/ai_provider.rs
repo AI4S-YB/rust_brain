@@ -85,3 +85,72 @@ pub async fn ai_backend_info(state: State<'_, AppState>) -> Result<serde_json::V
         "config_path": state.ai.config_path,
     }))
 }
+
+/// Connectivity test: sends a one-shot "say hi" message using the given
+/// endpoint. If `api_key` is empty, falls back to the key stored under
+/// `provider_id`. Returns the model's reply text on success.
+#[tauri::command]
+pub async fn ai_test_connection(
+    state: State<'_, AppState>,
+    provider_id: String,
+    base_url: String,
+    model: String,
+    temperature: Option<f32>,
+    api_key: Option<String>,
+) -> Result<String, String> {
+    use rb_ai::provider::{
+        openai_compat::OpenAiCompatProvider, ChatProvider, ChatRequest, ProviderEvent,
+        ProviderMessage,
+    };
+    use rb_core::cancel::CancellationToken;
+
+    let base_url = base_url.trim().to_string();
+    let model = model.trim().to_string();
+    if base_url.is_empty() {
+        return Err("base URL is empty".into());
+    }
+    if model.is_empty() {
+        return Err("model is empty".into());
+    }
+
+    let key = match api_key.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(k) => k.to_string(),
+        None => state
+            .ai
+            .keystore
+            .get(&provider_id)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "no API key configured".to_string())?,
+    };
+
+    let provider = OpenAiCompatProvider::new(base_url, key);
+    let req = ChatRequest {
+        model,
+        system: "You are a connectivity test. Reply with a very short greeting.".into(),
+        messages: vec![ProviderMessage::User {
+            content: "Say hi to me in one short sentence.".into(),
+        }],
+        tools: vec![],
+        temperature: temperature.unwrap_or(0.2),
+    };
+
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<ProviderEvent>(32);
+    let cancel = CancellationToken::new();
+    let send_fut = provider.send(req, tx, cancel);
+    let collect_fut = async move {
+        let mut out = String::new();
+        while let Some(ev) = rx.recv().await {
+            if let ProviderEvent::TextDelta(s) = ev {
+                out.push_str(&s);
+            }
+        }
+        out
+    };
+    let (send_res, text) = tokio::join!(send_fut, collect_fut);
+    send_res.map_err(|e| e.to_string())?;
+    let reply = text.trim().to_string();
+    if reply.is_empty() {
+        return Err("empty reply from provider".into());
+    }
+    Ok(reply)
+}

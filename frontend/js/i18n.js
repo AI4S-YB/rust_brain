@@ -335,6 +335,10 @@
         ai_saved: 'Saved.',
         ai_save_failed: 'Save failed',
         ai_clear_failed: 'Clear failed',
+        ai_test: 'Test connection',
+        ai_testing: 'Testing…',
+        ai_test_ok: 'Connection OK. Reply: {reply}',
+        ai_test_failed: 'Connection failed',
       },
     },
     zh: {
@@ -663,6 +667,10 @@
         ai_saved: '已保存。',
         ai_save_failed: '保存失败',
         ai_clear_failed: '清除失败',
+        ai_test: '测试连通性',
+        ai_testing: '测试中…',
+        ai_test_ok: '连接正常。模型回复:{reply}',
+        ai_test_failed: '连接失败',
       },
     },
   };

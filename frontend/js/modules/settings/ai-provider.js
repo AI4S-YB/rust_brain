@@ -50,6 +50,7 @@ export function renderAiProviderSection() {
 
           <div class="form-actions ai-form-actions">
             <button type="button" class="btn btn-primary ai-save">${escapeHtml(t('common.save'))}</button>
+            <button type="button" class="btn btn-secondary ai-test">${escapeHtml(t('settings.ai_test'))}</button>
             <button type="button" class="btn btn-ghost ai-clear-key">${escapeHtml(t('settings.ai_clear_key'))}</button>
           </div>
         </form>
@@ -120,6 +121,29 @@ export function renderAiProviderSection() {
         alertModal({ message: t('settings.ai_saved') });
       } catch (e) {
         alertModal({ message: t('settings.ai_save_failed') + ': ' + e });
+      }
+    });
+
+    form.querySelector('.ai-test').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      const originalLabel = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = t('settings.ai_testing');
+      try {
+        const apiKey = form.querySelector('[name="api_key"]').value;
+        const reply = await api.invoke('ai_test_connection', {
+          providerId: 'openai-compat',
+          baseUrl: form.querySelector('[name="base_url"]').value.trim(),
+          model: form.querySelector('[name="model"]').value.trim(),
+          temperature: parseFloat(form.querySelector('[name="temperature"]').value),
+          apiKey: apiKey || null,
+        });
+        alertModal({ message: t('settings.ai_test_ok').replace('{reply}', reply) });
+      } catch (err) {
+        alertModal({ message: t('settings.ai_test_failed') + ': ' + err });
+      } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
       }
     });
 
