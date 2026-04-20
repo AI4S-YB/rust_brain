@@ -566,6 +566,57 @@
 .log-output .log-error   { color: var(--mod-coral); }
 
 
+/* --- Run Result --- */
+.run-result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.run-result-card h3 {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.result-kv {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 8px 12px;
+  margin: 0;
+}
+
+.result-kv dt {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.result-kv dd {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.run-result-list {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.run-result-list li {
+  color: var(--text-secondary);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+
 /* --- Collapsible --- */
 .collapsible {
   border: 1px solid var(--border-light);

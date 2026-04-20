@@ -2,11 +2,13 @@ import { t } from '../core/i18n-helpers.js';
 import { modulesApi } from '../api/modules.js';
 import { escapeHtml } from '../ui/escape.js';
 import { renderGffConvertResult } from './gff-convert/result.js';
+import { renderQcResult } from './qc/result.js';
 import { renderStarAlignResult } from './star-align/result.js';
 
 export function renderRunResultHtml(moduleId, result, runId) {
   let html = '';
   switch (moduleId) {
+    case 'qc': html = renderQcResult(result, runId); break;
     case 'gff_convert': html = renderGffConvertResult(result, runId); break;
     case 'star_align': html = renderStarAlignResult(result, runId); break;
     case 'star_index': html = `<pre>${escapeHtml(JSON.stringify(result.summary, null, 2))}</pre>`; break;
