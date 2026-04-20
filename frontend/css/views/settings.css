@@ -1,0 +1,161 @@
+/* ============================================================
+   Settings view — binary paths, language, AI provider
+   ============================================================ */
+
+/* ── Settings binary paths table ────────────────────────── */
+.settings-intro {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+.settings-intro strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.settings-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+.settings-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.85rem;
+}
+.settings-table th {
+  background: var(--bg-page);
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-light);
+  font-weight: 600;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.settings-table td {
+  text-align: left;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.settings-table tr:last-child td {
+  border-bottom: none;
+}
+.settings-table tr:hover td {
+  background: var(--bg-inset);
+}
+.settings-table .tool-col {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+/* Generic long-path cell: monospace, single-line with ellipsis.
+   Applies to <td class="path">, <dd class="path">, <span class="path">.
+   Elements get a title= attribute from JS so the full path shows on hover. */
+.path {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+  direction: ltr;
+}
+
+/* Path cells inside tables need an explicit max-width so the table
+   actually honours the ellipsis (table cells default to shrink-to-fit). */
+.settings-table td.path {
+  max-width: 22rem;
+}
+
+/* Path cells inside the GFF result <dl> sit on their own row; cap so
+   they don't stretch the card when the path is huge. */
+.run-result-card .result-kv dd.path {
+  max-width: 100%;
+  display: block;
+}
+.settings-table td.path em.text-muted {
+  color: var(--text-muted);
+  font-style: italic;
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+}
+.settings-table .actions-col {
+  white-space: nowrap;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.settings-language {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+/* ── AI Provider form ──────────────────────────────────────── */
+.settings-ai-form {
+  max-width: 680px;
+}
+
+.settings-ai-form .form-range {
+  width: 100%;
+  margin: 2px 0 6px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-ai-form .form-label .temp-readout {
+  display: inline-block;
+  min-width: 40px;
+  margin-left: 10px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: 1px;
+}
+
+.ai-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--border-light);
+}
+
+/* Status pill in the AI panel header */
+.ai-key-state {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.01em;
+  background: rgba(120, 113, 108, 0.1);
+  color: var(--text-tertiary);
+  text-transform: none;
+  white-space: nowrap;
+}
+.ai-key-state[data-state="saved"] {
+  background: rgba(45, 134, 89, 0.12);
+  color: var(--mod-green);
+}
+.ai-key-state[data-state="missing"] {
+  background: rgba(201, 80, 60, 0.1);
+  color: var(--mod-coral);
+}
+.ai-key-state:empty {
+  display: none;
+}

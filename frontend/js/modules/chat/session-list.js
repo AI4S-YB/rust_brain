@@ -1,4 +1,5 @@
 import { chatApi } from '../../api/chat.js';
+import { alertModal, confirmModal } from '../../ui/modal.js';
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c =>
@@ -20,7 +21,7 @@ export async function renderSessionListPage(container) {
       const s = await chatApi.createSession(null);
       location.hash = `#chat/${s.id}`;
     } catch (e) {
-      alert('Failed to create session: ' + e);
+      alertModal({ title: 'Error', message: 'Failed to create session: ' + e });
     }
   });
 
@@ -48,12 +49,13 @@ export async function renderSessionListPage(container) {
     });
     li.querySelector('.btn-del').addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (confirm('Delete this session?')) {
+      const ok = await confirmModal({ title: 'Delete session?', message: 'This will remove the session permanently.' });
+      if (ok) {
         try {
           await chatApi.deleteSession(meta.id);
           renderSessionListPage(container);
         } catch (err) {
-          alert('Failed to delete: ' + err);
+          alertModal({ title: 'Error', message: 'Failed to delete: ' + err });
         }
       }
     });

@@ -1,5 +1,6 @@
 import { chatApi } from '../../api/chat.js';
 import { renderSchemaForm } from './schema-form.js';
+import { promptModal, alertModal } from '../../ui/modal.js';
 
 export function createPlanCard({ callId, name, args, schema, risk }) {
   const el = document.createElement('div');
@@ -34,7 +35,11 @@ export function createPlanCard({ callId, name, args, schema, risk }) {
   });
 
   el.querySelector('.btn-reject').addEventListener('click', async () => {
-    const reason = window.prompt('Optional reason for rejection (leave blank to skip):', '');
+    const reason = await promptModal({
+      title: 'Reject tool call',
+      message: 'Optional reason for rejection (leave blank to skip):',
+      defaultValue: '',
+    });
     disableActions(el);
     try {
       await chatApi.rejectTool(callId, reason || null);

@@ -1,0 +1,306 @@
+/* ============================================================
+   Dashboard view
+   ============================================================ */
+
+/* ============================================================
+   DASHBOARD VIEW
+   ============================================================ */
+
+.dashboard-hero {
+  margin-bottom: 32px;
+}
+
+.dashboard-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+
+.dashboard-title-accent {
+  color: var(--mod-teal);
+}
+
+.dashboard-subtitle {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+
+/* Pipeline Flow */
+.pipeline-flow-container {
+  margin-bottom: 32px;
+}
+
+.pipeline-flow {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 16px 0;
+  overflow-x: auto;
+}
+
+.pipeline-stage {
+  display: flex;
+  align-items: center;
+}
+
+.pipeline-node {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 20px 18px;
+  min-width: 132px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Colored top bar on each node */
+.pipeline-node::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: var(--node-color, var(--mod-teal));
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.pipeline-node:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--node-color, var(--mod-teal)) 12%, transparent),
+              var(--shadow-md);
+  border-color: var(--node-color, var(--mod-teal));
+}
+
+.pipeline-node-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  margin: 0 auto 10px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--node-color, var(--mod-teal)) 8%, transparent);
+  color: var(--node-color, var(--mod-teal));
+}
+
+.pipeline-node-icon [data-lucide] {
+  width: 20px;
+  height: 20px;
+}
+
+.pipeline-node-title {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.pipeline-node-desc {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.pipeline-node-status {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pipeline-node-status .dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.pipeline-node.ready .pipeline-node-status {
+  color: var(--mod-teal);
+}
+
+.pipeline-node.soon .pipeline-node-status {
+  color: var(--text-muted);
+}
+
+/* Pipeline Connector */
+.pipeline-connector {
+  display: flex;
+  align-items: center;
+  width: 44px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.pipeline-connector-line {
+  width: 100%;
+  height: 2px;
+  background: var(--border-default);
+  position: relative;
+  overflow: hidden;
+  border-radius: 1px;
+}
+
+.pipeline-connector-line::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, var(--mod-teal), transparent);
+  animation: flowPulse 3.5s linear infinite;
+}
+
+
+/* Stats Row */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--duration-fast) ease;
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.stat-label {
+  font-size: 0.73rem;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.stat-value .stat-unit {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+  margin-left: 2px;
+}
+
+/* Dashboard Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Quick Actions */
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.quick-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.quick-action:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateX(3px);
+}
+
+.quick-action-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.quick-action-icon [data-lucide] {
+  width: 18px;
+  height: 18px;
+}
+
+.quick-action-text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.quick-action-desc {
+  font-size: 0.73rem;
+  color: var(--text-tertiary);
+  margin-top: 1px;
+}
+
+/* Tool Info */
+.tool-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  transition: all var(--duration-fast) ease;
+}
+
+.tool-info:hover {
+  border-color: var(--border-strong);
+}
+
+.tool-info-name {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--mod-teal);
+  white-space: nowrap;
+}
+
+.tool-info-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+

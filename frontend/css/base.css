@@ -1,0 +1,142 @@
+/* ============================================================
+   RustBrain — Transcriptomics Analysis Platform
+   Base — variables + reset
+   ============================================================ */
+
+/* --- CSS Custom Properties --- */
+:root {
+  /* Warm light backgrounds */
+  --bg-page:      #f8f5f0;
+  --bg-surface:   #ffffff;
+  --bg-inset:     #f1ede6;
+  --bg-hover:     #ece7de;
+  --bg-sidebar:   #fdfcfa;
+
+  /* Borders */
+  --border-light:   #e8e2d8;
+  --border-default: #ddd6ca;
+  --border-strong:  #c8bfb0;
+  --border-focus:   #0d7377;
+
+  /* Text */
+  --text-primary:   #1c1917;
+  --text-secondary: #57534e;
+  --text-tertiary:  #a8a29e;
+  --text-muted:     #c7c2ba;
+
+  /* Module accent colors */
+  --mod-teal:    #0d7377;
+  --mod-blue:    #3b6ea5;
+  --mod-purple:  #7c5cbf;
+  --mod-gold:    #b8860b;
+  --mod-coral:   #c9503c;
+  --mod-green:   #2d8659;
+  --mod-slate:   #5c7080;
+
+  /* Semantic */
+  --color-success: #2d8659;
+  --color-warning: #b8860b;
+  --color-error:   #c9503c;
+  --color-info:    #3b6ea5;
+
+  /* Accent (primary CTA) */
+  --accent:        #0d7377;
+  --accent-hover:  #0a5f62;
+  --accent-light:  rgba(13, 115, 119, 0.08);
+  --accent-mid:    rgba(13, 115, 119, 0.15);
+
+  /* Layout */
+  --sidebar-width: 256px;
+  --header-height: 54px;
+  --status-height: 32px;
+
+  /* Typography */
+  --font-display: 'Zilla Slab', serif;
+  --font-body:    'Karla', sans-serif;
+  --font-mono:    'Fira Code', monospace;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.03);
+  --shadow-md: 0 4px 12px rgba(28, 25, 23, 0.06), 0 1px 4px rgba(28, 25, 23, 0.04);
+  --shadow-lg: 0 12px 32px rgba(28, 25, 23, 0.08), 0 4px 12px rgba(28, 25, 23, 0.04);
+  --shadow-colored: 0 8px 24px rgba(13, 115, 119, 0.12);
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+}
+
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: 1fr var(--status-height);
+  grid-template-areas:
+    "sidebar main"
+    "statusbar statusbar";
+  height: 100vh;
+  overflow: hidden;
+  line-height: 1.55;
+}
+
+/* Subtle lab-notebook dot grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, #d4cfc6 0.6px, transparent 0.6px);
+  background-size: 28px 28px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+}
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: var(--font-body);
+  font-size: 0.93rem;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 7px; height: 7px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-strong);
+}
+

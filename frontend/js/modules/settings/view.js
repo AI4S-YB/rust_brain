@@ -32,9 +32,9 @@ export async function renderSettingsView(container) {
     return `
     <tr>
       <td class="tool-col">${escapeHtml(s.display_name)}</td>
-      <td class="path">${s.configured_path ? escapeHtml(s.configured_path) : `<em class="text-muted">${t('settings.not_set')}</em>`}</td>
-      <td class="path">${s.bundled_path ? escapeHtml(s.bundled_path) : `<em class="text-muted">${t('settings.not_bundled')}</em>`}</td>
-      <td class="path">${s.detected_on_path ? escapeHtml(s.detected_on_path) : `<em class="text-muted">${t('settings.not_on_path')}</em>`}</td>
+      <td class="path"${s.configured_path ? ` title="${escapeHtml(s.configured_path)}"` : ''}>${s.configured_path ? escapeHtml(s.configured_path) : `<em class="text-muted">${t('settings.not_set')}</em>`}</td>
+      <td class="path"${s.bundled_path ? ` title="${escapeHtml(s.bundled_path)}"` : ''}>${s.bundled_path ? escapeHtml(s.bundled_path) : `<em class="text-muted">${t('settings.not_bundled')}</em>`}</td>
+      <td class="path"${s.detected_on_path ? ` title="${escapeHtml(s.detected_on_path)}"` : ''}>${s.detected_on_path ? escapeHtml(s.detected_on_path) : `<em class="text-muted">${t('settings.not_on_path')}</em>`}</td>
       <td>${available
           ? `<span class="badge badge-green">${t('settings.ok')}</span>`
           : `<span class="badge badge-coral">${t('settings.missing')}</span>`}</td>

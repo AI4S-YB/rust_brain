@@ -23,7 +23,7 @@ export function renderFileList(el, mid) {
   el.innerHTML = files.map((f, i) => `
     <div class="file-item">
       <i data-lucide="file" style="width:14px;height:14px;color:var(--text-muted);flex-shrink:0"></i>
-      <span class="file-item-name">${f.name}</span>
+      <span class="file-item-name" title="${f.name}">${f.name}</span>
       <span class="file-item-size">${fmtSize(f.size)}</span>
       <span class="file-item-remove" data-module="${mid}" data-index="${i}"><i data-lucide="x"></i></span>
     </div>`).join('');

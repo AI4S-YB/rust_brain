@@ -1,40 +1,56 @@
 import { t } from '../../core/i18n-helpers.js';
 import { escapeHtml } from '../../ui/escape.js';
 import { api } from '../../core/tauri.js';
+import { alertModal } from '../../ui/modal.js';
 
 export function renderAiProviderSection() {
   const html = `
     <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-      <div class="panel-header"><span class="panel-title">${escapeHtml(t('settings.ai_section'))}</span></div>
+      <div class="panel-header">
+        <span class="panel-title">${escapeHtml(t('settings.ai_section'))}</span>
+        <span class="ai-key-state" data-state="unknown"></span>
+      </div>
       <div class="panel-body">
+        <p class="settings-intro">${escapeHtml(t('settings.ai_section_desc'))}</p>
         <form class="settings-ai-form">
-          <div class="form-row">
+          <div class="form-group">
             <label class="form-label">${escapeHtml(t('settings.ai_provider'))}</label>
-            <select name="provider_id">
+            <select class="form-select" name="provider_id">
               <option value="openai-compat">OpenAI-compatible</option>
             </select>
+            <span class="form-hint">${escapeHtml(t('settings.ai_provider_hint'))}</span>
           </div>
-          <div class="form-row">
+
+          <div class="form-group">
             <label class="form-label">${escapeHtml(t('settings.ai_base_url'))}</label>
-            <input type="url" name="base_url" value="https://api.openai.com/v1" />
+            <input type="url" class="form-input" name="base_url" value="https://api.openai.com/v1" />
+            <span class="form-hint">${escapeHtml(t('settings.ai_base_url_hint'))}</span>
           </div>
-          <div class="form-row">
+
+          <div class="form-group">
             <label class="form-label">${escapeHtml(t('settings.ai_model'))}</label>
-            <input type="text" name="model" placeholder="gpt-4o-mini / deepseek-chat / qwen-max …" />
+            <input type="text" class="form-input" name="model" placeholder="gpt-4o-mini / deepseek-chat / qwen-max …" />
+            <span class="form-hint">${escapeHtml(t('settings.ai_model_hint'))}</span>
           </div>
-          <div class="form-row">
-            <label class="form-label">${escapeHtml(t('settings.ai_temperature'))}</label>
-            <input type="range" name="temperature" min="0" max="2" step="0.05" value="0.2" />
-            <span class="temp-readout">0.2</span>
+
+          <div class="form-group">
+            <label class="form-label">
+              ${escapeHtml(t('settings.ai_temperature'))}
+              <span class="temp-readout">0.2</span>
+            </label>
+            <input type="range" class="form-range" name="temperature" min="0" max="2" step="0.05" value="0.2" />
+            <span class="form-hint">${escapeHtml(t('settings.ai_temperature_hint'))}</span>
           </div>
-          <div class="form-row">
+
+          <div class="form-group">
             <label class="form-label">${escapeHtml(t('settings.ai_api_key'))}</label>
-            <input type="password" name="api_key" autocomplete="off" placeholder="${escapeHtml(t('settings.ai_api_key_placeholder'))}" />
+            <input type="password" class="form-input" name="api_key" autocomplete="off" placeholder="${escapeHtml(t('settings.ai_api_key_placeholder'))}" />
+            <span class="form-hint">${escapeHtml(t('settings.ai_api_key_hint'))}</span>
           </div>
-          <div class="form-actions">
+
+          <div class="form-actions ai-form-actions">
             <button type="button" class="btn btn-primary ai-save">${escapeHtml(t('common.save'))}</button>
-            <button type="button" class="btn ai-clear-key">${escapeHtml(t('settings.ai_clear_key'))}</button>
-            <span class="ai-key-state muted"></span>
+            <button type="button" class="btn btn-ghost ai-clear-key">${escapeHtml(t('settings.ai_clear_key'))}</button>
           </div>
         </form>
       </div>
@@ -43,9 +59,11 @@ export function renderAiProviderSection() {
   async function bind(root) {
     const form = root.querySelector('.settings-ai-form');
     if (!form) return;
-    const setState = (text) => {
-      const el = form.querySelector('.ai-key-state');
-      if (el) el.textContent = text;
+    const badge = root.querySelector('.ai-key-state');
+    const setState = (text, kind) => {
+      if (!badge) return;
+      badge.textContent = text;
+      badge.dataset.state = kind || 'unknown';
     };
 
     try {
@@ -62,7 +80,7 @@ export function renderAiProviderSection() {
 
     const temp = form.querySelector('[name="temperature"]');
     const readout = form.querySelector('.temp-readout');
-    const updateReadout = () => { if (readout) readout.textContent = temp.value; };
+    const updateReadout = () => { if (readout) readout.textContent = Number(temp.value).toFixed(2); };
     if (temp && readout) {
       temp.addEventListener('input', updateReadout);
       updateReadout();
@@ -71,9 +89,9 @@ export function renderAiProviderSection() {
     const refreshKeyState = async () => {
       try {
         const has = await api.invoke('ai_has_api_key', { providerId: 'openai-compat' });
-        setState(has ? t('settings.ai_key_saved') : t('settings.ai_no_key'));
+        setState(has ? t('settings.ai_key_saved') : t('settings.ai_no_key'), has ? 'saved' : 'missing');
       } catch (e) {
-        setState('');
+        setState('', 'unknown');
       }
     };
     refreshKeyState();
@@ -99,9 +117,9 @@ export function renderAiProviderSection() {
           keyInput.value = '';
         }
         await refreshKeyState();
-        alert(t('settings.ai_saved'));
+        alertModal({ message: t('settings.ai_saved') });
       } catch (e) {
-        alert(t('settings.ai_save_failed') + ': ' + e);
+        alertModal({ message: t('settings.ai_save_failed') + ': ' + e });
       }
     });
 
@@ -110,7 +128,7 @@ export function renderAiProviderSection() {
         await api.invoke('ai_clear_api_key', { providerId: 'openai-compat' });
         await refreshKeyState();
       } catch (e) {
-        alert(t('settings.ai_clear_failed') + ': ' + e);
+        alertModal({ message: t('settings.ai_clear_failed') + ': ' + e });
       }
     });
   }

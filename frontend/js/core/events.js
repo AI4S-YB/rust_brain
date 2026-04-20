@@ -8,6 +8,7 @@ import { submitStarAlign } from '../modules/star-align/run.js';
 import { submitGffConvert } from '../modules/gff-convert/run.js';
 import { binaryApi } from '../api/binary.js';
 import { filesApi } from '../api/files.js';
+import { alertModal } from '../ui/modal.js';
 
 export function setupEvents() {
   document.addEventListener('click', e => {
@@ -114,6 +115,7 @@ export function setupEvents() {
     if (!input) return;
     if (Array.isArray(picked)) input.value = picked.join(' ');
     else if (picked) input.value = picked;
+    input.title = input.value;
   });
 
   document.addEventListener('click', async (e) => {
@@ -124,7 +126,7 @@ export function setupEvents() {
         try {
           await binaryApi.setPath(btn.dataset.id, picked[0]);
           navigate('settings');
-        } catch (err) { alert('Failed: ' + err); }
+        } catch (err) { alertModal({ title: 'Error', message: 'Failed: ' + err }); }
       }
       return;
     }
@@ -133,7 +135,7 @@ export function setupEvents() {
       try {
         await binaryApi.clearPath(clr.dataset.id);
         navigate('settings');
-      } catch (err) { alert('Failed: ' + err); }
+      } catch (err) { alertModal({ title: 'Error', message: 'Failed: ' + err }); }
     }
   });
 

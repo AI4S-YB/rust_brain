@@ -1,0 +1,95 @@
+/* ============================================================
+   Responsive — media queries
+   ============================================================ */
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 1100px) {
+  .module-layout {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "statusbar";
+  }
+
+  .sidebar {
+    position: fixed;
+    left: -270px;
+    top: 0;
+    bottom: var(--status-height);
+    width: 260px;
+    transition: left var(--duration-slow) var(--ease-out);
+    z-index: 200;
+    box-shadow: 4px 0 24px rgba(28,25,23,0.1);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .sidebar-mobile-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .sidebar-mobile-toggle:hover {
+    background: var(--bg-inset);
+  }
+
+  .sidebar-mobile-toggle [data-lucide] {
+    width: 20px;
+    height: 20px;
+  }
+
+  .pipeline-flow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pipeline-connector {
+    width: auto;
+    height: 28px;
+    justify-content: center;
+  }
+
+  .pipeline-connector-line {
+    width: 2px;
+    height: 100%;
+  }
+
+  .stats-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .content {
+    padding: 20px;
+  }
+}

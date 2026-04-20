@@ -1,6 +1,7 @@
 import { state } from '../../core/state.js';
 import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
+import { alertModal } from '../../ui/modal.js';
 
 export async function submitGffConvert(form) {
   const fd = new FormData(form);
@@ -16,6 +17,6 @@ export async function submitGffConvert(form) {
     state.runIdToModule[runId] = 'gff_convert';
     navigate('gff-convert');
   } catch (err) {
-    alert('Failed to start run: ' + err);
+    alertModal({ title: 'Error', message: 'Failed to start run: ' + err });
   }
 }

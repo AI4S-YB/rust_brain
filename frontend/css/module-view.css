@@ -1,0 +1,192 @@
+/* ============================================================
+   Module View — shared page layout (panels, charts, summaries, settings grid)
+   ============================================================ */
+
+/* ============================================================
+   MODULE VIEW
+   ============================================================ */
+
+.module-view {
+  animation: fadeSlideUp 0.4s var(--ease-out);
+}
+
+.module-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.module-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.module-icon [data-lucide] {
+  width: 24px;
+  height: 24px;
+}
+
+.module-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.module-desc {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.module-badges {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Module Panels Layout */
+.module-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.module-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-page);
+}
+
+.panel-title {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.panel-body {
+  padding: 20px;
+}
+
+.panel-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-page);
+}
+
+/* Chart Container */
+.chart-container {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-height: 300px;
+  position: relative;
+  border: 1px solid var(--border-light);
+}
+
+/* Results Summary */
+.results-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.result-metric {
+  padding: 14px;
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.result-metric-value {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.result-metric-label {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
+/* Settings */
+.settings-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  min-height: 400px;
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-nav {
+  background: var(--bg-page);
+  border-right: 1px solid var(--border-light);
+  padding: 12px 0;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--duration-fast) ease;
+}
+
+.settings-nav-item:hover {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+.settings-nav-item.active {
+  color: var(--accent);
+  background: var(--accent-light);
+  font-weight: 600;
+}
+
+.settings-nav-item [data-lucide] {
+  width: 16px;
+  height: 16px;
+}
+
+.settings-content {
+  padding: 28px;
+}
+

@@ -1,6 +1,7 @@
 import { state } from '../../core/state.js';
 import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
+import { alertModal } from '../../ui/modal.js';
 
 export async function submitStarAlign(form) {
   const fd = new FormData(form);
@@ -23,6 +24,6 @@ export async function submitStarAlign(form) {
     state.currentRunId = runId;
     navigate('star-align');
   } catch (err) {
-    alert('Failed to start run: ' + err);
+    alertModal({ title: 'Error', message: 'Failed to start run: ' + err });
   }
 }
