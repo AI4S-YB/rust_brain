@@ -2,6 +2,7 @@ import { state } from '../../core/state.js';
 import { projectApi } from '../../api/project.js';
 import { filesApi } from '../../api/files.js';
 import { projectNewModal } from '../../ui/project-new-modal.js';
+import { alertModal } from '../../ui/modal.js';
 
 function setProjectUI(name) {
   state.projectOpen = true;
@@ -29,13 +30,21 @@ export async function projectNew() {
 }
 
 export async function projectOpen() {
+  let dir;
   try {
-    const dir = await filesApi.selectDirectory();
+    dir = await filesApi.selectDirectory();
+  } catch (err) {
+    console.warn('[projectOpen] selectDirectory failed:', err);
+    return;
+  }
+  if (!dir) return;
+  try {
     const result = await projectApi.open(dir);
     const name = (result && result.name) ? result.name : dir || 'Opened Project';
     setProjectUI(name);
     if (result && result.default_view === 'ai') location.hash = '#chat';
   } catch (err) {
     console.warn('[projectOpen] invoke failed:', err);
+    alertModal({ title: 'Error', message: 'Failed to open project: ' + err });
   }
 }
