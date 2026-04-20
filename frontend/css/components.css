@@ -576,6 +576,34 @@
   gap: 14px;
 }
 
+.qc-result-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) minmax(0, 1fr);
+  gap: 12px 16px;
+  align-items: end;
+}
+
+.qc-selected-file {
+  min-width: 0;
+}
+
+.qc-selected-file-value {
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.qc-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.qc-chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .run-result-card h3 {
   font-family: var(--font-display);
   font-size: 0.98rem;

@@ -1,6 +1,7 @@
 use rb_core::cancel::CancellationToken;
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
 use rb_core::run_event::RunEvent;
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 
@@ -28,6 +29,30 @@ impl Module for QcModule {
                     },
                     "minItems": 1,
                     "description": "Input FASTQ file paths. May be a single file or multiple samples."
+                },
+                "threads": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Maximum number of files to process simultaneously."
+                },
+                "sequence_format": {
+                    "type": "string",
+                    "enum": ["fastq", "bam", "sam", "bam_mapped", "sam_mapped"],
+                    "description": "Optional explicit sequence format override."
+                },
+                "output_dir": {
+                    "type": "string",
+                    "description": "Optional output directory override."
+                },
+                "casava": {
+                    "type": "boolean"
+                },
+                "nogroup": {
+                    "type": "boolean"
+                },
+                "kmer_size": {
+                    "type": "integer",
+                    "minimum": 2
                 }
             },
             "required": ["input_files"],
@@ -63,6 +88,37 @@ impl Module for QcModule {
             }
         }
 
+        if let Some(v) = params.get("threads") {
+            if v.as_u64().map_or(true, |n| n == 0) {
+                errors.push(ValidationError {
+                    field: "threads".to_string(),
+                    message: "threads must be an integer >= 1".to_string(),
+                });
+            }
+        }
+
+        if let Some(v) = params.get("sequence_format") {
+            let ok = matches!(
+                v.as_str(),
+                Some("fastq" | "bam" | "sam" | "bam_mapped" | "sam_mapped")
+            );
+            if !ok {
+                errors.push(ValidationError {
+                    field: "sequence_format".to_string(),
+                    message: "sequence_format must be one of fastq, bam, sam, bam_mapped, sam_mapped".to_string(),
+                });
+            }
+        }
+
+        if let Some(v) = params.get("kmer_size") {
+            if v.as_u64().map_or(true, |n| n < 2) {
+                errors.push(ValidationError {
+                    field: "kmer_size".to_string(),
+                    message: "kmer_size must be an integer >= 2".to_string(),
+                });
+            }
+        }
+
         errors
     }
 
@@ -85,13 +141,39 @@ impl Module for QcModule {
             .filter_map(|v| v.as_str().map(PathBuf::from))
             .collect();
 
-        let output_dir = project_dir.join("qc_output");
+        let output_dir = params
+            .get("output_dir")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| project_dir.join("qc_output"));
         std::fs::create_dir_all(&output_dir)?;
 
         let total = input_files.len();
         let mut output_files = Vec::new();
         let mut processed = Vec::new();
+        let mut reports = Vec::new();
         let mut log_lines = Vec::new();
+        let threads = params
+            .get("threads")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as usize);
+        let sequence_format = params
+            .get("sequence_format")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let casava = params
+            .get("casava")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let nogroup = params
+            .get("nogroup")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        let kmer_size = params
+            .get("kmer_size")
+            .and_then(|v| v.as_u64())
+            .map(|n| n as usize);
 
         for (idx, input_path) in input_files.iter().enumerate() {
             let fraction = idx as f64 / total as f64;
@@ -112,10 +194,19 @@ impl Module for QcModule {
             // Use fastqc-rs library directly via process_file
             let input_path_clone = input_path.clone();
             let output_dir_clone = output_dir.clone();
+            let sequence_format_clone = sequence_format.clone();
             let result = tokio::task::spawn_blocking(move || {
                 let mut config = fastqc_rs::config::Config::default_config();
                 config.files = vec![input_path_clone.clone()];
                 config.output_dir = Some(output_dir_clone);
+                if let Some(threads) = threads {
+                    config.threads = threads;
+                }
+                config.sequence_format = sequence_format_clone;
+                config.casava = casava;
+                config.nogroup = nogroup;
+                config.kmer_size = kmer_size;
+                config.json = true;
                 config.quiet = true;
                 fastqc_rs::analysis::process_file(&input_path_clone, &config)
             })
@@ -124,16 +215,7 @@ impl Module for QcModule {
 
             match result {
                 Ok(()) => {
-                    // Determine expected output file name
-                    let file_stem = input_path
-                        .file_name()
-                        .map(|n| n.to_string_lossy().to_string())
-                        .unwrap_or_else(|| "unknown".to_string());
-                    let base = strip_seq_extensions(&file_stem);
-                    let html_name = format!("{}_fastqc.html", base);
-                    let zip_name = format!("{}_fastqc.zip", base);
-                    let html_path = output_dir.join(&html_name);
-                    let zip_path = output_dir.join(&zip_name);
+                    let (html_path, zip_path, json_path) = expected_qc_paths(input_path, &output_dir);
 
                     if html_path.exists() {
                         output_files.push(html_path);
@@ -141,10 +223,30 @@ impl Module for QcModule {
                     if zip_path.exists() {
                         output_files.push(zip_path);
                     }
+                    if json_path.exists() {
+                        output_files.push(json_path.clone());
+                    }
+
+                    let (fastqc_report, report_error) = match read_fastqc_json_report(&json_path) {
+                        Ok(report) => (Some(report), None),
+                        Err(err) => (
+                            None,
+                            Some(format!(
+                                "structured FastQC report unavailable: {}",
+                                err
+                            )),
+                        ),
+                    };
 
                     processed.push(serde_json::json!({
                         "file": input_str,
                         "status": "ok",
+                    }));
+                    reports.push(serde_json::json!({
+                        "input_file": input_str,
+                        "status": "ok",
+                        "error": report_error,
+                        "fastqc_report": fastqc_report,
                     }));
                     log_lines.push(format!("OK: {}", input_str));
                 }
@@ -153,6 +255,12 @@ impl Module for QcModule {
                         "file": input_str,
                         "status": "error",
                         "error": e.to_string(),
+                    }));
+                    reports.push(serde_json::json!({
+                        "input_file": input_str,
+                        "status": "error",
+                        "error": e.to_string(),
+                        "fastqc_report": Value::Null,
                     }));
                     log_lines.push(format!("ERROR: {} — {}", input_str, e));
                 }
@@ -173,6 +281,7 @@ impl Module for QcModule {
             "processed_ok": ok_count,
             "output_directory": output_dir.display().to_string(),
             "files": processed,
+            "reports": reports,
         });
 
         Ok(ModuleResult {
@@ -193,6 +302,26 @@ fn strip_seq_extensions(name: &str) -> String {
         }
     }
     s
+}
+
+fn expected_qc_paths(input_path: &Path, output_dir: &Path) -> (PathBuf, PathBuf, PathBuf) {
+    let file_stem = input_path
+        .file_name()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+    let base = strip_seq_extensions(&file_stem);
+    (
+        output_dir.join(format!("{}_fastqc.html", base)),
+        output_dir.join(format!("{}_fastqc.zip", base)),
+        output_dir.join(format!("{}_fastqc.json", base)),
+    )
+}
+
+fn read_fastqc_json_report(path: &Path) -> Result<Value, String> {
+    let raw = std::fs::read_to_string(path)
+        .map_err(|e| format!("failed to read {}: {}", path.display(), e))?;
+    serde_json::from_str(&raw)
+        .map_err(|e| format!("failed to parse {}: {}", path.display(), e))
 }
 
 #[cfg(test)]

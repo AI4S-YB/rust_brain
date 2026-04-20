@@ -32,27 +32,27 @@ function renderQCBody() {
             <div class="form-row">
               <div class="form-group">
                 <label class="form-label">${t('qc.threads')}</label>
-                <input type="number" class="form-input" id="qc-threads" value="4" min="1" max="32">
+                <input type="number" class="form-input" id="qc-threads" data-param="threads" value="4" min="1" max="32">
               </div>
               <div class="form-group">
                 <label class="form-label">${t('qc.format')}</label>
-                <select class="form-select" id="qc-format">
-                  <option>${t('qc.format_auto')}</option><option>FASTQ</option><option>BAM</option><option>SAM</option>
+                <select class="form-select" id="qc-format" data-param="sequence_format">
+                  <option value="">${t('qc.format_auto')}</option><option value="fastq">FASTQ</option><option value="bam">BAM</option><option value="sam">SAM</option>
                 </select>
               </div>
             </div>
             <div class="form-group">
               <label class="form-label">${t('qc.output_dir')}</label>
-              <input type="text" class="form-input" id="qc-output" placeholder="${t('qc.output_dir_ph')}">
+              <input type="text" class="form-input" id="qc-output" data-param="output_dir" placeholder="${t('qc.output_dir_ph')}">
             </div>
             <div class="collapsible">
               <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
                 ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>
               </button>
               <div class="collapsible-content"><div class="collapsible-body">
-                <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-casava"> ${t('qc.casava')}</label></div>
-                <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-nogroup"> ${t('qc.nogroup')}</label></div>
-                <div class="form-group"><label class="form-label">${t('qc.kmer')}</label><input type="number" class="form-input" id="qc-kmer" value="7" min="2" max="10"></div>
+                <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-casava" data-param="casava"> ${t('qc.casava')}</label></div>
+                <div class="form-group"><label class="form-checkbox"><input type="checkbox" id="qc-nogroup" data-param="nogroup"> ${t('qc.nogroup')}</label></div>
+                <div class="form-group"><label class="form-label">${t('qc.kmer')}</label><input type="number" class="form-input" id="qc-kmer" data-param="kmer_size" value="7" min="2" max="10"></div>
               </div></div>
             </div>
           </div>

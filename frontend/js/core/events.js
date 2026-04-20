@@ -30,7 +30,7 @@ export function setupEvents() {
 
     const tab = e.target.closest('.tab');
     if (tab && tab.dataset.tab) {
-      const box = tab.closest('.panel-body') || tab.closest('.module-panel');
+      const box = tab.closest('[data-tab-scope]') || tab.closest('.panel-body') || tab.closest('.module-panel');
       if (box) {
         box.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === tab));
         box.querySelectorAll('.tab-content').forEach(tc => tc.classList.toggle('active', tc.dataset.tab === tab.dataset.tab));
