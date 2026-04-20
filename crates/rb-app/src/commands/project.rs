@@ -20,6 +20,7 @@ fn setup_runner(project: Project, app: &AppHandle) -> Runner {
     let project_arc = Arc::new(tokio::sync::Mutex::new(project));
     let app_for_prog = app.clone();
     let app_for_log = app.clone();
+    let app_for_done = app.clone();
     Runner::new(project_arc)
         .on_progress(Box::new(move |run_id, progress| {
             let _ = app_for_prog.emit(
@@ -43,6 +44,26 @@ fn setup_runner(project: Project, app: &AppHandle) -> Runner {
                     },
                 }),
             );
+        }))
+        .on_complete(Box::new(move |run_id, result| match result {
+            Ok(module_result) => {
+                let _ = app_for_done.emit(
+                    "run-completed",
+                    serde_json::json!({
+                        "runId": run_id,
+                        "result": module_result,
+                    }),
+                );
+            }
+            Err(err) => {
+                let _ = app_for_done.emit(
+                    "run-failed",
+                    serde_json::json!({
+                        "runId": run_id,
+                        "error": err,
+                    }),
+                );
+            }
         }))
 }
 

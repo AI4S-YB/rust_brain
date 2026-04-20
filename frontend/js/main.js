@@ -6,9 +6,9 @@ import { setupEvents } from './core/events.js';
 import { installRuntimeListeners } from './core/runtime.js';
 import { modulesApi } from './api/modules.js';
 import { installLogScrollWatch } from './ui/log-panel.js';
-import { projectNew, projectOpen } from './modules/dashboard/project.js';
 import { toggleCollapsible } from './ui/collapsible.js';
 import { exportTableAsTSV } from './ui/export-tsv.js';
+import { loadRunsForView } from './modules/run-result.js';
 
 function collectModuleParams() {
   const params = {};
@@ -55,23 +55,40 @@ async function runModule(id) {
   const st = document.getElementById('statusText');
   const js = document.getElementById('jobStatus');
   const displayName = t(navKey(mod.id));
-  if (st) st.textContent = `${t('status.running_prefix')} ${displayName}…`;
-  if (js) js.textContent = t('status.one_job');
   const badge = document.querySelector(`.nav-item[data-view="${id}"] .nav-badge`);
-  if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
+  const btn = document.querySelector(`.module-view [onclick="runModule('${id}')"]`);
+  if (btn) btn.disabled = true;
 
   const params = collectModuleParams();
   try {
-    await modulesApi.validate(backendId, params);
+    const errors = await modulesApi.validate(backendId, params);
+    if (Array.isArray(errors) && errors.length > 0) {
+      const msg = errors.map(e => `• ${e.field}: ${e.message}`).join('\n');
+      alert(`${t('status.error_prefix')}:\n${msg}`);
+      return;
+    }
+
+    if (st) st.textContent = `${t('status.running_prefix')} ${displayName}…`;
+    if (js) js.textContent = t('status.one_job');
+    if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
+
     const runId = await modulesApi.run(backendId, params);
-    if (runId) state.runIdToModule[runId] = id;
+    if (runId) {
+      state.runIdToModule[runId] = id;
+      const containerId = `${id}-runs`;
+      if (document.getElementById(containerId)) {
+        loadRunsForView(backendId, containerId);
+      }
+    }
   } catch (err) {
     console.warn(`[runModule] invoke failed for ${id} (backend=${backendId}):`, err);
+    alert(`${t('status.error_prefix')}: ${err}`);
+    if (st) st.textContent = t('status.ready');
+    if (js) js.textContent = t('status.no_jobs');
+    if (badge) { badge.className = 'nav-badge'; badge.textContent = ''; }
+  } finally {
+    if (btn) btn.disabled = false;
   }
-
-  if (st) st.textContent = t('status.ready');
-  if (js) js.textContent = t('status.no_jobs');
-  if (badge) { badge.className = 'nav-badge done'; badge.textContent = t('badge.done'); }
 }
 
 function resetForm(id) {
@@ -82,8 +99,6 @@ function resetForm(id) {
 }
 
 // === Compat: inline onclick bridges (TODO: migrate to data-action) ===
-window.projectNew = projectNew;
-window.projectOpen = projectOpen;
 window.toggleCollapsible = toggleCollapsible;
 window.exportTableAsTSV = exportTableAsTSV;
 window.runModule = runModule;

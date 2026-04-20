@@ -9,6 +9,7 @@ import { submitGffConvert } from '../modules/gff-convert/run.js';
 import { binaryApi } from '../api/binary.js';
 import { filesApi } from '../api/files.js';
 import { alertModal } from '../ui/modal.js';
+import { projectNew, projectOpen } from '../modules/dashboard/project.js';
 
 export function setupEvents() {
   document.addEventListener('click', e => {
@@ -181,12 +182,18 @@ function setupProjectMenu() {
     wrap.classList.toggle('open', open);
     btn.setAttribute('aria-expanded', String(open));
   });
+  menu.addEventListener('click', e => {
+    const item = e.target.closest('.project-menu-item');
+    if (!item) return;
+    e.stopPropagation();
+    close();
+    const act = item.dataset.act;
+    if (act === 'project-new') projectNew();
+    else if (act === 'project-open') projectOpen();
+  });
   document.addEventListener('click', e => {
     if (menu.hidden) return;
     if (!wrap.contains(e.target)) close();
-  });
-  menu.addEventListener('click', e => {
-    if (e.target.closest('.project-menu-item')) close();
   });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape' && !menu.hidden) close();
