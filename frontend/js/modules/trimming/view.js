@@ -14,7 +14,7 @@ function renderTrimmingBody() {
         <div class="module-panel animate-slide-up" style="animation-delay:100ms">
           <div class="panel-header"><span class="panel-title">${t('trimming.input_files')}</span></div>
           <div class="panel-body">
-            <div class="file-drop-zone" data-module="trimming" data-accept=".fastq,.fq,.fastq.gz,.fq.gz">
+            <div class="file-drop-zone" data-module="trimming" data-param="input_files" data-accept=".fastq,.fq,.fastq.gz,.fq.gz">
               <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
               <div class="file-drop-text">${t('trimming.drop_text')}</div>
               <div class="file-drop-hint">${t('trimming.drop_hint')}</div>
@@ -37,12 +37,12 @@ function renderTrimmingBody() {
             </div>
             <div class="form-group">
               <label class="form-label">${t('trimming.adapter_3')}</label>
-              <input type="text" class="form-input" id="trim-adapter" value="AGATCGGAAGAGC" placeholder="AGATCGGAAGAGC">
+              <input type="text" class="form-input" id="trim-adapter" data-param="adapter" value="AGATCGGAAGAGC" placeholder="AGATCGGAAGAGC">
               <span class="form-hint">${t('trimming.adapter_3_hint')}</span>
             </div>
             <div class="form-row">
-              <div class="form-group"><label class="form-label">${t('trimming.quality_cutoff')}</label><input type="number" class="form-input" id="trim-quality" value="20" min="0" max="42"></div>
-              <div class="form-group"><label class="form-label">${t('trimming.min_length')}</label><input type="number" class="form-input" id="trim-minlen" value="20" min="1"></div>
+              <div class="form-group"><label class="form-label">${t('trimming.quality_cutoff')}</label><input type="number" class="form-input" id="trim-quality" data-param="quality_cutoff" value="20" min="0" max="42"></div>
+              <div class="form-group"><label class="form-label">${t('trimming.min_length')}</label><input type="number" class="form-input" id="trim-minlen" data-param="min_length" value="20" min="1"></div>
             </div>
             <div class="form-row">
               <div class="form-group"><label class="form-label">${t('trimming.max_n')}</label><input type="number" class="form-input" id="trim-maxn" value="-1"><span class="form-hint">${t('trimming.max_n_hint')}</span></div>

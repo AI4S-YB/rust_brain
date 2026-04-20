@@ -13,36 +13,61 @@ import { renderCustomPlot } from './ui/custom-plot.js';
 
 function collectModuleParams() {
   const params = {};
-  const panel = document.querySelector('.module-panel');
-  if (!panel) return params;
-  panel.querySelectorAll('input[id], select[id]').forEach(el => {
-    if (el.type === 'checkbox') params[el.id] = el.checked;
-    else params[el.id] = el.value;
+  const root = document.querySelector('.module-view') || document.getElementById('content');
+  if (!root) return params;
+
+  root.querySelectorAll('input[data-param], select[data-param], textarea[data-param]').forEach(el => {
+    const name = el.dataset.param;
+    if (el.type === 'checkbox') {
+      params[name] = el.checked;
+    } else if (el.type === 'number') {
+      if (el.value !== '') {
+        const n = Number(el.value);
+        if (!Number.isNaN(n)) params[name] = n;
+      }
+    } else {
+      const v = el.value;
+      if (v != null && v !== '') params[name] = v;
+    }
   });
+
+  root.querySelectorAll('.file-drop-zone[data-param]').forEach(zone => {
+    const name = zone.dataset.param;
+    const mid = zone.dataset.module;
+    const paths = (state.files[mid] || []).map(f => f.path || f.name);
+    if (paths.length === 0) return;
+    if (zone.hasAttribute('data-param-single')) {
+      params[name] = paths[0];
+    } else {
+      params[name] = paths;
+    }
+  });
+
   return params;
 }
 
 async function runModule(id) {
+  const mod = MODULES.find(m => m.id === id);
+  if (!mod || !mod.backend) {
+    console.warn(`[runModule] module '${id}' has no backend — skipped`);
+    return;
+  }
+  const backendId = mod.backend;
   const st = document.getElementById('statusText');
   const js = document.getElementById('jobStatus');
-  const mod = MODULES.find(m => m.id === id);
-  const displayName = mod ? t(navKey(mod.id)) : id;
+  const displayName = t(navKey(mod.id));
   if (st) st.textContent = `${t('status.running_prefix')} ${displayName}…`;
   if (js) js.textContent = t('status.one_job');
   const badge = document.querySelector(`.nav-item[data-view="${id}"] .nav-badge`);
   if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
 
   const params = collectModuleParams();
-  const picked = state.files[id] || [];
-  if (picked.length > 0) {
-    params.input_files = picked.map(f => f.path || f.name);
-  }
   try {
-    await modulesApi.validate(id, params);
-    const runId = await modulesApi.run(id, params);
+    await modulesApi.validate(backendId, params);
+    const runId = await modulesApi.run(backendId, params);
     if (runId) state.runIdToModule[runId] = id;
   } catch (err) {
-    console.warn(`[runModule] invoke failed for ${id}:`, err);
+    console.warn(`[runModule] invoke failed for ${id} (backend=${backendId}):`, err);
   }
 
   if (st) st.textContent = t('status.ready');
@@ -51,7 +76,9 @@ async function runModule(id) {
 }
 
 function resetForm(id) {
-  state.files[id] = [];
+  Object.keys(state.files).forEach(k => {
+    if (k === id || k.startsWith(`${id}-`)) state.files[k] = [];
+  });
   navigate(id);
 }
 

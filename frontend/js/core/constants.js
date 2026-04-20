@@ -1,9 +1,9 @@
 export const MODULES = [
-  { id: 'qc',             name: 'QC Analysis',          icon: 'microscope',  color: 'teal',   tool: 'fastqc-rs',    status: 'ready' },
-  { id: 'trimming',       name: 'Adapter Trimming',     icon: 'scissors',    color: 'blue',   tool: 'cutadapt-rs',  status: 'ready' },
-  { id: 'star-align',     name: 'Alignment & Quantification', icon: 'git-merge', color: 'purple', tool: 'STAR_rs', status: 'ready' },
-  { id: 'differential',   name: 'Differential Expr.',   icon: 'flame',       color: 'coral',  tool: 'DESeq2_rs',    status: 'ready' },
-  { id: 'network',        name: 'Network Analysis',     icon: 'share-2',     color: 'green',  tool: 'WGCNA_rs',     status: 'ready', utility: true },
+  { id: 'qc',             name: 'QC Analysis',          icon: 'microscope',  color: 'teal',   tool: 'fastqc-rs',    status: 'ready',  backend: 'qc' },
+  { id: 'trimming',       name: 'Adapter Trimming',     icon: 'scissors',    color: 'blue',   tool: 'cutadapt-rs',  status: 'ready',  backend: 'trimming' },
+  { id: 'star-align',     name: 'Alignment & Quantification', icon: 'git-merge', color: 'purple', tool: 'STAR_rs', status: 'ready',  backend: 'star_align' },
+  { id: 'differential',   name: 'Differential Expr.',   icon: 'flame',       color: 'coral',  tool: 'DESeq2_rs',    status: 'ready',  backend: 'deseq2' },
+  { id: 'network',        name: 'Network Analysis',     icon: 'share-2',     color: 'green',  tool: 'WGCNA_rs',     status: 'soon',   utility: true },
   { id: 'enrichment',     name: 'Enrichment',           icon: 'target',      color: 'slate',  tool: 'TBD',          status: 'soon' },
 ];
 

@@ -15,10 +15,10 @@ function renderQCBody() {
         <div class="module-panel animate-slide-up" style="animation-delay:100ms">
           <div class="panel-header">
             <span class="panel-title">${t('qc.input_files')}</span>
-            <span class="badge badge-teal">${t('qc.files_count', { n: state.files.qc.length })}</span>
+            <span class="badge badge-teal" data-files-count="qc" data-files-count-key="qc.files_count">${t('qc.files_count', { n: state.files.qc.length })}</span>
           </div>
           <div class="panel-body">
-            <div class="file-drop-zone" data-module="qc" data-accept=".fastq,.fq,.fastq.gz,.fq.gz,.bam,.sam">
+            <div class="file-drop-zone" data-module="qc" data-param="input_files" data-accept=".fastq,.fq,.fastq.gz,.fq.gz,.bam,.sam">
               <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
               <div class="file-drop-text">${t('qc.drop_text')}</div>
               <div class="file-drop-hint">${t('qc.drop_hint')}</div>

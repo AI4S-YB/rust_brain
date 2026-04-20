@@ -21,8 +21,8 @@ function renderDifferentialBody() {
             <div class="form-group">
               <label class="form-label">${t('differential.counts_matrix')}</label>
               ${prefill.counts_matrix
-                ? `<input type="text" class="form-input" id="deseq-counts-matrix" value="${prefill.counts_matrix}" placeholder="${t('differential.counts_matrix_ph')}">`
-                : `<div class="file-drop-zone" data-module="differential" data-accept=".tsv,.csv,.txt" style="padding:20px">
+                ? `<input type="text" class="form-input" id="deseq-counts-matrix" data-param="counts_path" value="${prefill.counts_matrix}" placeholder="${t('differential.counts_matrix_ph')}">`
+                : `<div class="file-drop-zone" data-module="differential" data-param="counts_path" data-param-single data-accept=".tsv,.csv,.txt" style="padding:20px">
                 <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="table"></i></div>
                 <div class="file-drop-text" style="font-size:0.85rem">${t('differential.drop_counts')}</div>
                 <div class="file-drop-hint">${t('differential.drop_counts_hint')}</div>
@@ -30,7 +30,7 @@ function renderDifferentialBody() {
             </div>
             <div class="form-group">
               <label class="form-label">${t('differential.sample_info')}</label>
-              <div class="file-drop-zone" data-module="differential-coldata" data-accept=".tsv,.csv,.txt" style="padding:20px">
+              <div class="file-drop-zone" data-module="differential-coldata" data-param="coldata_path" data-param-single data-accept=".tsv,.csv,.txt" style="padding:20px">
                 <div class="file-drop-icon" style="margin-bottom:8px"><i data-lucide="file-text"></i></div>
                 <div class="file-drop-text" style="font-size:0.85rem">${t('differential.drop_coldata')}</div>
                 <div class="file-drop-hint">${t('differential.drop_coldata_hint')}</div>
@@ -43,12 +43,12 @@ function renderDifferentialBody() {
           <div class="panel-body">
             <div class="form-group">
               <label class="form-label">${t('differential.design_var')}</label>
-              <input type="text" class="form-input" id="deseq-design" value="condition" placeholder="${t('differential.design_var_ph')}">
+              <input type="text" class="form-input" id="deseq-design" data-param="design" value="~condition" placeholder="${t('differential.design_var_ph')}">
               <span class="form-hint">${t('differential.design_var_hint')}</span>
             </div>
             <div class="form-group">
               <label class="form-label">${t('differential.ref_level')}</label>
-              <input type="text" class="form-input" id="deseq-ref" value="control" placeholder="${t('differential.ref_level_ph')}">
+              <input type="text" class="form-input" id="deseq-ref" data-param="reference" value="control" placeholder="${t('differential.ref_level_ph')}">
               <span class="form-hint">${t('differential.ref_level_hint')}</span>
             </div>
             <div class="form-row">

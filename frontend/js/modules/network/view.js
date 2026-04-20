@@ -60,8 +60,8 @@ function renderNetworkBody() {
             </div>
           </div>
           <div class="panel-footer">
-            <button class="btn btn-secondary btn-sm"><i data-lucide="zap"></i> ${t('network.pick_threshold')}</button>
-            <button class="btn btn-primary btn-sm" onclick="runModule('network')" style="background:var(--mod-green);border-color:var(--mod-green)"><i data-lucide="play"></i> ${t('network.run_wgcna')}</button>
+            <button class="btn btn-secondary btn-sm" disabled title="${t('badge.coming_soon')}"><i data-lucide="zap"></i> ${t('network.pick_threshold')}</button>
+            <button class="btn btn-primary btn-sm" disabled title="${t('badge.coming_soon')}" style="background:var(--mod-green);border-color:var(--mod-green);opacity:0.55;cursor:not-allowed"><i data-lucide="play"></i> ${t('network.run_wgcna')} · ${t('badge.coming_soon')}</button>
           </div>
           ${renderLogPanel('network')}
         </div>

@@ -1,4 +1,5 @@
 import { state } from '../core/state.js';
+import { t } from '../core/i18n-helpers.js';
 
 export function fmtSize(b) {
   if (!b) return '0 B';
@@ -7,17 +8,32 @@ export function fmtSize(b) {
   return `${(b / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${u[i]}`;
 }
 
+function refreshFileBadges(mid) {
+  const n = (state.files[mid] || []).length;
+  document.querySelectorAll(`[data-files-count="${mid}"]`).forEach(el => {
+    const key = el.dataset.filesCountKey;
+    el.textContent = key ? t(key, { n }) : String(n);
+  });
+}
+
 export function handleFileDrop(zone, fileList) {
   const mid = zone.dataset.module;
-  if (!mid || !state.files[mid]) state.files[mid] = [];
-  Array.from(fileList).forEach(f => {
-    if (!state.files[mid]) state.files[mid] = [];
+  if (!mid) return;
+  if (!state.files[mid]) state.files[mid] = [];
+  const single = zone.hasAttribute('data-param-single');
+  const incoming = Array.from(fileList).map(f => {
     const name = f.name || f;
     const path = f.path || (typeof f === 'string' ? f : name);
-    state.files[mid].push({ name, size: f.size || 0, path });
+    return { name, size: f.size || 0, path };
   });
+  if (single) {
+    state.files[mid] = incoming.slice(-1);
+  } else {
+    state.files[mid].push(...incoming);
+  }
   const list = document.getElementById(`${mid}-file-list`);
   if (list) renderFileList(list, mid);
+  refreshFileBadges(mid);
 }
 
 export function renderFileList(el, mid) {
@@ -33,8 +49,10 @@ export function renderFileList(el, mid) {
   el.querySelectorAll('.file-item-remove').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      state.files[btn.dataset.module].splice(parseInt(btn.dataset.index), 1);
-      renderFileList(el, btn.dataset.module);
+      const m = btn.dataset.module;
+      state.files[m].splice(parseInt(btn.dataset.index), 1);
+      renderFileList(el, m);
+      refreshFileBadges(m);
     });
   });
 }
