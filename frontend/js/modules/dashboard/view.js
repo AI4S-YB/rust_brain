@@ -1,9 +1,38 @@
 import { MODULES, COLOR_MAP } from '../../core/constants.js';
-import { state } from '../../core/state.js';
 import { t, navKey } from '../../core/i18n-helpers.js';
+import { projectApi } from '../../api/project.js';
+import { projectOpenFromPath } from './project.js';
+import { escapeHtml } from '../../ui/escape.js';
 
 export function renderDashboardView(container) {
   container.innerHTML = renderDashboardHtml();
+  populateRecentProjects();
+}
+
+async function populateRecentProjects() {
+  const list = document.getElementById('recent-projects-list');
+  if (!list) return;
+  let paths = [];
+  try { paths = await projectApi.listRecent() || []; }
+  catch { paths = []; }
+  if (!paths.length) {
+    list.innerHTML = `<div class="recent-empty">${t('project.recent_empty')}</div>`;
+    return;
+  }
+  list.innerHTML = paths.map(p => {
+    const name = p.split(/[\\/]/).filter(Boolean).pop() || p;
+    return `
+      <button class="recent-project" data-recent-path="${escapeHtml(p)}" title="${escapeHtml(p)}">
+        <i data-lucide="folder"></i>
+        <span class="recent-project-name">${escapeHtml(name)}</span>
+        <span class="recent-project-path">${escapeHtml(p)}</span>
+        <i data-lucide="arrow-right" class="recent-project-arrow"></i>
+      </button>`;
+  }).join('');
+  list.querySelectorAll('[data-recent-path]').forEach(btn => {
+    btn.addEventListener('click', () => projectOpenFromPath(btn.dataset.recentPath));
+  });
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function renderDashboardHtml() {
@@ -28,11 +57,6 @@ function renderDashboardHtml() {
       </div>`;
   }).join('');
 
-  const projName = state.projectOpen ? state.projectName : t('project.none_open');
-  const projStatus = state.projectOpen
-    ? `<span class="badge badge-green" style="margin-left:8px">${t('project.open_badge')}</span>`
-    : `<span class="badge badge-muted" style="margin-left:8px">${t('project.closed_badge')}</span>`;
-
   return `
     <div class="module-view">
       <div class="dashboard-hero animate-slide-up">
@@ -44,15 +68,13 @@ function renderDashboardHtml() {
         </p>
       </div>
 
-      <div class="card animate-slide-up" style="animation-delay: 40ms; margin-bottom: 16px; padding: 16px 24px;">
+      <div class="card animate-slide-up recent-projects-card" style="animation-delay: 40ms; margin-bottom: 16px; padding: 16px 24px;">
         <div class="card-header" style="margin-bottom: 12px">
-          <span class="card-title"><i data-lucide="folder-open" style="width:15px;height:15px;vertical-align:-2px;margin-right:6px"></i>${t('project.section_title')}</span>
-          ${projStatus}
+          <span class="card-title"><i data-lucide="clock" style="width:15px;height:15px;vertical-align:-2px;margin-right:6px"></i>${t('project.recent_title')}</span>
+          <span style="font-size:0.75rem;color:var(--text-muted);margin-left:auto">${t('project.recent_hint')}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <span style="font-size:0.9rem;color:var(--text-secondary);flex:1;min-width:120px;" id="dash-proj-name">${projName}</span>
-          <button class="btn btn-secondary btn-sm" onclick="projectNew()"><i data-lucide="folder-plus"></i> ${t('project.new')}</button>
-          <button class="btn btn-secondary btn-sm" onclick="projectOpen()"><i data-lucide="folder-open"></i> ${t('project.open')}</button>
+        <div id="recent-projects-list" class="recent-projects-list">
+          <div class="recent-empty">${t('common.loading')}</div>
         </div>
       </div>
 

@@ -7,4 +7,7 @@ export const projectApi = {
   open(dir) {
     return api.invoke('open_project', { dir });
   },
+  listRecent() {
+    return api.invoke('list_recent_projects', {});
+  },
 };

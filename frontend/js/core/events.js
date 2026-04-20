@@ -40,6 +40,8 @@ export function setupEvents() {
     document.getElementById('sidebar').classList.toggle('open');
   });
 
+  setupProjectMenu();
+
   document.addEventListener('dragover', e => {
     const z = e.target.closest('.file-drop-zone');
     if (z) { e.preventDefault(); z.classList.add('dragover'); }
@@ -159,5 +161,34 @@ export function setupEvents() {
   window.addEventListener('langchange', () => {
     syncLangButtons();
     navigate(state.currentView);
+  });
+}
+
+function setupProjectMenu() {
+  const btn = document.getElementById('projectSelectorBtn');
+  const menu = document.getElementById('projectMenu');
+  const wrap = btn?.closest('.project-selector-wrap');
+  if (!btn || !menu || !wrap) return;
+  const close = () => {
+    menu.hidden = true;
+    wrap.classList.remove('open');
+    btn.setAttribute('aria-expanded', 'false');
+  };
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = menu.hidden;
+    menu.hidden = !open;
+    wrap.classList.toggle('open', open);
+    btn.setAttribute('aria-expanded', String(open));
+  });
+  document.addEventListener('click', e => {
+    if (menu.hidden) return;
+    if (!wrap.contains(e.target)) close();
+  });
+  menu.addEventListener('click', e => {
+    if (e.target.closest('.project-menu-item')) close();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !menu.hidden) close();
   });
 }

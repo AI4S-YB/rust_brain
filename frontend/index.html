@@ -295,10 +295,22 @@
           <button type="button" class="lang-btn" data-lang="en">EN</button>
           <button type="button" class="lang-btn" data-lang="zh">中文</button>
         </div>
-        <div class="project-selector">
-          <i data-lucide="folder-open"></i>
-          <span id="projectName" data-i18n="project.no_project">No Project</span>
-          <i data-lucide="chevron-down" class="small-icon"></i>
+        <div class="project-selector-wrap">
+          <button type="button" class="project-selector" id="projectSelectorBtn" aria-haspopup="menu" aria-expanded="false">
+            <i data-lucide="folder-open"></i>
+            <span id="projectName" data-i18n="project.no_project">No Project</span>
+            <i data-lucide="chevron-down" class="small-icon"></i>
+          </button>
+          <div class="project-menu" id="projectMenu" role="menu" hidden>
+            <button class="project-menu-item" role="menuitem" onclick="projectNew()">
+              <i data-lucide="folder-plus"></i>
+              <span data-i18n="project.new">New Project</span>
+            </button>
+            <button class="project-menu-item" role="menuitem" onclick="projectOpen()">
+              <i data-lucide="folder-open"></i>
+              <span data-i18n="project.open">Open Project</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>

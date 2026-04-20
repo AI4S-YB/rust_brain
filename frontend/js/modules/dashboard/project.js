@@ -9,8 +9,19 @@ function setProjectUI(name) {
   state.projectName = name;
   const headerEl = document.getElementById('projectName');
   if (headerEl) headerEl.textContent = name;
-  const dashEl = document.getElementById('dash-proj-name');
-  if (dashEl) dashEl.textContent = name;
+}
+
+export async function projectOpenFromPath(dir) {
+  if (!dir) return;
+  try {
+    const result = await projectApi.open(dir);
+    const name = (result && result.name) ? result.name : dir;
+    setProjectUI(name);
+    if (result && result.default_view === 'ai') location.hash = '#chat';
+  } catch (err) {
+    console.warn('[projectOpenFromPath] invoke failed:', err);
+    alertModal({ title: 'Error', message: 'Failed to open project: ' + err });
+  }
 }
 
 export async function projectNew() {
