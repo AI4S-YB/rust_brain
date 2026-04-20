@@ -73,41 +73,9 @@ function renderTrimmingBody() {
       </div>
       <div>
         <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-          <div class="panel-header"><span class="panel-title">${t('trimming.results')}</span></div>
+          <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
           <div class="panel-body">
-            <div class="tabs">
-              <div class="tab active" data-tab="trim-stats">${t('trimming.tab_stats')}</div>
-              <div class="tab" data-tab="trim-chart">${t('trimming.tab_chart')}</div>
-              <div class="tab" data-tab="trim-log">${t('qc.tab_log')}</div>
-            </div>
-            <div class="tab-content active" data-tab="trim-stats">
-              <div class="results-summary">
-                <div class="result-metric"><div class="result-metric-value">10.2M</div><div class="result-metric-label">${t('trimming.metric_reads_processed')}</div></div>
-                <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">98.7%</div><div class="result-metric-label">${t('trimming.metric_reads_passing')}</div></div>
-                <div class="result-metric"><div class="result-metric-value">4.3%</div><div class="result-metric-label">${t('trimming.metric_adapter_found')}</div></div>
-                <div class="result-metric"><div class="result-metric-value">142</div><div class="result-metric-label">${t('trimming.metric_mean_length')}</div></div>
-              </div>
-              <table class="data-table"><thead><tr><th>${t('trimming.col_metric')}</th><th>${t('trimming.col_value')}</th></tr></thead><tbody>
-                <tr><td>Total reads processed</td><td>10,243,891</td></tr>
-                <tr><td>Reads with adapters</td><td>438,215 (4.3%)</td></tr>
-                <tr><td>Reads too short</td><td>132,045 (1.3%)</td></tr>
-                <tr><td>Reads passing filters</td><td>10,111,846 (98.7%)</td></tr>
-                <tr><td>Base pairs processed</td><td>1,536,583,650</td></tr>
-                <tr><td>Quality-trimmed</td><td>12,456,789 bp (0.8%)</td></tr>
-                <tr><td>Total written</td><td>1,435,822,132 bp (93.4%)</td></tr>
-              </tbody></table>
-            </div>
-            <div class="tab-content" data-tab="trim-chart">
-              <div class="chart-container" id="trim-length-chart" style="height:320px;"></div>
-            </div>
-            <div class="tab-content" data-tab="trim-log">
-              <div class="log-output"><span class="log-info">[INFO]</span> cutadapt-rs v0.1.0
-<span class="log-info">[INFO]</span> Adapter: AGATCGGAAGAGC (3' regular)
-<span class="log-info">[INFO]</span> Quality cutoff: 20, Min length: 20
-<span class="log-info">[INFO]</span> Processing with 4 threads...
-<span class="log-success">[DONE]</span> 10,243,891 reads processed in 48.2s
-<span class="log-info">[INFO]</span> Output: trimmed_R1.fastq.gz</div>
-            </div>
+            <div id="trimming-runs"></div>
           </div>
         </div>
       </div>

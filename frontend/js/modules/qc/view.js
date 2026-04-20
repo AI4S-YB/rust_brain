@@ -65,42 +65,9 @@ function renderQCBody() {
       </div>
       <div>
         <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-          <div class="panel-header"><span class="panel-title">${t('qc.results')}</span></div>
+          <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
           <div class="panel-body">
-            <div class="tabs">
-              <div class="tab active" data-tab="qc-chart">${t('qc.tab_quality')}</div>
-              <div class="tab" data-tab="qc-summary">${t('qc.tab_summary')}</div>
-              <div class="tab" data-tab="qc-log">${t('qc.tab_log')}</div>
-            </div>
-            <div class="tab-content active" data-tab="qc-chart">
-              <div class="chart-container" id="qc-quality-chart" style="height:320px;"></div>
-            </div>
-            <div class="tab-content" data-tab="qc-summary">
-              <div class="results-summary">
-                <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">Pass</div><div class="result-metric-label">${t('qc.metric_overall')}</div></div>
-                <div class="result-metric"><div class="result-metric-value">35.2</div><div class="result-metric-label">${t('qc.metric_mean_quality')}</div></div>
-                <div class="result-metric"><div class="result-metric-value">12.4M</div><div class="result-metric-label">${t('qc.metric_total_reads')}</div></div>
-                <div class="result-metric"><div class="result-metric-value">150</div><div class="result-metric-label">${t('qc.metric_read_length')}</div></div>
-              </div>
-              <table class="data-table"><thead><tr><th>${t('qc.col_module')}</th><th>${t('qc.col_status')}</th></tr></thead><tbody>
-                <tr><td>Per base sequence quality</td><td><span class="badge badge-green">PASS</span></td></tr>
-                <tr><td>Per sequence quality scores</td><td><span class="badge badge-green">PASS</span></td></tr>
-                <tr><td>Per base sequence content</td><td><span class="badge badge-gold">WARN</span></td></tr>
-                <tr><td>Per sequence GC content</td><td><span class="badge badge-green">PASS</span></td></tr>
-                <tr><td>Per base N content</td><td><span class="badge badge-green">PASS</span></td></tr>
-                <tr><td>Sequence length distribution</td><td><span class="badge badge-green">PASS</span></td></tr>
-                <tr><td>Sequence duplication levels</td><td><span class="badge badge-gold">WARN</span></td></tr>
-                <tr><td>Overrepresented sequences</td><td><span class="badge badge-green">PASS</span></td></tr>
-                <tr><td>Adapter content</td><td><span class="badge badge-green">PASS</span></td></tr>
-              </tbody></table>
-            </div>
-            <div class="tab-content" data-tab="qc-log">
-              <div class="log-output"><span class="log-info">[INFO]</span> fastqc-rs v0.12.1
-<span class="log-info">[INFO]</span> Processing sample_R1.fastq.gz...
-<span class="log-info">[INFO]</span> Threads: 4, Format: auto-detect
-<span class="log-success">[DONE]</span> Analysis complete: 12,432,891 reads
-<span class="log-info">[INFO]</span> Output written to ./fastqc_output/</div>
-            </div>
+            <div id="qc-runs"></div>
           </div>
         </div>
       </div>

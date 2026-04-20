@@ -103,26 +103,10 @@ async function renderModuleView(content, moduleId) {
 
 async function initChartsForView(view) {
   switch (view) {
-    case 'qc': {
-      const m = await import('../modules/qc/charts.js');
-      m.renderQCCharts();
-      break;
-    }
-    case 'trimming': {
-      const m = await import('../modules/trimming/charts.js');
-      m.renderTrimmingCharts();
-      break;
-    }
-    case 'differential': {
-      const m = await import('../modules/differential/charts.js');
-      m.renderDESeq2Charts();
-      break;
-    }
-    case 'network': {
-      const m = await import('../modules/network/charts.js');
-      m.renderWGCNACharts();
-      break;
-    }
+    case 'qc':           loadRunsForView('qc', 'qc-runs'); break;
+    case 'trimming':     loadRunsForView('trimming', 'trimming-runs'); break;
+    case 'differential': loadRunsForView('deseq2', 'differential-runs'); break;
+    case 'network':      loadRunsForView('wgcna', 'network-runs'); break;
     case 'gff-convert':  loadRunsForView('gff_convert', 'gff-convert-runs'); break;
     case 'star-align':   loadRunsForView('star_align', 'star-align-runs'); break;
     case 'star-index':   loadRunsForView('star_index', 'star-index-runs'); break;

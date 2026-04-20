@@ -9,7 +9,6 @@ import { installLogScrollWatch } from './ui/log-panel.js';
 import { projectNew, projectOpen } from './modules/dashboard/project.js';
 import { toggleCollapsible } from './ui/collapsible.js';
 import { exportTableAsTSV } from './ui/export-tsv.js';
-import { renderCustomPlot } from './ui/custom-plot.js';
 
 function collectModuleParams() {
   const params = {};
@@ -87,7 +86,6 @@ window.projectNew = projectNew;
 window.projectOpen = projectOpen;
 window.toggleCollapsible = toggleCollapsible;
 window.exportTableAsTSV = exportTableAsTSV;
-window.renderCustomPlot = renderCustomPlot;
 window.runModule = runModule;
 window.resetForm = resetForm;
 

@@ -1,7 +1,6 @@
 import { state } from '../../core/state.js';
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
-import { renderCustomPlotPanel } from '../../ui/custom-plot.js';
 import { renderModuleHeader } from '../module-header.js';
 
 export function renderDifferentialView(container) {
@@ -69,49 +68,9 @@ function renderDifferentialBody() {
       </div>
       <div>
         <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-          <div class="panel-header"><span class="panel-title">${t('differential.results')}</span></div>
+          <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
           <div class="panel-body">
-            <div class="tabs">
-              <div class="tab active" data-tab="deseq-volcano">${t('differential.tab_volcano')}</div>
-              <div class="tab" data-tab="deseq-ma">${t('differential.tab_ma')}</div>
-              <div class="tab" data-tab="deseq-table">${t('differential.tab_table')}</div>
-              <div class="tab" data-tab="deseq-custom">${t('differential.tab_custom')}</div>
-              <div class="tab" data-tab="deseq-log">${t('qc.tab_log')}</div>
-            </div>
-            <div class="tab-content active" data-tab="deseq-volcano">
-              <div class="results-summary">
-                <div class="result-metric"><div class="result-metric-value">64,102</div><div class="result-metric-label">${t('differential.metric_total')}</div></div>
-                <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-coral)">347</div><div class="result-metric-label">${t('differential.metric_up')}</div></div>
-                <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-blue)">325</div><div class="result-metric-label">${t('differential.metric_down')}</div></div>
-                <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-teal)">672</div><div class="result-metric-label">${t('differential.metric_sig')}</div></div>
-              </div>
-              <div class="chart-container" id="deseq-volcano-chart" style="height:380px;"></div>
-            </div>
-            <div class="tab-content" data-tab="deseq-ma">
-              <div class="chart-container" id="deseq-ma-chart" style="height:380px;"></div>
-            </div>
-            <div class="tab-content" data-tab="deseq-table">
-              <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-                <button class="btn btn-ghost btn-sm" onclick="exportTableAsTSV('deseq-results-table', 'deseq2_results.tsv')">${t('common.export_tsv')}</button>
-              </div>
-              <div style="max-height:400px;overflow-y:auto;">
-                <table class="data-table" id="deseq-results-table"><thead><tr><th>${t('differential.col_gene')}</th><th>${t('differential.col_lfc')}</th><th>${t('differential.col_pvalue')}</th><th>${t('differential.col_padj')}</th></tr></thead><tbody></tbody></table>
-              </div>
-            </div>
-            <div class="tab-content" data-tab="deseq-custom">
-              ${renderCustomPlotPanel('differential')}
-            </div>
-            <div class="tab-content" data-tab="deseq-log">
-              <div class="log-output"><span class="log-info">[INFO]</span> DESeq2_rs v0.1.0
-<span class="log-info">[INFO]</span> Counts: 64,102 genes x 8 samples
-<span class="log-info">[INFO]</span> Design: ~condition, Reference: control
-<span class="log-info">[INFO]</span> Estimating size factors...
-<span class="log-info">[INFO]</span> Estimating dispersions...
-<span class="log-info">[INFO]</span> Fitting NB GLM (IRLS)...
-<span class="log-info">[INFO]</span> Wald test + BH adjustment...
-<span class="log-success">[DONE]</span> 672 significant genes (padj &lt; 0.01, |log2FC| &gt; 1)
-<span class="log-info">[INFO]</span> Output: deseq2_results.tsv</div>
-            </div>
+            <div id="differential-runs"></div>
           </div>
         </div>
       </div>

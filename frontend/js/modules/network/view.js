@@ -1,6 +1,5 @@
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
-import { renderCustomPlotPanel } from '../../ui/custom-plot.js';
 import { renderModuleHeader } from '../module-header.js';
 
 export function renderNetworkView(container) {
@@ -68,40 +67,9 @@ function renderNetworkBody() {
       </div>
       <div>
         <div class="module-panel animate-slide-up" style="animation-delay:220ms">
-          <div class="panel-header"><span class="panel-title">${t('network.results')}</span></div>
+          <div class="panel-header"><span class="panel-title">${t('common.runs')}</span></div>
           <div class="panel-body">
-            <div class="tabs">
-              <div class="tab active" data-tab="wgcna-modules">${t('network.tab_modules')}</div>
-              <div class="tab" data-tab="wgcna-trait">${t('network.tab_trait')}</div>
-              <div class="tab" data-tab="wgcna-custom">${t('network.tab_custom')}</div>
-              <div class="tab" data-tab="wgcna-log">${t('qc.tab_log')}</div>
-            </div>
-            <div class="tab-content active" data-tab="wgcna-modules">
-              <div class="results-summary">
-                <div class="result-metric"><div class="result-metric-value">5,000</div><div class="result-metric-label">${t('network.metric_genes')}</div></div>
-                <div class="result-metric"><div class="result-metric-value" style="color:var(--mod-green)">12</div><div class="result-metric-label">${t('network.metric_modules')}</div></div>
-                <div class="result-metric"><div class="result-metric-value">R²=0.87</div><div class="result-metric-label">${t('network.metric_fit')}</div></div>
-              </div>
-              <div class="chart-container" id="wgcna-module-chart" style="height:320px;"></div>
-            </div>
-            <div class="tab-content" data-tab="wgcna-trait">
-              <div class="chart-container" id="wgcna-trait-chart" style="height:380px;"></div>
-            </div>
-            <div class="tab-content" data-tab="wgcna-custom">
-              ${renderCustomPlotPanel('network')}
-            </div>
-            <div class="tab-content" data-tab="wgcna-log">
-              <div class="log-output"><span class="log-info">[INFO]</span> WGCNA_rs v0.1.0
-<span class="log-info">[INFO]</span> Matrix: 50 samples x 5,000 genes
-<span class="log-info">[INFO]</span> Correlation: Pearson, Network: Signed
-<span class="log-info">[INFO]</span> Soft threshold = 6 (R² = 0.87)
-<span class="log-info">[INFO]</span> Computing TOM...
-<span class="log-info">[INFO]</span> Hierarchical clustering (NN-chain)...
-<span class="log-info">[INFO]</span> Dynamic tree cutting...
-<span class="log-info">[INFO]</span> Merging modules (cutHeight=0.25)...
-<span class="log-success">[DONE]</span> 12 modules identified
-<span class="log-info">[INFO]</span> Output: module_assignments.tsv</div>
-            </div>
+            <div id="network-runs"></div>
           </div>
         </div>
       </div>
