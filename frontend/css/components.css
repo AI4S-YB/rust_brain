@@ -243,9 +243,12 @@
 }
 .segmented label span {
   display: block;
-  padding: 8px 12px;
+  padding: 8px 10px;
   font-size: 0.82rem;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background-color var(--duration-fast) var(--ease-out),
               color var(--duration-fast) var(--ease-out);
 }
