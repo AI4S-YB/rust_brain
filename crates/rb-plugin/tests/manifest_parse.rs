@@ -43,3 +43,23 @@ fn parses_rustqc_fixture() {
     assert_eq!(s.name_en.as_deref(), Some("RustQC"));
     assert_eq!(s.ai_hint_zh.as_deref(), Some("用 RustQC 做 FASTQ 质量评估。"));
 }
+
+#[test]
+fn parses_positional_cli_rule() {
+    let toml_str = r#"
+id   = "tool"
+name = "Tool"
+
+[binary]
+id = "tool"
+
+[[params]]
+name = "inputs"
+type = "file_list"
+cli  = { positional = true }
+"#;
+    let m: PluginManifest = toml::from_str(toml_str).expect("parse");
+    let cli = &m.params[0].cli;
+    assert!(cli.is_positional(), "expected Positional, got {:?}", cli);
+    assert!(matches!(cli, CliRule::Positional { positional: true }));
+}

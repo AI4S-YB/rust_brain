@@ -111,6 +111,7 @@ pub enum CliRule {
 }
 
 impl CliRule {
+    /// Exposed for validate.rs and the loader to assert exactly one of the variants is active.
     pub fn is_positional(&self) -> bool {
         matches!(self, CliRule::Positional { positional: true })
     }
