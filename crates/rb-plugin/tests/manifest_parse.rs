@@ -1,4 +1,8 @@
-use rb_plugin::{CliRule, ParamType, PluginManifest};
+use rb_plugin::{validate::validate_manifest, CliRule, ManifestIssueLevel, ParamType, PluginManifest};
+
+fn parse(s: &str) -> rb_plugin::PluginManifest {
+    toml::from_str(s).expect("parse")
+}
 
 #[test]
 fn parses_rustqc_fixture() {
@@ -62,4 +66,90 @@ cli  = { positional = true }
     let cli = &m.params[0].cli;
     assert!(cli.is_positional(), "expected Positional, got {:?}", cli);
     assert!(matches!(cli, CliRule::Positional { positional: true }));
+}
+
+#[test]
+fn rustqc_fixture_is_valid() {
+    let m = parse(include_str!("data/rustqc.toml"));
+    let issues = validate_manifest(&m);
+    let errors: Vec<_> = issues
+        .iter()
+        .filter(|i| i.level == ManifestIssueLevel::Error)
+        .collect();
+    assert!(errors.is_empty(), "fixture should validate, got {:?}", errors);
+}
+
+#[test]
+fn rejects_duplicate_param_names() {
+    let m = parse(
+        r#"
+        id = "x"
+        name = "X"
+        [binary]
+        id = "x"
+        [[params]]
+        name = "a"
+        type = "string"
+        cli = { flag = "--a" }
+        [[params]]
+        name = "a"
+        type = "integer"
+        cli = { flag = "--a" }
+        "#,
+    );
+    let issues = validate_manifest(&m);
+    assert!(issues.iter().any(|i| i.field == "params[1].name" && i.level == ManifestIssueLevel::Error));
+}
+
+#[test]
+fn rejects_unsupported_version() {
+    let m = parse(
+        r#"
+        id = "x"
+        name = "X"
+        version = "9.9.9"
+        [binary]
+        id = "x"
+        "#,
+    );
+    let issues = validate_manifest(&m);
+    assert!(issues.iter().any(|i| i.field == "version" && i.level == ManifestIssueLevel::Error));
+}
+
+#[test]
+fn rejects_enum_param_without_values() {
+    let m = parse(
+        r#"
+        id = "x"
+        name = "X"
+        [binary]
+        id = "x"
+        [[params]]
+        name = "fmt"
+        type = "enum"
+        cli = { flag = "--fmt" }
+        "#,
+    );
+    let issues = validate_manifest(&m);
+    assert!(issues.iter().any(|i| i.field.starts_with("params[0]") && i.level == ManifestIssueLevel::Error));
+}
+
+#[test]
+fn rejects_required_with_default() {
+    let m = parse(
+        r#"
+        id = "x"
+        name = "X"
+        [binary]
+        id = "x"
+        [[params]]
+        name = "n"
+        type = "integer"
+        required = true
+        default = 4
+        cli = { flag = "--n" }
+        "#,
+    );
+    let issues = validate_manifest(&m);
+    assert!(issues.iter().any(|i| i.field.starts_with("params[0]") && i.level == ManifestIssueLevel::Error));
 }
