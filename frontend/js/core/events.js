@@ -189,6 +189,9 @@ function dispatchAction(el) {
     case 'export-tsv':
       exportTableAsTSV(el.dataset.table, el.dataset.filename);
       return true;
+    case 'goto-settings':
+      navigate('settings');
+      return true;
     default:
       // 'browse' / 'clear' (settings) and 'project-new'/'project-open' (menu)
       // are handled by their own targeted listeners elsewhere.

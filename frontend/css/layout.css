@@ -444,3 +444,41 @@
   font-family: var(--font-mono);
   font-size: 0.7rem;
 }
+
+/* ============================================================
+   PLUGIN SIDEBAR BADGE
+   ============================================================ */
+.nav-plug-badge {
+  margin-left: 6px;
+  opacity: 0.6;
+  display: inline-flex;
+  align-items: center;
+}
+.nav-plug-badge i { width: 12px; height: 12px; }
+
+/* ============================================================
+   MISSING BINARY GUIDANCE CARD
+   ============================================================ */
+.missing-binary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 24px;
+  background: rgba(184, 134, 11, 0.08);
+  border: 1px solid rgba(184, 134, 11, 0.3);
+  border-radius: 8px;
+  margin: 16px 0;
+}
+.missing-binary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(184, 134, 11, 0.15);
+  color: rgb(184, 134, 11);
+}
+.missing-binary-card h2 { margin: 0; font-size: 18px; }
+.missing-binary-card p { margin: 0; color: var(--text-muted, #57534e); }

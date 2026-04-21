@@ -4,6 +4,8 @@ import { renderLogPanel } from '../../ui/log-panel.js';
 import { renderModuleHeader } from '../module-header.js';
 import { modulesApi } from '../../api/modules.js';
 import { escapeHtml } from '../../ui/escape.js';
+import { binaryApi } from '../../api/binary.js';
+import { renderMissingBinaryCard } from './missing-binary.js';
 
 export async function renderPluginView(container, viewId) {
   container.innerHTML = `<div class="module-view"><p>Loading…</p></div>`;
@@ -24,6 +26,25 @@ export async function renderPluginView(container, viewId) {
     status: 'ready',
   };
   const header = renderModuleHeader(mod);
+
+  // Check if the plugin's binary is configured / discoverable.
+  let binaryOk = true;
+  try {
+    const binaries = await binaryApi.getPaths();
+    const my = binaries.find(b => b.id === manifest.binary_id);
+    binaryOk = !!(my && (my.configured_path || my.bundled_path || my.detected_on_path));
+  } catch (_) {
+    // If binary status fails, fall through and let the user see the form;
+    // the run will surface the resolution error in the log.
+    binaryOk = true;
+  }
+
+  if (!binaryOk) {
+    container.innerHTML = `<div class="module-view">${header}${renderMissingBinaryCard(manifest)}</div>`;
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
   const body = renderPluginBody(manifest, lang, viewId);
   container.innerHTML = `<div class="module-view">${header}${body}</div>`;
 }
