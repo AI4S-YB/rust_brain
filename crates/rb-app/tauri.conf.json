@@ -1,6 +1,6 @@
 {
   "productName": "RustBrain",
-  "version": "0.1.0",
+  "version": "0.5.2",
   "identifier": "com.rustbrain.app",
   "build": {
     "frontendDist": "../../frontend"

@@ -150,6 +150,17 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --locked
 
+      - name: Set version from tag
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          sed -i.bak -E "s/^version = \".*\"/version = \"${VERSION}\"/" crates/rb-app/Cargo.toml
+          sed -i.bak -E "s/(\"version\"[[:space:]]*:[[:space:]]*)\".*\"/\1\"${VERSION}\"/" crates/rb-app/tauri.conf.json
+          rm crates/rb-app/Cargo.toml.bak crates/rb-app/tauri.conf.json.bak
+          echo "Injected version: ${VERSION}"
+          grep '^version' crates/rb-app/Cargo.toml
+          grep '"version"' crates/rb-app/tauri.conf.json
+
       - name: Download bundled STAR_rs binary
         shell: bash
         env:
