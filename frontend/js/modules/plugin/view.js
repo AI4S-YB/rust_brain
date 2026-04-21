@@ -17,6 +17,7 @@ export async function renderPluginView(container, viewId) {
   const lang = getLang();
   const mod = {
     id: viewId,
+    name: localized(manifest.strings, 'name', lang, manifest.name),
     icon: manifest.icon || 'plug',
     color: 'plug',
     tool: manifest.binary_id,
