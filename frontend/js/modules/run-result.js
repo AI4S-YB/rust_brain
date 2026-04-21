@@ -1,11 +1,19 @@
 import { t } from '../core/i18n-helpers.js';
 import { modulesApi } from '../api/modules.js';
 import { escapeHtml } from '../ui/escape.js';
+import { MODULES } from '../core/constants.js';
 import { renderGffConvertResult } from './gff-convert/result.js';
 import { renderQcResult } from './qc/result.js';
 import { renderStarAlignResult } from './star-align/result.js';
+import { renderPluginResult } from './plugin/result.js';
 
 export function renderRunResultHtml(moduleId, result, runId) {
+  // Plugin modules use the generic renderer.
+  const mod = MODULES.find(m => m.id === moduleId || m.view_id === moduleId);
+  if (mod && mod.has_native_view === false) {
+    return renderPluginResult(result, runId);
+  }
+
   let html = '';
   switch (moduleId) {
     case 'qc': html = renderQcResult(result, runId); break;
