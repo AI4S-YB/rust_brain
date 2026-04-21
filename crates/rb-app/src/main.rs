@@ -8,7 +8,13 @@ use state::{AppState, ModuleRegistry};
 use std::sync::Arc;
 use tauri::{path::BaseDirectory, Manager};
 
+/// Bundled plugin manifests embedded at compile time. The directory may be
+/// empty (it always contains a `.keep` to ensure it's checked into git).
+pub static BUNDLED_PLUGINS: include_dir::Dir<'_> =
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/plugins");
+
 fn main() {
+    // 1. First-party module registry (unchanged).
     let mut registry = ModuleRegistry::new();
     registry.register(Arc::new(rb_deseq2::DeseqModule));
     registry.register(Arc::new(rb_qc::QcModule));
@@ -17,8 +23,72 @@ fn main() {
     registry.register(Arc::new(rb_star_index::StarIndexModule));
     registry.register(Arc::new(rb_star_align::StarAlignModule));
 
-    // Build per-language tool registries from the same module set.
-    let modules_for_ai: Vec<Arc<dyn rb_core::module::Module>> = vec![
+    // 2. Build the binary resolver up-front so plugin modules can share it.
+    let binary_resolver_inner = rb_core::binary::BinaryResolver::load().unwrap_or_else(|e| {
+        eprintln!(
+            "warning: failed to load binary settings ({}); using defaults",
+            e
+        );
+        rb_core::binary::BinaryResolver::with_defaults_at(
+            rb_core::binary::BinaryResolver::default_settings_path(),
+        )
+    });
+    let binary_resolver = Arc::new(tokio::sync::Mutex::new(binary_resolver_inner));
+
+    // 3. Load plugins from bundled dir + user dir.
+    let user_plugin_dir = directories::ProjectDirs::from("", "", "rust_brain")
+        .map(|pd| pd.config_dir().join("plugins"));
+    let plugin_reg = rb_plugin::load_plugins(&BUNDLED_PLUGINS, user_plugin_dir.as_deref());
+
+    // 4. Register dynamic binaries from plugin manifests so they show up in
+    //    Settings and resolve correctly.
+    {
+        let mut resolver = tauri::async_runtime::block_on(binary_resolver.lock());
+        for loaded in plugin_reg.by_id.values() {
+            resolver.register_known_dynamic(rb_core::binary::KnownBinaryEntry {
+                id: loaded.manifest.binary.id.clone(),
+                display_name: loaded
+                    .manifest
+                    .binary
+                    .display_name
+                    .clone()
+                    .unwrap_or_else(|| loaded.manifest.name.clone()),
+                install_hint: loaded
+                    .manifest
+                    .binary
+                    .install_hint
+                    .clone()
+                    .unwrap_or_else(|| {
+                        format!(
+                            "Install '{}' and configure its path.",
+                            loaded.manifest.binary.id
+                        )
+                    }),
+            });
+        }
+    }
+
+    // 5. Build plugin modules using the shared resolver.
+    let plugin_modules: Vec<Arc<dyn rb_core::module::Module>> = plugin_reg
+        .by_id
+        .values()
+        .map(|loaded| {
+            let manifest = Arc::new(loaded.manifest.clone());
+            Arc::new(state::LazyResolvingPluginModule::new(
+                manifest,
+                loaded.manifest.binary.id.clone(),
+                binary_resolver.clone(),
+            )) as Arc<dyn rb_core::module::Module>
+        })
+        .collect();
+
+    // 6. Register plugin modules into the first-party registry.
+    for m in &plugin_modules {
+        registry.register(m.clone());
+    }
+
+    // 7. Build modules_for_ai = first-party + plugin (per-language tool registries).
+    let mut modules_for_ai: Vec<Arc<dyn rb_core::module::Module>> = vec![
         Arc::new(rb_deseq2::DeseqModule),
         Arc::new(rb_qc::QcModule),
         Arc::new(rb_trimming::TrimmingModule),
@@ -26,6 +96,8 @@ fn main() {
         Arc::new(rb_star_index::StarIndexModule),
         Arc::new(rb_star_align::StarAlignModule),
     ];
+    modules_for_ai.extend(plugin_modules.iter().cloned());
+
     let mut tools_by_lang = std::collections::HashMap::new();
     tools_by_lang.insert(
         "en".to_string(),
@@ -76,8 +148,49 @@ fn main() {
         active_turns: tokio::sync::Mutex::new(std::collections::HashMap::new()),
     });
 
+    // 9. Build AppState (now with the pre-built resolver).
+    let app_state = AppState::new(registry, binary_resolver.clone(), ai);
+
+    // 10. Populate plugin metadata stores so future Tauri commands can read them.
+    {
+        let mut mans = tauri::async_runtime::block_on(app_state.plugin_manifests.lock());
+        for loaded in plugin_reg.by_id.values() {
+            mans.insert(
+                loaded.manifest.id.clone(),
+                Arc::new(loaded.manifest.clone()),
+            );
+        }
+    }
+    {
+        let mut diag = tauri::async_runtime::block_on(app_state.plugins.lock());
+        diag.loaded = plugin_reg
+            .by_id
+            .iter()
+            .map(|(id, lp)| state::PluginSourceTag {
+                id: id.clone(),
+                source: match lp.source {
+                    rb_plugin::PluginSource::Bundled => "bundled".into(),
+                    rb_plugin::PluginSource::User => "user".into(),
+                },
+                origin_path: lp.origin_path.clone(),
+                category: lp.manifest.category.clone(),
+                icon: lp.manifest.icon.clone(),
+                description: lp.manifest.description.clone(),
+                binary_id: lp.manifest.binary.id.clone(),
+            })
+            .collect();
+        diag.errors = plugin_reg
+            .errors
+            .iter()
+            .map(|e| state::PluginErrorView {
+                source_label: e.source_label.clone(),
+                message: e.message.clone(),
+            })
+            .collect();
+    }
+
     tauri::Builder::default()
-        .manage(AppState::new(registry, ai))
+        .manage(app_state)
         .setup(|app| {
             register_bundled(app, "star", "star");
             register_bundled(app, "gffread-rs", "gffread-rs");

@@ -16,6 +16,10 @@ rb-qc = { path = "../rb-qc" }
 rb-trimming = { path = "../rb-trimming" }
 rb-star-index = { path = "../rb-star-index" }
 rb-star-align = { path = "../rb-star-align" }
+rb-plugin = { path = "../rb-plugin" }
+async-trait.workspace = true
+directories.workspace = true
+include_dir.workspace = true
 rfd = "0.15"
 dirs = "5"
 futures-util = "0.3"

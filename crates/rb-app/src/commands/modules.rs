@@ -11,10 +11,12 @@ pub async fn validate_params(
     params: Value,
     state: State<'_, AppState>,
 ) -> Result<Vec<ValidationError>, String> {
-    let module = state
-        .registry
-        .get(&module_id)
-        .ok_or_else(|| format!("module '{}' not found", module_id))?;
+    let module = {
+        let registry = state.registry.lock().await;
+        registry
+            .get(&module_id)
+            .ok_or_else(|| format!("module '{}' not found", module_id))?
+    };
     Ok(module.validate(&params))
 }
 
@@ -24,10 +26,12 @@ pub async fn run_module(
     params: Value,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
-    let module = state
-        .registry
-        .get(&module_id)
-        .ok_or_else(|| format!("module '{}' not found", module_id))?;
+    let module = {
+        let registry = state.registry.lock().await;
+        registry
+            .get(&module_id)
+            .ok_or_else(|| format!("module '{}' not found", module_id))?
+    };
 
     let runner = {
         let guard = state.runner.lock().await;
