@@ -49,6 +49,17 @@ pub trait Module: Send + Sync {
 }
 ```
 
+## Plugins (third-party tools)
+
+Beyond the bundled first-party modules, RustBrain supports declarative
+TOML plugins that wrap any external CLI tool. **RustQC** ships bundled as
+the reference plugin (Linux/macOS, since the upstream tool has no Windows
+build). Drop a `.toml` manifest into
+`<config_dir>/rust_brain/plugins/` and reload from Settings to add your
+own. See
+[`docs/superpowers/specs/2026-04-21-third-party-tool-plugins-design.md`](docs/superpowers/specs/2026-04-21-third-party-tool-plugins-design.md)
+for the manifest format.
+
 ## Getting Started
 
 ### Prerequisites
