@@ -64,7 +64,7 @@ export async function navigate(view) {
 }
 
 async function renderModuleView(content, moduleId) {
-  const mod = MODULES.find(m => m.id === moduleId);
+  const mod = MODULES.find(m => m.id === moduleId || m.view_id === moduleId);
   if (!mod) {
     content.innerHTML = `<div class="module-view">${renderEmptyState(t('common.module_not_found'))}</div>`;
     return;
@@ -72,6 +72,11 @@ async function renderModuleView(content, moduleId) {
   if (mod.status === 'soon') {
     const { renderModuleHeader } = await import('../modules/module-header.js');
     content.innerHTML = `<div class="module-view">${renderModuleHeader(mod)}${renderComingSoon(mod)}</div>`;
+    return;
+  }
+  if (mod.has_native_view === false) {
+    const m = await import('../modules/plugin/view.js');
+    if (state.currentView === moduleId) await m.renderPluginView(content, moduleId);
     return;
   }
 
