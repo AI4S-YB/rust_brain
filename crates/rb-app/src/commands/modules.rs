@@ -103,3 +103,106 @@ pub async fn list_runs(
 
     Ok(runs)
 }
+
+use serde::Serialize;
+
+#[derive(Debug, Serialize)]
+pub struct ModuleDescriptor {
+    pub id: String,            // backend id (e.g. "qc", "rustqc")
+    pub view_id: String,       // frontend view id (built-ins use existing ids; plugins == backend id)
+    pub name: String,
+    pub description: Option<String>,
+    pub category: String,
+    pub icon: String,
+    pub source: String,        // "builtin" | "bundled-plugin" | "user-plugin"
+    pub has_native_view: bool, // true → use frontend/js/modules/<view-id>/view.js
+    pub binary_id: Option<String>,
+}
+
+#[tauri::command]
+pub async fn list_modules(
+    state: tauri::State<'_, crate::state::AppState>,
+) -> Result<Vec<ModuleDescriptor>, String> {
+    let modules = {
+        let reg = state.registry.lock().await;
+        reg.list_all()
+    };
+    let plugin_tags: std::collections::HashMap<String, crate::state::PluginSourceTag> = state
+        .plugins
+        .lock()
+        .await
+        .loaded
+        .iter()
+        .cloned()
+        .map(|t| (t.id.clone(), t))
+        .collect();
+
+    let mut out = Vec::new();
+    for m in modules {
+        let id = m.id().to_string();
+        let plugin_tag = plugin_tags.get(&id);
+        let descriptor = match plugin_tag {
+            None => ModuleDescriptor {
+                id: id.clone(),
+                view_id: view_id_for_builtin(&id),
+                name: m.name().to_string(),
+                description: None,
+                category: category_for_builtin(&id).to_string(),
+                icon: icon_for_builtin(&id).to_string(),
+                source: "builtin".into(),
+                has_native_view: true,
+                binary_id: None,
+            },
+            Some(tag) => ModuleDescriptor {
+                id: id.clone(),
+                view_id: id.clone(),
+                name: m.name().to_string(),
+                description: tag.description.clone(),
+                category: tag.category.clone().unwrap_or_else(|| "other".into()),
+                icon: tag.icon.clone().unwrap_or_else(|| "plug".into()),
+                source: if tag.source == "bundled" {
+                    "bundled-plugin".into()
+                } else {
+                    "user-plugin".into()
+                },
+                has_native_view: false,
+                binary_id: Some(tag.binary_id.clone()),
+            },
+        };
+        out.push(descriptor);
+    }
+    Ok(out)
+}
+
+fn view_id_for_builtin(id: &str) -> String {
+    match id {
+        "deseq2" => "differential".into(),
+        "gff_convert" => "gff-convert".into(),
+        "star_index" => "star-index".into(),
+        "star_align" => "star-align".into(),
+        other => other.into(),
+    }
+}
+
+fn category_for_builtin(id: &str) -> &'static str {
+    match id {
+        "qc" => "qc",
+        "trimming" => "trimming",
+        "star_index" | "star_align" => "alignment",
+        "gff_convert" => "annotation",
+        "deseq2" => "differential",
+        _ => "other",
+    }
+}
+
+fn icon_for_builtin(id: &str) -> &'static str {
+    match id {
+        "qc" => "microscope",
+        "trimming" => "scissors",
+        "star_align" => "git-merge",
+        "star_index" => "database",
+        "gff_convert" => "file-code-2",
+        "deseq2" => "flame",
+        _ => "puzzle",
+    }
+}

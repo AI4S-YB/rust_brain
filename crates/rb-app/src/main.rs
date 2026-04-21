@@ -206,6 +206,7 @@ fn main() {
             commands::modules::cancel_run,
             commands::modules::get_run_result,
             commands::modules::list_runs,
+            commands::modules::list_modules,
             commands::files::select_files,
             commands::files::select_directory,
             commands::files::read_table_preview,
