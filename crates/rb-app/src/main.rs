@@ -37,8 +37,9 @@ fn main() {
 
     // 3. Load plugins from bundled dir + user dir.
     let user_plugin_dir = directories::ProjectDirs::from("", "", "rust_brain")
-        .map(|pd| pd.config_dir().join("plugins"));
-    let plugin_reg = rb_plugin::load_plugins(&BUNDLED_PLUGINS, user_plugin_dir.as_deref());
+        .map(|pd| pd.config_dir().join("plugins"))
+        .unwrap_or_else(|| std::path::PathBuf::from("plugins"));
+    let plugin_reg = rb_plugin::load_plugins(&BUNDLED_PLUGINS, Some(&user_plugin_dir));
 
     // 4. Register dynamic binaries from plugin manifests so they show up in
     //    Settings and resolve correctly.
@@ -149,7 +150,7 @@ fn main() {
     });
 
     // 9. Build AppState (now with the pre-built resolver).
-    let app_state = AppState::new(registry, binary_resolver.clone(), ai);
+    let app_state = AppState::new(registry, binary_resolver.clone(), user_plugin_dir, ai);
 
     // 10. Populate plugin metadata stores so future Tauri commands can read them.
     {

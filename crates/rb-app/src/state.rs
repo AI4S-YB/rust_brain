@@ -64,11 +64,9 @@ impl AppState {
     pub fn new(
         registry: ModuleRegistry,
         binary_resolver: Arc<Mutex<rb_core::binary::BinaryResolver>>,
+        user_plugin_dir: PathBuf,
         ai: Arc<AiState>,
     ) -> Self {
-        let user_plugin_dir = directories::ProjectDirs::from("", "", "rust_brain")
-            .map(|pd| pd.config_dir().join("plugins"))
-            .unwrap_or_else(|| std::path::PathBuf::from("plugins"));
         Self {
             registry: Arc::new(Mutex::new(registry)),
             runner: Arc::new(Mutex::new(None)),
