@@ -1,0 +1,19 @@
+id = "echo_plugin"
+name = "Echo"
+description = "Test fixture that runs /bin/echo"
+category = "test"
+version = "0.1.0"
+
+[binary]
+id = "echo_plugin_bin"
+display_name = "Echo (test)"
+install_hint = "Test fixture; uses /bin/echo."
+
+[[params]]
+name = "msg"
+type = "string"
+required = true
+cli = { flag = "--msg" }
+
+[outputs]
+patterns = []
