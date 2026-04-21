@@ -6,6 +6,7 @@ members = [
     "crates/rb-app",
     "crates/rb-deseq2",
     "crates/rb-gff-convert",
+    "crates/rb-plugin",
     "crates/rb-qc",
     "crates/rb-star-align",
     "crates/rb-star-index",
@@ -23,3 +24,7 @@ uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
 directories = "5"
 which = "6"
+toml = "0.8"
+include_dir = "0.7"
+glob = "0.3"
+shlex = "1"
