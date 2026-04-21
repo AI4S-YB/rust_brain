@@ -4,9 +4,9 @@
 //! and validation messages cite the exact toml field names. Validation
 //! rules live in `validate.rs`; this file only describes shape.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PluginManifest {
     pub id: String,
     pub name: String,
@@ -27,7 +27,7 @@ pub struct PluginManifest {
     pub outputs: Option<OutputSpec>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Strings {
     #[serde(default)]
     pub name_en: Option<String>,
@@ -43,7 +43,7 @@ pub struct Strings {
     pub ai_hint_zh: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BinarySpec {
     pub id: String,
     #[serde(default)]
@@ -52,7 +52,7 @@ pub struct BinarySpec {
     pub install_hint: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ParamSpec {
     pub name: String,
     pub r#type: ParamType,
@@ -79,7 +79,7 @@ pub struct ParamSpec {
     pub cli: CliRule,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ParamType {
     String,
@@ -92,7 +92,7 @@ pub enum ParamType {
     OutputDir,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum CliRule {
     Positional {
@@ -120,7 +120,7 @@ impl CliRule {
     }
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct OutputSpec {
     #[serde(default)]
     pub patterns: Vec<String>,

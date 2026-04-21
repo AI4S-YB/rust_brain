@@ -231,6 +231,9 @@ fn main() {
             commands::ai_provider::ai_has_api_key,
             commands::ai_provider::ai_backend_info,
             commands::ai_provider::ai_test_connection,
+            commands::plugins::list_plugin_status,
+            commands::plugins::reload_plugins,
+            commands::plugins::get_plugin_manifest,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");
