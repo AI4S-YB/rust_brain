@@ -1,0 +1,63 @@
+id          = "rustqc"
+name        = "RustQC"
+description = "Rust re-implementation of FastQC."
+category    = "qc"
+icon        = "shield-check"
+version     = "0.1.0"
+
+[strings]
+name_en = "RustQC"
+name_zh = "RustQC 质量控制"
+description_en = "Rust re-implementation of FastQC for read quality assessment."
+description_zh = "FastQC 的 Rust 重写版本，用于读段质量评估。"
+ai_hint_en = "Run RustQC for FASTQ quality assessment."
+ai_hint_zh = "用 RustQC 做 FASTQ 质量评估。"
+
+[binary]
+id           = "rustqc"
+display_name = "RustQC"
+install_hint = "Download from https://seqeralabs.github.io/RustQC/."
+
+[[params]]
+name = "input_files"
+type = "file_list"
+required = true
+ui = "drop_zone"
+label_en = "Input FASTQ files"
+label_zh = "输入 FASTQ 文件"
+cli = { flag = "-i", repeat_per_value = true }
+
+[[params]]
+name = "threads"
+type = "integer"
+default = 4
+minimum = 1
+cli = { flag = "--threads" }
+
+[[params]]
+name = "nogroup"
+type = "boolean"
+default = false
+cli = { flag = "--nogroup" }
+
+[[params]]
+name = "format"
+type = "enum"
+values = ["fastq", "bam", "sam"]
+default = "fastq"
+cli = { flag = "--format" }
+
+[[params]]
+name = "output_dir"
+type = "output_dir"
+cli = { flag = "-o" }
+
+[[params]]
+name = "extra_args"
+type = "string"
+default = ""
+ui = "text"
+cli = { raw = true }
+
+[outputs]
+patterns = ["*.html", "*.json", "*.zip"]
