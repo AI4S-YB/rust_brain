@@ -2,6 +2,7 @@ import { t, getLang } from '../../core/i18n-helpers.js';
 import { escapeHtml } from '../../ui/escape.js';
 import { binaryApi } from '../../api/binary.js';
 import { renderAiProviderSection } from './ai-provider.js';
+import { renderPluginsSection } from './plugins.js';
 
 function settingsHeader() {
   return `
@@ -51,6 +52,7 @@ export async function renderSettingsView(container) {
   }).join('');
   const cur = getLang();
   const aiSection = renderAiProviderSection();
+  const pluginsSection = await renderPluginsSection();
   container.innerHTML = `
     <div class="module-view">
       ${settingsHeader()}
@@ -86,9 +88,11 @@ export async function renderSettingsView(container) {
       </div>
 
       ${aiSection.html}
+      ${pluginsSection.html}
     </div>
   `;
 
   await aiSection.bind(container);
+  pluginsSection.bind(container);
   if (window.lucide) window.lucide.createIcons();
 }

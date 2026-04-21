@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { navigate, initChartsForView } from './router.js';
-import { setLang, getLang } from './i18n-helpers.js';
+import { t, setLang, getLang } from './i18n-helpers.js';
 import { api } from './tauri.js';
 import { handleFileDrop } from '../ui/file-drop.js';
 import { submitStarIndex } from '../modules/star-index/run.js';
@@ -192,6 +192,14 @@ function dispatchAction(el) {
     case 'goto-settings':
       navigate('settings');
       return true;
+    case 'reload-plugins': {
+      el.disabled = true;
+      import('../api/plugins.js').then(m => m.pluginsApi.reload())
+        .then(() => navigate('settings'))
+        .catch(err => alertModal({ title: t('status.error_prefix'), message: String(err) }))
+        .finally(() => { el.disabled = false; });
+      return true;
+    }
     default:
       // 'browse' / 'clear' (settings) and 'project-new'/'project-open' (menu)
       // are handled by their own targeted listeners elsewhere.
