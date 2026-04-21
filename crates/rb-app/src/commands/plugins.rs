@@ -22,9 +22,7 @@ pub struct PluginManifestView {
 }
 
 #[tauri::command]
-pub async fn list_plugin_status(
-    state: State<'_, AppState>,
-) -> Result<PluginDiagnostics, String> {
+pub async fn list_plugin_status(state: State<'_, AppState>) -> Result<PluginDiagnostics, String> {
     Ok(state.plugins.lock().await.clone())
 }
 
@@ -64,8 +62,13 @@ pub async fn reload_plugins_impl(
     // Drop existing plugin entries from the module registry while keeping
     // first-party modules. The set of plugin ids comes from the current
     // plugin_manifests map (the source of truth for "what is a plugin?").
-    let plugin_ids: Vec<String> =
-        state.plugin_manifests.lock().await.keys().cloned().collect();
+    let plugin_ids: Vec<String> = state
+        .plugin_manifests
+        .lock()
+        .await
+        .keys()
+        .cloned()
+        .collect();
     {
         let mut reg = state.registry.lock().await;
         for id in &plugin_ids {

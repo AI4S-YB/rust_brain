@@ -145,11 +145,16 @@ impl BinaryResolver {
 
     /// Iterator over the merged known set (built-in + dynamic).
     pub fn known_iter(&self) -> impl Iterator<Item = (&str, &str, &str)> {
-        let builtin = KNOWN_BINARIES.iter().map(|k| (k.id, k.display_name, k.install_hint));
-        let dynamic = self
-            .dynamic_known
+        let builtin = KNOWN_BINARIES
             .iter()
-            .map(|e| (e.id.as_str(), e.display_name.as_str(), e.install_hint.as_str()));
+            .map(|k| (k.id, k.display_name, k.install_hint));
+        let dynamic = self.dynamic_known.iter().map(|e| {
+            (
+                e.id.as_str(),
+                e.display_name.as_str(),
+                e.install_hint.as_str(),
+            )
+        });
         builtin.chain(dynamic)
     }
 

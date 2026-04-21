@@ -105,7 +105,9 @@ impl Module for QcModule {
             if !ok {
                 errors.push(ValidationError {
                     field: "sequence_format".to_string(),
-                    message: "sequence_format must be one of fastq, bam, sam, bam_mapped, sam_mapped".to_string(),
+                    message:
+                        "sequence_format must be one of fastq, bam, sam, bam_mapped, sam_mapped"
+                            .to_string(),
                 });
             }
         }
@@ -215,7 +217,8 @@ impl Module for QcModule {
 
             match result {
                 Ok(()) => {
-                    let (html_path, zip_path, json_path) = expected_qc_paths(input_path, &output_dir);
+                    let (html_path, zip_path, json_path) =
+                        expected_qc_paths(input_path, &output_dir);
 
                     if html_path.exists() {
                         output_files.push(html_path);
@@ -231,10 +234,7 @@ impl Module for QcModule {
                         Ok(report) => (Some(report), None),
                         Err(err) => (
                             None,
-                            Some(format!(
-                                "structured FastQC report unavailable: {}",
-                                err
-                            )),
+                            Some(format!("structured FastQC report unavailable: {}", err)),
                         ),
                     };
 
@@ -320,8 +320,7 @@ fn expected_qc_paths(input_path: &Path, output_dir: &Path) -> (PathBuf, PathBuf,
 fn read_fastqc_json_report(path: &Path) -> Result<Value, String> {
     let raw = std::fs::read_to_string(path)
         .map_err(|e| format!("failed to read {}: {}", path.display(), e))?;
-    serde_json::from_str(&raw)
-        .map_err(|e| format!("failed to parse {}: {}", path.display(), e))
+    serde_json::from_str(&raw).map_err(|e| format!("failed to parse {}: {}", path.display(), e))
 }
 
 #[cfg(test)]

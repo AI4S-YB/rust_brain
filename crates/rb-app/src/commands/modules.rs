@@ -108,8 +108,8 @@ use serde::Serialize;
 
 #[derive(Debug, Serialize)]
 pub struct ModuleDescriptor {
-    pub id: String,            // backend id (e.g. "qc", "rustqc")
-    pub view_id: String,       // frontend view id (built-ins use existing ids; plugins == backend id)
+    pub id: String,      // backend id (e.g. "qc", "rustqc")
+    pub view_id: String, // frontend view id (built-ins use existing ids; plugins == backend id)
     pub name: String,
     pub description: Option<String>,
     pub category: String,
