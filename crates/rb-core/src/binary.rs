@@ -11,6 +11,15 @@ pub struct KnownBinary {
     pub install_hint: &'static str,
 }
 
+/// Owned form of a binary entry, registerable at runtime by plugins.
+/// Same fields as `KnownBinary` but `String`-based instead of `&'static str`.
+#[derive(Debug, Clone)]
+pub struct KnownBinaryEntry {
+    pub id: String,
+    pub display_name: String,
+    pub install_hint: String,
+}
+
 pub const KNOWN_BINARIES: &[KnownBinary] = &[
     KnownBinary {
         id: "star",
@@ -68,6 +77,9 @@ pub struct BinaryResolver {
     /// bundled resources). Never persisted; the user's settings.json override
     /// still wins.
     bundled: HashMap<String, PathBuf>,
+    /// Runtime-registered known entries from plugins. Built-in entries from
+    /// `KNOWN_BINARIES` always win on id collision.
+    dynamic_known: Vec<KnownBinaryEntry>,
 }
 
 impl BinaryResolver {
@@ -79,6 +91,7 @@ impl BinaryResolver {
             settings_path,
             settings: SettingsFile::default(),
             bundled: HashMap::new(),
+            dynamic_known: Vec::new(),
         }
     }
 
@@ -105,6 +118,7 @@ impl BinaryResolver {
             settings_path: path,
             settings,
             bundled: HashMap::new(),
+            dynamic_known: Vec::new(),
         })
     }
 
@@ -113,6 +127,30 @@ impl BinaryResolver {
     /// user-configured override and the PATH lookup.
     pub fn register_bundled(&mut self, name: &str, path: PathBuf) {
         self.bundled.insert(name.to_string(), path);
+    }
+
+    /// Register a binary at runtime (e.g. from a plugin manifest). Built-in
+    /// entries from `KNOWN_BINARIES` always win on id collision.
+    pub fn register_known_dynamic(&mut self, entry: KnownBinaryEntry) {
+        let exists_builtin = KNOWN_BINARIES.iter().any(|k| k.id == entry.id);
+        if exists_builtin {
+            return;
+        }
+        if let Some(slot) = self.dynamic_known.iter_mut().find(|e| e.id == entry.id) {
+            *slot = entry;
+        } else {
+            self.dynamic_known.push(entry);
+        }
+    }
+
+    /// Iterator over the merged known set (built-in + dynamic).
+    pub fn known_iter(&self) -> impl Iterator<Item = (&str, &str, &str)> {
+        let builtin = KNOWN_BINARIES.iter().map(|k| (k.id, k.display_name, k.install_hint));
+        let dynamic = self
+            .dynamic_known
+            .iter()
+            .map(|e| (e.id.as_str(), e.display_name.as_str(), e.install_hint.as_str()));
+        builtin.chain(dynamic)
     }
 
     pub fn resolve(&self, name: &str) -> Result<PathBuf, BinaryError> {
@@ -133,10 +171,10 @@ impl BinaryResolver {
         if let Ok(found) = which::which(name) {
             return Ok(found);
         }
-        let hint = KNOWN_BINARIES
-            .iter()
-            .find(|k| k.id == name)
-            .map(|k| k.install_hint.to_string())
+        let hint = self
+            .known_iter()
+            .find(|(id, _, _)| *id == name)
+            .map(|(_, _, hint)| hint.to_string())
             .unwrap_or_else(|| format!("No install hint registered for '{}'.", name));
         Err(BinaryError::NotFound {
             name: name.to_string(),
@@ -174,19 +212,18 @@ impl BinaryResolver {
     }
 
     pub fn list_known(&self) -> Vec<BinaryStatus> {
-        KNOWN_BINARIES
-            .iter()
-            .map(|k| {
-                let configured = self.settings.binary_paths.get(k.id).and_then(|o| o.clone());
-                let bundled = self.bundled.get(k.id).cloned();
-                let detected = which::which(k.id).ok();
+        self.known_iter()
+            .map(|(id, display_name, install_hint)| {
+                let configured = self.settings.binary_paths.get(id).and_then(|o| o.clone());
+                let bundled = self.bundled.get(id).cloned();
+                let detected = which::which(id).ok();
                 BinaryStatus {
-                    id: k.id.to_string(),
-                    display_name: k.display_name.to_string(),
+                    id: id.to_string(),
+                    display_name: display_name.to_string(),
                     configured_path: configured,
                     bundled_path: bundled,
                     detected_on_path: detected,
-                    install_hint: k.install_hint.to_string(),
+                    install_hint: install_hint.to_string(),
                 }
             })
             .collect()
@@ -324,5 +361,55 @@ mod tests {
         assert!(ids.contains(&"star".to_string()));
         assert!(ids.contains(&"cutadapt-rs".to_string()));
         assert!(ids.contains(&"gffread-rs".to_string()));
+    }
+
+    #[test]
+    fn runtime_known_binary_appears_in_list_known() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = tmp.path().join("settings.json");
+        let mut r = BinaryResolver::load_from(settings).unwrap();
+        r.register_known_dynamic(KnownBinaryEntry {
+            id: "rustqc".into(),
+            display_name: "RustQC".into(),
+            install_hint: "Download from seqera site.".into(),
+        });
+        let ids: Vec<_> = r.list_known().into_iter().map(|b| b.id).collect();
+        assert!(ids.contains(&"rustqc".to_string()));
+        assert!(ids.contains(&"star".to_string())); // built-in entries still present
+    }
+
+    #[test]
+    fn runtime_known_binary_collision_with_builtin_keeps_builtin() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = tmp.path().join("settings.json");
+        let mut r = BinaryResolver::load_from(settings).unwrap();
+        r.register_known_dynamic(KnownBinaryEntry {
+            id: "star".into(),
+            display_name: "BogusName".into(),
+            install_hint: "Bogus".into(),
+        });
+        let star = r
+            .list_known()
+            .into_iter()
+            .find(|b| b.id == "star")
+            .expect("star still listed");
+        assert_eq!(star.display_name, "STAR (STAR_rs)"); // built-in display_name preserved
+    }
+
+    #[test]
+    fn resolve_consults_runtime_install_hint_when_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let settings = tmp.path().join("settings.json");
+        let mut r = BinaryResolver::load_from(settings).unwrap();
+        r.register_known_dynamic(KnownBinaryEntry {
+            id: "definitely_not_on_path_xyz".into(),
+            display_name: "Plugin".into(),
+            install_hint: "Get it from upstream.".into(),
+        });
+        let err = r.resolve("definitely_not_on_path_xyz").unwrap_err();
+        match err {
+            BinaryError::NotFound { hint, .. } => assert!(hint.contains("Get it from upstream")),
+            _ => panic!("expected NotFound"),
+        }
     }
 }
