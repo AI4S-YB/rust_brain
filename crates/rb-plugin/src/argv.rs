@@ -42,7 +42,10 @@ pub fn build_argv(
 
 fn render_param(p: &ParamSpec, v: &Value, out: &mut Vec<String>) -> Result<(), ArgvError> {
     match &p.cli {
-        CliRule::Raw { .. } => {
+        CliRule::Raw { raw: false } | CliRule::Positional { positional: false } => {
+            // explicit no-op rules
+        }
+        CliRule::Raw { raw: true } => {
             let s = v
                 .as_str()
                 .ok_or_else(|| ArgvError::TypeMismatch(p.name.clone(), "raw needs a string".into()))?;
@@ -53,7 +56,7 @@ fn render_param(p: &ParamSpec, v: &Value, out: &mut Vec<String>) -> Result<(), A
                 shlex::split(s).ok_or_else(|| ArgvError::BadRaw(s.to_string()))?;
             out.extend(parts);
         }
-        CliRule::Positional { .. } => {
+        CliRule::Positional { positional: true } => {
             extend_values(p, v, out)?;
         }
         CliRule::Flag { flag, repeat_per_value, join_with } => {
@@ -79,9 +82,15 @@ fn render_param(p: &ParamSpec, v: &Value, out: &mut Vec<String>) -> Result<(), A
                         out.push(s.to_string());
                     }
                 } else if let Some(sep) = join_with {
-                    let joined: Vec<&str> = arr.iter().filter_map(|i| i.as_str()).collect();
+                    let mut parts: Vec<String> = Vec::with_capacity(arr.len());
+                    for item in arr {
+                        let s = item.as_str().ok_or_else(|| {
+                            ArgvError::TypeMismatch(p.name.clone(), "file_list items must be strings".into())
+                        })?;
+                        parts.push(s.to_string());
+                    }
                     out.push(flag.clone());
-                    out.push(joined.join(sep));
+                    out.push(parts.join(sep));
                 } else {
                     out.push(flag.clone());
                     for item in arr {
@@ -349,5 +358,24 @@ mod tests {
         );
         let argv = build_argv(Path::new("/x"), &m, &json!({})).unwrap();
         assert_eq!(argv, vec!["/x", "-t", "1", "-o", "out", "-i", "a"]);
+    }
+
+    #[test]
+    fn bad_raw_unterminated_quote_errors() {
+        let m = manifest(
+            r#"
+            id   = "x"
+            name = "X"
+            [binary]
+            id = "x"
+            [[params]]
+            name = "extra"
+            type = "string"
+            cli  = { raw = true }
+            "#,
+        );
+        let err = build_argv(Path::new("/x"), &m, &json!({"extra": "--foo \"unterminated"}))
+            .unwrap_err();
+        assert!(matches!(err, ArgvError::BadRaw(_)));
     }
 }
