@@ -1,8 +1,9 @@
 //! Manifest + runtime parameter validation.
 //!
-//! Validation is a pure function over the manifest data — no I/O, no
-//! filesystem access. Returns a list of issues so callers can display all
-//! problems at once.
+//! `validate_manifest` is a pure function — no I/O. `validate_against_manifest`
+//! additionally performs `is_file()`/`is_dir()` checks for File and Directory
+//! params. Both return a list of issues so callers can display all problems
+//! at once.
 
 use crate::manifest::{CliRule, ParamSpec, ParamType, PluginManifest};
 
@@ -170,10 +171,10 @@ fn type_check(p: &ParamSpec, v: &serde_json::Value, errs: &mut Vec<rb_core::modu
                 None => errs.push(mismatch(format!("'{}' must be a path string", p.name))),
                 Some(s) => {
                     let path = std::path::Path::new(s);
-                    let ok = match p.r#type {
-                        ParamType::File => path.is_file(),
-                        ParamType::Directory => path.is_dir(),
-                        _ => true,
+                    let ok = if matches!(p.r#type, ParamType::File) {
+                        path.is_file()
+                    } else {
+                        path.is_dir()
                     };
                     if !ok {
                         errs.push(mismatch(format!("'{}': path does not exist or wrong kind: {}", p.name, s)));
