@@ -3,12 +3,21 @@ import { navigate } from './core/router.js';
 import { setupEvents } from './core/events.js';
 import { installRuntimeListeners } from './core/runtime.js';
 import { installLogScrollWatch } from './ui/log-panel.js';
+import { modulesApi } from './api/modules.js';
+import { setBootstrapModules } from './core/constants.js';
 
-function init() {
+async function init() {
   applyI18n(document);
   setupEvents();
   installLogScrollWatch();
   installRuntimeListeners();
+
+  try {
+    const descriptors = await modulesApi.listModules();
+    setBootstrapModules(descriptors);
+  } catch (e) {
+    console.warn('list_modules failed; falling back to static MODULES list', e);
+  }
 
   navigate(location.hash.slice(1) || 'dashboard');
   if (window.lucide) window.lucide.createIcons();

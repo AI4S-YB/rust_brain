@@ -16,4 +16,10 @@ export const modulesApi = {
   cancelRun(runId) {
     return api.invoke('cancel_run', { runId });
   },
+  listModules() {
+    return api.invoke('list_modules');
+  },
+  getPluginManifest(id) {
+    return api.invoke('get_plugin_manifest', { id });
+  },
 };
