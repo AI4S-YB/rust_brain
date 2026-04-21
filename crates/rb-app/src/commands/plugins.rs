@@ -1,7 +1,11 @@
-use serde::Serialize;
-use tauri::State;
+use std::collections::HashMap;
+use std::sync::Arc;
 
-use crate::state::{AppState, PluginDiagnostics};
+use rb_plugin::PluginManifest;
+use serde::Serialize;
+use tauri::{Emitter, State};
+
+use crate::state::{AppState, PluginDiagnostics, PluginErrorView, PluginSourceTag};
 
 #[derive(Debug, Serialize)]
 pub struct PluginManifestView {
@@ -48,8 +52,94 @@ pub async fn get_plugin_manifest(
     })
 }
 
-/// Stub — full implementation lands in Task 13. Returns NotImplemented for now.
+/// Re-scan bundled + user plugin dirs and update AppState in place.
+/// Returns the new diagnostics so the caller can decide whether to broadcast.
+pub async fn reload_plugins_impl(
+    state: &AppState,
+    bundled: &include_dir::Dir<'_>,
+) -> PluginDiagnostics {
+    let user_dir = state.user_plugin_dir.clone();
+    let plugin_reg = rb_plugin::load_plugins(bundled, Some(&user_dir));
+
+    // Drop existing plugin entries from the module registry while keeping
+    // first-party modules. The set of plugin ids comes from the current
+    // plugin_manifests map (the source of truth for "what is a plugin?").
+    let plugin_ids: Vec<String> =
+        state.plugin_manifests.lock().await.keys().cloned().collect();
+    {
+        let mut reg = state.registry.lock().await;
+        for id in &plugin_ids {
+            reg.remove(id);
+        }
+    }
+
+    // Rebuild plugin_manifests + module registry + dynamic binaries
+    // from the freshly-loaded plugin_reg.
+    let mut new_manifests: HashMap<String, Arc<PluginManifest>> = HashMap::new();
+    {
+        let mut reg = state.registry.lock().await;
+        let mut resolver = state.binary_resolver.lock().await;
+        for loaded in plugin_reg.by_id.values() {
+            let manifest = Arc::new(loaded.manifest.clone());
+            resolver.register_known_dynamic(rb_core::binary::KnownBinaryEntry {
+                id: manifest.binary.id.clone(),
+                display_name: manifest
+                    .binary
+                    .display_name
+                    .clone()
+                    .unwrap_or_else(|| manifest.name.clone()),
+                install_hint: manifest.binary.install_hint.clone().unwrap_or_else(|| {
+                    format!("Install '{}' and configure its path.", manifest.binary.id)
+                }),
+            });
+            let module: Arc<dyn rb_core::module::Module> =
+                Arc::new(crate::state::LazyResolvingPluginModule::new(
+                    manifest.clone(),
+                    manifest.binary.id.clone(),
+                    state.binary_resolver.clone(),
+                ));
+            reg.register(module);
+            new_manifests.insert(manifest.id.clone(), manifest);
+        }
+    }
+    *state.plugin_manifests.lock().await = new_manifests;
+
+    let diag = PluginDiagnostics {
+        loaded: plugin_reg
+            .by_id
+            .iter()
+            .map(|(id, lp)| PluginSourceTag {
+                id: id.clone(),
+                source: match lp.source {
+                    rb_plugin::PluginSource::Bundled => "bundled".into(),
+                    rb_plugin::PluginSource::User => "user".into(),
+                },
+                origin_path: lp.origin_path.clone(),
+                category: lp.manifest.category.clone(),
+                icon: lp.manifest.icon.clone(),
+                description: lp.manifest.description.clone(),
+                binary_id: lp.manifest.binary.id.clone(),
+            })
+            .collect(),
+        errors: plugin_reg
+            .errors
+            .iter()
+            .map(|e| PluginErrorView {
+                source_label: e.source_label.clone(),
+                message: e.message.clone(),
+            })
+            .collect(),
+    };
+    *state.plugins.lock().await = diag.clone();
+    diag
+}
+
 #[tauri::command]
-pub async fn reload_plugins(_state: State<'_, AppState>) -> Result<(), String> {
-    Err("not yet implemented — see Task 13".into())
+pub async fn reload_plugins(
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<PluginDiagnostics, String> {
+    let diag = reload_plugins_impl(&state, &crate::BUNDLED_PLUGINS).await;
+    let _ = app.emit("modules-changed", &serde_json::Value::Null);
+    Ok(diag)
 }
