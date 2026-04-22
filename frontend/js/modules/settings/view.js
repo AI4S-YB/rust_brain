@@ -3,6 +3,7 @@ import { escapeHtml } from '../../ui/escape.js';
 import { binaryApi } from '../../api/binary.js';
 import { renderAiProviderSection } from './ai-provider.js';
 import { renderPluginsSection } from './plugins.js';
+import { getFontSize } from '../../core/font-size.js';
 
 function settingsHeader() {
   return `
@@ -51,6 +52,7 @@ export async function renderSettingsView(container) {
   `;
   }).join('');
   const cur = getLang();
+  const curFont = getFontSize();
   const aiSection = renderAiProviderSection();
   const pluginsSection = await renderPluginsSection();
   container.innerHTML = `
@@ -83,6 +85,19 @@ export async function renderSettingsView(container) {
           <div class="settings-language">
             <label class="form-checkbox"><input type="radio" name="lang-choice" value="en" ${cur === 'en' ? 'checked' : ''}> ${t('settings.language_en')}</label>
             <label class="form-checkbox"><input type="radio" name="lang-choice" value="zh" ${cur === 'zh' ? 'checked' : ''}> ${t('settings.language_zh')}</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="module-panel animate-slide-up" style="animation-delay:200ms">
+        <div class="panel-header"><span class="panel-title">${t('settings.font_size_section')}</span></div>
+        <div class="panel-body">
+          <p class="settings-intro">${t('settings.font_size_intro')}</p>
+          <div class="settings-language">
+            <label class="form-checkbox"><input type="radio" name="font-size-choice" value="small" ${curFont === 'small' ? 'checked' : ''}> ${t('settings.font_size_small')}</label>
+            <label class="form-checkbox"><input type="radio" name="font-size-choice" value="medium" ${curFont === 'medium' ? 'checked' : ''}> ${t('settings.font_size_medium')}</label>
+            <label class="form-checkbox"><input type="radio" name="font-size-choice" value="large" ${curFont === 'large' ? 'checked' : ''}> ${t('settings.font_size_large')}</label>
+            <label class="form-checkbox"><input type="radio" name="font-size-choice" value="xlarge" ${curFont === 'xlarge' ? 'checked' : ''}> ${t('settings.font_size_xlarge')}</label>
           </div>
         </div>
       </div>

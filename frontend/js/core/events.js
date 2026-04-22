@@ -14,6 +14,7 @@ import { runModule, resetForm } from './actions.js';
 import { cancelModuleRun } from './run-controls.js';
 import { toggleCollapsible } from '../ui/collapsible.js';
 import { exportTableAsTSV } from '../ui/export-tsv.js';
+import { setFontSize } from './font-size.js';
 
 export function setupEvents() {
   document.addEventListener('click', e => {
@@ -156,6 +157,8 @@ export function setupEvents() {
   document.addEventListener('change', (e) => {
     const r = e.target.closest('input[name="lang-choice"]');
     if (r) setLang(r.value);
+    const f = e.target.closest('input[name="font-size-choice"]');
+    if (f) setFontSize(f.value);
   });
 
   const syncLangButtons = () => {

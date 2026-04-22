@@ -11,6 +11,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;500;600;700&family=Karla:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
 
+  <!-- Early font-size restore (avoids FOUC when user picked a non-default size) -->
+  <script>
+    (function () {
+      try {
+        var map = { small: 12, medium: 14, large: 16, xlarge: 18 };
+        var v = localStorage.getItem('rustbrain.font-size');
+        if (v && map[v]) document.documentElement.style.fontSize = map[v] + 'px';
+      } catch (_) {}
+    })();
+  </script>
+
   <!-- ECharts for visualizations -->
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
 

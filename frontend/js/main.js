@@ -5,8 +5,10 @@ import { installRuntimeListeners } from './core/runtime.js';
 import { installLogScrollWatch } from './ui/log-panel.js';
 import { modulesApi } from './api/modules.js';
 import { setBootstrapModules } from './core/constants.js';
+import { applyFontSize } from './core/font-size.js';
 
 async function init() {
+  applyFontSize();
   applyI18n(document);
   setupEvents();
   installLogScrollWatch();
