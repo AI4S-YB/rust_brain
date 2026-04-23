@@ -5,3 +5,4 @@ pub mod module;
 pub mod project;
 pub mod run_event;
 pub mod runner;
+pub mod subprocess;

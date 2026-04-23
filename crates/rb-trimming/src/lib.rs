@@ -159,6 +159,7 @@ impl Module for TrimmingModule {
             }
             cmd.arg(&input_str);
             cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+            rb_core::subprocess::harden_for_gui(&mut cmd);
 
             match cmd.spawn() {
                 Ok(mut child) => {

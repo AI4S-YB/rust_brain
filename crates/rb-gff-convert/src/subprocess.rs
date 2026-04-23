@@ -22,6 +22,7 @@ pub async fn run_streamed(
     let mut cmd = Command::new(binary);
     cmd.args(argv);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    rb_core::subprocess::harden_for_gui(&mut cmd);
 
     let mut child = cmd
         .spawn()

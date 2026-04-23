@@ -18,6 +18,7 @@ pub async fn run_star_streaming(
     let mut cmd = Command::new(bin);
     cmd.args(args);
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+    rb_core::subprocess::harden_for_gui(&mut cmd);
 
     let mut child = cmd.spawn().map_err(|e| {
         ModuleError::ToolError(format!("failed to spawn {}: {}", bin.display(), e,))
