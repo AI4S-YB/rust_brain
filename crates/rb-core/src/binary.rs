@@ -169,23 +169,38 @@ impl BinaryResolver {
     }
 
     pub fn resolve(&self, name: &str) -> Result<PathBuf, BinaryError> {
-        // Configured override takes precedence
+        let mut searched = Vec::new();
+
+        // Configured override takes precedence.
         if let Some(Some(p)) = self.settings.binary_paths.get(name) {
             if is_executable(p) {
                 return Ok(p.clone());
             }
             return Err(BinaryError::NotExecutable(p.clone()));
         }
-        // Bundled sidecar shipped with the app
+        searched.push("settings.json override: not set".into());
+
+        // Bundled sidecar shipped with the app.
         if let Some(p) = self.bundled.get(name) {
             if is_executable(p) {
                 return Ok(p.clone());
             }
+            searched.push(format!(
+                "bundled sidecar: {} (exists: {}, is_file: {})",
+                p.display(),
+                p.exists(),
+                p.is_file()
+            ));
+        } else {
+            searched.push("bundled sidecar: not registered".into());
         }
-        // Fall back to PATH
-        if let Ok(found) = which::which(name) {
-            return Ok(found);
+
+        // Fall back to PATH.
+        match which::which(name) {
+            Ok(found) => return Ok(found),
+            Err(e) => searched.push(format!("$PATH: {e}")),
         }
+
         let hint = self
             .known_iter()
             .find(|(id, _, _)| *id == name)
@@ -193,11 +208,7 @@ impl BinaryResolver {
             .unwrap_or_else(|| format!("No install hint registered for '{}'.", name));
         Err(BinaryError::NotFound {
             name: name.to_string(),
-            searched: vec![
-                "settings.json override".into(),
-                "bundled sidecar".into(),
-                "$PATH".into(),
-            ],
+            searched,
             hint,
         })
     }
@@ -246,20 +257,30 @@ impl BinaryResolver {
 }
 
 fn is_executable(p: &Path) -> bool {
-    if !p.is_file() {
-        return false;
+    if p.is_file() {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            return p
+                .metadata()
+                .map(|m| m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false);
+        }
+        #[cfg(not(unix))]
+        {
+            return true;
+        }
     }
-    #[cfg(unix)]
+    // Fallback on Windows: some APIs / AV hooks refuse the `\\?\` extended-length
+    // prefix. Retry with the prefix stripped before giving up.
+    #[cfg(windows)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        p.metadata()
-            .map(|m| m.permissions().mode() & 0o111 != 0)
-            .unwrap_or(false)
+        let s = p.to_string_lossy();
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            return Path::new(stripped).is_file();
+        }
     }
-    #[cfg(not(unix))]
-    {
-        true
-    }
+    false
 }
 
 #[cfg(test)]
