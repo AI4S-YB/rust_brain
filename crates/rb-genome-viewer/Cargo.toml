@@ -1,0 +1,21 @@
+[package]
+name = "rb-genome-viewer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+noodles-fasta.workspace = true
+noodles-gff.workspace = true
+noodles-bed.workspace = true
+noodles-bgzf.workspace = true
+noodles-tabix.workspace = true
+noodles-core.workspace = true
+tauri = "2"
+uuid = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

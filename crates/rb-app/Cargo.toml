@@ -12,6 +12,7 @@ rb-core = { path = "../rb-core" }
 rb-ai = { path = "../rb-ai" }
 rb-deseq2 = { path = "../rb-deseq2" }
 rb-fastq-viewer = { path = "../rb-fastq-viewer" }
+rb-genome-viewer = { path = "../rb-genome-viewer" }
 rb-gff-convert = { path = "../rb-gff-convert" }
 rb-qc = { path = "../rb-qc" }
 rb-rustqc = { path = "../rb-rustqc" }

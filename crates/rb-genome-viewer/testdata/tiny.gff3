@@ -1,0 +1,9 @@
+##gff-version 3
+chr1	test	gene	10	50	.	+	.	ID=gene1;Name=BRCA1-like
+chr1	test	mRNA	10	50	.	+	.	ID=mrna1;Parent=gene1
+chr1	test	exon	10	25	.	+	.	ID=exon1;Parent=mrna1
+chr1	test	exon	35	50	.	+	.	ID=exon2;Parent=mrna1
+chr2	test	gene	20	80	.	-	.	ID=gene2;Name=TP53-like
+chr2	test	mRNA	20	80	.	-	.	ID=mrna2;Parent=gene2
+chr2	test	exon	20	40	.	-	.	ID=exon3;Parent=mrna2
+chr2	test	exon	60	80	.	-	.	ID=exon4;Parent=mrna2

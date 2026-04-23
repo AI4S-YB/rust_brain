@@ -6,6 +6,7 @@ members = [
     "crates/rb-app",
     "crates/rb-deseq2",
     "crates/rb-fastq-viewer",
+    "crates/rb-genome-viewer",
     "crates/rb-gff-convert",
     "crates/rb-plugin",
     "crates/rb-qc",
@@ -33,3 +34,9 @@ shlex = "1"
 bincode = "1.3"
 sha1 = "0.10"
 noodles-fastq = "0.22"
+noodles-fasta = "0.60"
+noodles-gff = "0.56"
+noodles-bed = "0.33"
+noodles-bgzf = "0.46"
+noodles-tabix = "0.61"
+noodles-core = "0.19"

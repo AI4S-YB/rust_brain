@@ -1,0 +1,5 @@
+chr1	test	gene	10	50	.	+	.	gene_id "gene1"; gene_name "BRCA1-like";
+chr1	test	transcript	10	50	.	+	.	gene_id "gene1"; transcript_id "mrna1";
+chr1	test	exon	10	25	.	+	.	gene_id "gene1"; transcript_id "mrna1"; exon_number "1";
+chr1	test	exon	35	50	.	+	.	gene_id "gene1"; transcript_id "mrna1"; exon_number "2";
+chr2	test	gene	20	80	.	-	.	gene_id "gene2"; gene_name "TP53-like";
