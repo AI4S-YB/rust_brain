@@ -11,6 +11,23 @@ export const MODULES = [
   { id: 'enrichment',   view_id: 'enrichment',   name: 'Enrichment',                     icon: 'target',     color: 'slate',  tool: 'TBD',         status: 'soon',                                                source: 'builtin', has_native_view: true,  category: 'other' },
 ];
 
+// Built-in utility set — used as the initial fallback before future bootstrap
+// calls. Utilities are presentation-only tools with no Module semantics.
+export const UTILITIES = [
+  { id: 'genome-viewer', view_id: 'genome-viewer', name: 'Genome Viewer', icon: 'map',       color: 'purple', category: 'viewer', source: 'builtin' },
+  { id: 'fastq-viewer',  view_id: 'fastq-viewer',  name: 'FASTQ Viewer',  icon: 'file-text', color: 'teal',   category: 'viewer', source: 'builtin' },
+];
+
+/**
+ * Replace the contents of UTILITIES with the dynamic list, preserving the array
+ * reference so other modules' imports stay live.
+ */
+export function setBootstrapUtilities(descriptors) {
+  UTILITIES.length = 0;
+  for (const d of descriptors) UTILITIES.push({ ...d, source: d.source || 'builtin' });
+  rebuildKnownViews();
+}
+
 /**
  * Replace the contents of MODULES with the dynamic list from `list_modules`,
  * preserving the array reference so other modules' imports stay live.
@@ -58,6 +75,7 @@ function rebuildKnownViews() {
   ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'chat', 'plots']
     .forEach(v => KNOWN_VIEWS.add(v));
   MODULES.forEach(m => KNOWN_VIEWS.add(m.view_id || m.id));
+  UTILITIES.forEach(u => KNOWN_VIEWS.add(u.view_id || u.id));
 }
 rebuildKnownViews();
 
