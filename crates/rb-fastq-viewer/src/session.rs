@@ -37,6 +37,24 @@ impl FastqSession {
         ))
     }
 
+    /// Like `open` but calls `progress(bytes_done, total_bytes)` during index build.
+    /// If the index is already cached the callback is never called.
+    pub fn open_with_progress<F: FnMut(u64, u64)>(
+        path: &Path,
+        cache_dir: &Path,
+        progress: F,
+    ) -> Result<(Self, bool)> {
+        let (index, cached) =
+            SparseOffsetIndex::build_or_load_with_progress(cache_dir, path, progress)?;
+        Ok((
+            Self {
+                path: path.to_path_buf(),
+                index,
+            },
+            cached,
+        ))
+    }
+
     pub fn read_records(&self, start: usize, count: usize) -> Result<Vec<FastqRecord>> {
         if start >= self.index.total_records {
             return Ok(Vec::new());

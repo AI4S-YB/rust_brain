@@ -66,6 +66,71 @@ impl SparseOffsetIndex {
         }
     }
 
+    /// Same as `build_with_spacing` but calls `progress(bytes_read, file_size)` approximately
+    /// every 1,000,000 records **or** every 500 ms, whichever comes first.
+    pub fn build_with_progress<F: FnMut(u64, u64)>(
+        path: &Path,
+        spacing: usize,
+        mut progress: F,
+    ) -> Result<Self> {
+        if !path.exists() {
+            return Err(ViewerError::NotFound(path.to_path_buf()));
+        }
+        let meta = std::fs::metadata(path)?;
+        let file_size = meta.len();
+        let file = File::open(path)?;
+        let mut reader = BufReader::new(file);
+
+        let mut anchors = Vec::new();
+        let mut offset: u64 = 0;
+        let mut record_count: usize = 0;
+        let mut line_buf = String::new();
+
+        let mut last_progress = std::time::Instant::now();
+        const PROGRESS_RECORD_INTERVAL: usize = 1_000_000;
+        const PROGRESS_TIME_MS: u128 = 500;
+
+        loop {
+            if record_count % spacing == 0 {
+                anchors.push(offset);
+            }
+            // Emit progress every PROGRESS_RECORD_INTERVAL records or every 500ms.
+            if record_count % PROGRESS_RECORD_INTERVAL == 0
+                || last_progress.elapsed().as_millis() >= PROGRESS_TIME_MS
+            {
+                progress(offset, file_size);
+                last_progress = std::time::Instant::now();
+            }
+            // A FASTQ record is exactly 4 lines.
+            let mut bytes_in_record: u64 = 0;
+            for line_idx in 0..4 {
+                line_buf.clear();
+                let n = reader.read_line(&mut line_buf)?;
+                if n == 0 {
+                    // EOF mid-record: if line_idx==0, clean end; else corrupt.
+                    if line_idx == 0 {
+                        // Emit final progress at 100%.
+                        progress(file_size, file_size);
+                        return Ok(Self {
+                            anchors,
+                            total_records: record_count,
+                            file_size,
+                            mtime_unix: unix_mtime(&meta),
+                            spacing,
+                        });
+                    }
+                    return Err(ViewerError::Parse(format!(
+                        "unexpected EOF inside record {}, line {}",
+                        record_count, line_idx
+                    )));
+                }
+                bytes_in_record += n as u64;
+            }
+            offset += bytes_in_record;
+            record_count += 1;
+        }
+    }
+
     /// Byte offset to seek to when jumping to `record_n`. Returns the offset of the nearest
     /// preceding anchor; caller is responsible for scanning forward `(record_n - anchor_idx * self.spacing)`
     /// records after seeking.
@@ -121,6 +186,22 @@ impl SparseOffsetIndex {
             return Ok((idx, true));
         }
         let idx = Self::build(file_path)?;
+        idx.save(cache_dir, file_path)?;
+        Ok((idx, false))
+    }
+
+    /// Like `build_or_load` but threads a progress callback through to `build_with_progress`.
+    /// The callback receives `(bytes_done, total_bytes)`. If the index was cached, the callback
+    /// is not called and `true` is returned as the second element.
+    pub fn build_or_load_with_progress<F: FnMut(u64, u64)>(
+        cache_dir: &Path,
+        file_path: &Path,
+        progress: F,
+    ) -> Result<(Self, bool)> {
+        if let Some(idx) = Self::load_cached(cache_dir, file_path)? {
+            return Ok((idx, true));
+        }
+        let idx = Self::build_with_progress(file_path, ANCHOR_SPACING, progress)?;
         idx.save(cache_dir, file_path)?;
         Ok((idx, false))
     }

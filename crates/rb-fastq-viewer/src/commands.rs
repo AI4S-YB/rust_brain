@@ -3,7 +3,7 @@ use crate::session::{FastqRecord, FastqSession, OpenResult};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Manager, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 #[derive(Default)]
 pub struct FastqState {
@@ -32,8 +32,16 @@ pub async fn fastq_viewer_open<R: Runtime>(
 ) -> std::result::Result<OpenResult, ViewerError> {
     let cd = cache_dir(&app)?;
     let state = ensure_state(&app);
+    let app_for_emit = app.clone();
+    let p_for_emit = path.clone();
     tokio::task::spawn_blocking(move || {
-        let (session, cached) = FastqSession::open(&path, &cd)?;
+        let (session, cached) =
+            FastqSession::open_with_progress(&path, &cd, |done, total| {
+                let _ = app_for_emit.emit(
+                    "fastq_viewer_index_progress",
+                    serde_json::json!({ "path": p_for_emit.clone(), "done": done, "total": total }),
+                );
+            })?;
         let result = OpenResult {
             total_records: session.index.total_records,
             index_cached: cached,

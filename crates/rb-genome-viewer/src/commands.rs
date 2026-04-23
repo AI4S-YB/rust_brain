@@ -122,9 +122,19 @@ pub async fn genome_viewer_fetch_reference_region<R: Runtime>(
     end: u64,
 ) -> std::result::Result<String, ViewerError> {
     let state = ensure_state(&app);
-    let s = state.session.lock().unwrap();
-    let handle = s.reference.as_ref().ok_or(ViewerError::NoReference)?;
-    handle.fetch_region(&chrom, start, end)
+    // Clone the pieces we need out of the lock, then release it before doing I/O.
+    let (path, fai) = {
+        let s = state.session.lock().unwrap();
+        let handle = s.reference.as_ref().ok_or(ViewerError::NoReference)?;
+        (handle.path.clone(), handle.fai.clone())
+    };
+    // Build an ephemeral handle and do the blocking query outside the lock.
+    tokio::task::spawn_blocking(move || {
+        let handle = crate::reference::ReferenceHandle { path, fai };
+        handle.fetch_region(&chrom, start, end)
+    })
+    .await
+    .map_err(|e| ViewerError::Parse(format!("join: {e}")))?
 }
 
 #[tauri::command]
@@ -136,14 +146,21 @@ pub async fn genome_viewer_fetch_track_features<R: Runtime>(
     end: u64,
 ) -> std::result::Result<Vec<Feature>, ViewerError> {
     let state = ensure_state(&app);
-    let s = state.session.lock().unwrap();
-    let track = s
-        .tracks
-        .get(&track_id)
-        .ok_or_else(|| ViewerError::TrackNotFound(track_id.clone()))?;
-    let mem = track.memory.as_ref().ok_or_else(|| {
-        ViewerError::Parse("track has no memory index (tabix not yet wired)".into())
-    })?;
+    // Clone the Arc out of the lock, then release it before querying.
+    let mem = {
+        let s = state.session.lock().unwrap();
+        let track = s
+            .tracks
+            .get(&track_id)
+            .ok_or_else(|| ViewerError::TrackNotFound(track_id.clone()))?;
+        track
+            .memory
+            .as_ref()
+            .ok_or_else(|| {
+                ViewerError::Parse("track has no memory index (tabix not yet wired)".into())
+            })?
+            .clone()
+    };
     Ok(mem.query(&chrom, start, end).into_iter().cloned().collect())
 }
 
