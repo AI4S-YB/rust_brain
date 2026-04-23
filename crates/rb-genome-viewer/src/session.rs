@@ -54,7 +54,9 @@ impl GenomeSession {
     pub fn serialize(&self) -> SerializedSession {
         SerializedSession {
             version: 1,
-            reference: self.reference_meta.as_ref().map(|m| SerializedReference { path: m.path.clone() }),
+            reference: self.reference_meta.as_ref().map(|m| SerializedReference {
+                path: m.path.clone(),
+            }),
             tracks: self
                 .tracks
                 .values()
@@ -83,7 +85,8 @@ pub fn save_session_to_disk(path: &Path, s: &SerializedSession) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let bytes = serde_json::to_vec_pretty(s).map_err(|e| crate::error::ViewerError::Parse(format!("serde: {e}")))?;
+    let bytes = serde_json::to_vec_pretty(s)
+        .map_err(|e| crate::error::ViewerError::Parse(format!("serde: {e}")))?;
     std::fs::write(path, bytes)?;
     Ok(())
 }
@@ -114,11 +117,19 @@ mod tests {
         let p = tmp.path().join("session.json");
         let s = SerializedSession {
             version: 1,
-            reference: Some(SerializedReference { path: PathBuf::from("/x/y.fa") }),
-            tracks: vec![
-                SerializedTrack { path: PathBuf::from("/x/y.gff"), kind: TrackKind::Gff, visible: true },
-            ],
-            position: Some(GenomicRegion { chrom: "chr1".into(), start: 100, end: 200 }),
+            reference: Some(SerializedReference {
+                path: PathBuf::from("/x/y.fa"),
+            }),
+            tracks: vec![SerializedTrack {
+                path: PathBuf::from("/x/y.gff"),
+                kind: TrackKind::Gff,
+                visible: true,
+            }],
+            position: Some(GenomicRegion {
+                chrom: "chr1".into(),
+                start: 100,
+                end: 200,
+            }),
         };
         save_session_to_disk(&p, &s).unwrap();
         let loaded = load_session_from_disk(&p).unwrap().unwrap();

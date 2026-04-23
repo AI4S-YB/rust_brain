@@ -28,7 +28,13 @@ pub struct FastqSession {
 impl FastqSession {
     pub fn open(path: &Path, cache_dir: &Path) -> Result<(Self, bool)> {
         let (index, cached) = SparseOffsetIndex::build_or_load(cache_dir, path)?;
-        Ok((Self { path: path.to_path_buf(), index }, cached))
+        Ok((
+            Self {
+                path: path.to_path_buf(),
+                index,
+            },
+            cached,
+        ))
     }
 
     pub fn read_records(&self, start: usize, count: usize) -> Result<Vec<FastqRecord>> {
@@ -47,13 +53,16 @@ impl FastqSession {
 
         while out.len() < count && cursor < self.index.total_records {
             let mut rec = [String::new(), String::new(), String::new(), String::new()];
-            for i in 0..4 {
+            for slot in &mut rec {
                 line.clear();
                 let n = reader.read_line(&mut line)?;
                 if n == 0 {
-                    return Err(ViewerError::Parse(format!("unexpected EOF at record {}", cursor)));
+                    return Err(ViewerError::Parse(format!(
+                        "unexpected EOF at record {}",
+                        cursor
+                    )));
                 }
-                rec[i] = line.trim_end_matches(&['\n', '\r'][..]).to_string();
+                *slot = line.trim_end_matches(&['\n', '\r'][..]).to_string();
             }
             if skip_remaining > 0 {
                 skip_remaining -= 1;
@@ -75,7 +84,12 @@ impl FastqSession {
         ((self.index.total_records as f32) * pct) as usize
     }
 
-    pub fn search_id(&self, query: &str, from: usize, limit: usize) -> Result<Vec<(usize, String)>> {
+    pub fn search_id(
+        &self,
+        query: &str,
+        from: usize,
+        limit: usize,
+    ) -> Result<Vec<(usize, String)>> {
         let mut hits = Vec::new();
         let mut cursor = from;
         let chunk = 1000;

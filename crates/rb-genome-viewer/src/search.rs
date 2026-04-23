@@ -21,7 +21,10 @@ pub struct SearchEntry {
 impl SearchIndex {
     pub fn add_track(&mut self, track_id: &TrackId, memory: &MemoryIndex) {
         for f in memory.all_features() {
-            let keys: Vec<String> = f.name.clone().into_iter()
+            let keys: Vec<String> = f
+                .name
+                .clone()
+                .into_iter()
                 .chain(f.attrs.get("gene_id").cloned())
                 .chain(f.attrs.get("gene_name").cloned())
                 .chain(f.attrs.get("transcript_id").cloned())

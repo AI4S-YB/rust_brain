@@ -32,7 +32,9 @@ fn genome_viewer_end_to_end() {
     let hits = search.search("brca", 1);
     assert!(!hits.is_empty());
 
-    let seq = handle.fetch_region(&hits[0].chrom, hits[0].start, hits[0].end).unwrap();
+    let seq = handle
+        .fetch_region(&hits[0].chrom, hits[0].start, hits[0].end)
+        .unwrap();
     assert!(!seq.is_empty(), "fetched sequence should not be empty");
 }
 

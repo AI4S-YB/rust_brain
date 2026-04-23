@@ -9,7 +9,7 @@ pub const ANCHOR_SPACING: usize = 10_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SparseOffsetIndex {
-    pub anchors: Vec<u64>,     // byte offset of record N where N = i * spacing
+    pub anchors: Vec<u64>, // byte offset of record N where N = i * spacing
     pub total_records: usize,
     pub file_size: u64,
     pub mtime_unix: i64,
@@ -78,7 +78,9 @@ impl SparseOffsetIndex {
 
 impl SparseOffsetIndex {
     pub fn cache_key(file_path: &Path) -> String {
-        let abs = file_path.canonicalize().unwrap_or_else(|_| file_path.to_path_buf());
+        let abs = file_path
+            .canonicalize()
+            .unwrap_or_else(|_| file_path.to_path_buf());
         let mut hasher = Sha1::new();
         hasher.update(abs.to_string_lossy().as_bytes());
         let digest = hasher.finalize();
@@ -95,8 +97,8 @@ impl SparseOffsetIndex {
             return Ok(None);
         }
         let bytes = std::fs::read(&cp)?;
-        let idx: SparseOffsetIndex = bincode::deserialize(&bytes)
-            .map_err(|e| ViewerError::IndexCorrupt(e.to_string()))?;
+        let idx: SparseOffsetIndex =
+            bincode::deserialize(&bytes).map_err(|e| ViewerError::IndexCorrupt(e.to_string()))?;
 
         let meta = std::fs::metadata(file_path)?;
         let current_mtime = unix_mtime(&meta);

@@ -4,8 +4,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use noodles_fasta as fasta;
 use noodles_core::Region;
+use noodles_fasta as fasta;
 use serde::Serialize;
 
 use crate::error::{Result, ViewerError};
@@ -108,8 +108,8 @@ impl ReferenceHandle {
 
         // The sequence bytes are returned as a Vec<u8> (via AsRef<[u8]>).
         let seq_bytes: &[u8] = record.sequence().as_ref();
-        let seq_str = String::from_utf8(seq_bytes.to_vec())
-            .map_err(|e| ViewerError::Parse(e.to_string()))?;
+        let seq_str =
+            String::from_utf8(seq_bytes.to_vec()).map_err(|e| ViewerError::Parse(e.to_string()))?;
 
         Ok(seq_str)
     }
@@ -119,21 +119,20 @@ impl ReferenceHandle {
 mod tests {
     use super::*;
     use std::path::PathBuf;
+    use tempfile::TempDir;
 
-    fn fa() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.fa")
+    fn isolated_fa() -> (TempDir, PathBuf) {
+        let src = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.fa");
+        let dir = tempfile::tempdir().unwrap();
+        let dst = dir.path().join("tiny.fa");
+        std::fs::copy(&src, &dst).unwrap();
+        (dir, dst)
     }
 
     #[test]
     fn loads_two_chroms_and_builds_fai() {
-        let fai_path = {
-            let mut p = fa();
-            p.as_mut_os_string().push(".fai");
-            p
-        };
-        let _ = std::fs::remove_file(&fai_path);
-
-        let (_handle, meta) = ReferenceHandle::load(&fa()).unwrap();
+        let (_tmp, fa) = isolated_fa();
+        let (_handle, meta) = ReferenceHandle::load(&fa).unwrap();
         assert!(meta.fai_built);
         assert_eq!(meta.chroms.len(), 2);
         assert_eq!(meta.chroms[0].name, "chr1");
@@ -144,17 +143,16 @@ mod tests {
 
     #[test]
     fn fetches_region_bytes() {
-        // Ensure the .fai exists from the previous test run or build one.
-        let _ = ReferenceHandle::load(&fa()).unwrap();
-        let (handle, _) = ReferenceHandle::load(&fa()).unwrap();
+        let (_tmp, fa) = isolated_fa();
+        let (handle, _) = ReferenceHandle::load(&fa).unwrap();
         let seq = handle.fetch_region("chr1", 1, 16).unwrap();
         assert_eq!(seq, "ACGTACGTACGTACGT");
     }
 
     #[test]
     fn fetches_cross_chrom_distinctly() {
-        let _ = ReferenceHandle::load(&fa()).unwrap();
-        let (handle, _) = ReferenceHandle::load(&fa()).unwrap();
+        let (_tmp, fa) = isolated_fa();
+        let (handle, _) = ReferenceHandle::load(&fa).unwrap();
         let a = handle.fetch_region("chr1", 1, 4).unwrap();
         let b = handle.fetch_region("chr2", 1, 4).unwrap();
         assert_eq!(a, "ACGT");

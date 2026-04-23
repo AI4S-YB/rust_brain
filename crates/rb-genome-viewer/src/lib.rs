@@ -1,10 +1,10 @@
+pub mod bgzip;
+pub mod commands;
 pub mod error;
-pub mod reference;
-pub mod tracks;
 pub mod index;
+pub mod reference;
 pub mod search;
 pub mod session;
-pub mod commands;
-pub mod bgzip;
+pub mod tracks;
 
 pub use error::{Result, ViewerError};

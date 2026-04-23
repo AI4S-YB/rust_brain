@@ -153,7 +153,11 @@ fn index_bed(gz: &Path, indexer: &mut noodles_tabix::index::Indexer) -> Result<(
             break;
         }
         let trimmed = line.trim_end_matches(['\n', '\r']);
-        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with("track ") || trimmed.starts_with("browser ") {
+        if trimmed.is_empty()
+            || trimmed.starts_with('#')
+            || trimmed.starts_with("track ")
+            || trimmed.starts_with("browser ")
+        {
             continue;
         }
         let vpos_end = reader.virtual_position();

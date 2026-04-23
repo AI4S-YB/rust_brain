@@ -79,7 +79,13 @@ pub async fn genome_viewer_add_track<R: Runtime>(
         {
             let mut s = state.session.lock().unwrap();
             s.search.add_track(&track_id, &mem);
-            s.tracks.insert(track_id.clone(), TrackRuntime { meta: meta.clone(), memory: Some(mem) });
+            s.tracks.insert(
+                track_id.clone(),
+                TrackRuntime {
+                    meta: meta.clone(),
+                    memory: Some(mem),
+                },
+            );
         }
         Ok::<_, ViewerError>(meta)
     })
@@ -149,7 +155,11 @@ pub async fn genome_viewer_search_feature<R: Runtime>(
 ) -> std::result::Result<Vec<SearchEntry>, ViewerError> {
     let state = ensure_state(&app);
     let s = state.session.lock().unwrap();
-    Ok(s.search.search(&query, limit).into_iter().cloned().collect())
+    Ok(s.search
+        .search(&query, limit)
+        .into_iter()
+        .cloned()
+        .collect())
 }
 
 #[derive(Serialize)]

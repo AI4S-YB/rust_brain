@@ -11,11 +11,11 @@ pub const MEMORY_INDEX_MAX_BYTES: u64 = 200 * 1024 * 1024; // 200 MB
 #[derive(Debug, Clone, Serialize)]
 pub struct Feature {
     pub chrom: String,
-    pub start: u64,          // 1-based inclusive (GFF/GTF convention); BED converted on load
-    pub end: u64,            // inclusive
+    pub start: u64, // 1-based inclusive (GFF/GTF convention); BED converted on load
+    pub end: u64,   // inclusive
     pub name: Option<String>,
     pub strand: Option<char>,
-    pub kind: String,        // e.g., "gene", "exon", free-text
+    pub kind: String, // e.g., "gene", "exon", free-text
     pub attrs: HashMap<String, String>,
 }
 
@@ -77,8 +77,12 @@ impl MemoryIndex {
             }
             let chrom = fields[0].to_string();
             let kind_str = fields[2].to_string();
-            let start: u64 = fields[3].parse().map_err(|e| ViewerError::Parse(format!("start: {e}")))?;
-            let end: u64 = fields[4].parse().map_err(|e| ViewerError::Parse(format!("end: {e}")))?;
+            let start: u64 = fields[3]
+                .parse()
+                .map_err(|e| ViewerError::Parse(format!("start: {e}")))?;
+            let end: u64 = fields[4]
+                .parse()
+                .map_err(|e| ViewerError::Parse(format!("end: {e}")))?;
             let strand = fields[6].chars().next();
             let attrs = if is_gtf {
                 parse_gtf_attrs(fields.get(8).copied().unwrap_or(""))
@@ -86,20 +90,24 @@ impl MemoryIndex {
                 parse_gff_attrs(fields.get(8).copied().unwrap_or(""))
             };
             let name = attrs
-                .get("Name").cloned()
+                .get("Name")
+                .cloned()
                 .or_else(|| attrs.get("gene_name").cloned())
                 .or_else(|| attrs.get("ID").cloned())
                 .or_else(|| attrs.get("gene_id").cloned())
                 .or_else(|| attrs.get("transcript_id").cloned());
-            idx.by_chrom.entry(chrom.clone()).or_default().push(Feature {
-                chrom,
-                start,
-                end,
-                name,
-                strand,
-                kind: kind_str,
-                attrs,
-            });
+            idx.by_chrom
+                .entry(chrom.clone())
+                .or_default()
+                .push(Feature {
+                    chrom,
+                    start,
+                    end,
+                    name,
+                    strand,
+                    kind: kind_str,
+                    attrs,
+                });
         }
         Ok(idx)
     }
@@ -116,7 +124,11 @@ impl MemoryIndex {
         };
         for line in lines {
             let line = line?;
-            if line.is_empty() || line.starts_with('#') || line.starts_with("track") || line.starts_with("browser") {
+            if line.is_empty()
+                || line.starts_with('#')
+                || line.starts_with("track")
+                || line.starts_with("browser")
+            {
                 continue;
             }
             let fields: Vec<&str> = line.split('\t').collect();
@@ -124,29 +136,37 @@ impl MemoryIndex {
                 continue;
             }
             let chrom = fields[0].to_string();
-            let start: u64 = fields[1].parse::<u64>()
+            let start: u64 = fields[1]
+                .parse::<u64>()
                 .map_err(|e| ViewerError::Parse(format!("bed start: {e}")))?
                 + 1; // BED 0-based → internal 1-based inclusive
-            let end: u64 = fields[2].parse::<u64>()
+            let end: u64 = fields[2]
+                .parse::<u64>()
                 .map_err(|e| ViewerError::Parse(format!("bed end: {e}")))?;
             let name = fields.get(3).map(|s| s.to_string());
             let strand = fields.get(5).and_then(|s| s.chars().next());
-            idx.by_chrom.entry(chrom.clone()).or_default().push(Feature {
-                chrom,
-                start,
-                end,
-                name,
-                strand,
-                kind: "region".into(),
-                attrs: HashMap::new(),
-            });
+            idx.by_chrom
+                .entry(chrom.clone())
+                .or_default()
+                .push(Feature {
+                    chrom,
+                    start,
+                    end,
+                    name,
+                    strand,
+                    kind: "region".into(),
+                    attrs: HashMap::new(),
+                });
         }
         Ok(idx)
     }
 }
 
 fn has_gz_ext(path: &Path) -> bool {
-    path.extension().and_then(|s| s.to_str()).map(|s| s == "gz").unwrap_or(false)
+    path.extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s == "gz")
+        .unwrap_or(false)
 }
 
 fn parse_gff_attrs(s: &str) -> HashMap<String, String> {
@@ -155,7 +175,11 @@ fn parse_gff_attrs(s: &str) -> HashMap<String, String> {
             let mut it = kv.trim().splitn(2, '=');
             let k = it.next()?.trim().to_string();
             let v = it.next()?.trim().to_string();
-            if k.is_empty() { None } else { Some((k, v)) }
+            if k.is_empty() {
+                None
+            } else {
+                Some((k, v))
+            }
         })
         .collect()
 }
@@ -164,7 +188,9 @@ fn parse_gtf_attrs(s: &str) -> HashMap<String, String> {
     s.split(';')
         .filter_map(|kv| {
             let kv = kv.trim();
-            if kv.is_empty() { return None; }
+            if kv.is_empty() {
+                return None;
+            }
             let mut it = kv.splitn(2, ' ');
             let k = it.next()?.trim().to_string();
             let v = it.next()?.trim().trim_matches('"').to_string();
@@ -183,9 +209,15 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    fn gff() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.gff3") }
-    fn gtf() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.gtf") }
-    fn bed() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.bed") }
+    fn gff() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.gff3")
+    }
+    fn gtf() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.gtf")
+    }
+    fn bed() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/tiny.bed")
+    }
 
     #[test]
     fn loads_gff3_and_counts_features() {
@@ -212,7 +244,10 @@ mod tests {
     fn gtf_attrs_parsed() {
         let idx = MemoryIndex::load(&gtf(), TrackKind::Gtf).unwrap();
         let feats: Vec<&Feature> = idx.all_features().collect();
-        let gene = feats.iter().find(|f| f.kind == "gene" && f.chrom == "chr1").unwrap();
+        let gene = feats
+            .iter()
+            .find(|f| f.kind == "gene" && f.chrom == "chr1")
+            .unwrap();
         assert_eq!(gene.attrs.get("gene_id").map(|s| s.as_str()), Some("gene1"));
         assert_eq!(gene.name.as_deref(), Some("BRCA1-like"));
     }
@@ -220,7 +255,10 @@ mod tests {
     #[test]
     fn bed_converted_to_one_based() {
         let idx = MemoryIndex::load(&bed(), TrackKind::Bed).unwrap();
-        let peak1 = idx.all_features().find(|f| f.name.as_deref() == Some("peak1")).unwrap();
+        let peak1 = idx
+            .all_features()
+            .find(|f| f.name.as_deref() == Some("peak1"))
+            .unwrap();
         assert_eq!(peak1.start, 11); // BED 10 → internal 11 (1-based)
         assert_eq!(peak1.end, 50);
     }
