@@ -1,4 +1,5 @@
 import { VirtualList } from './virtual-list.js';
+import { colorSeq, colorQual } from './coloring.js';
 
 const _tauri = typeof window !== 'undefined' ? window.__TAURI__?.core?.invoke : undefined;
 const api = _tauri
@@ -85,9 +86,9 @@ function renderRecordEl(rec, i) {
   el.style.borderBottom = '1px solid #f1ede7';
   el.innerHTML = `
     <div style="color:#5c7080">#${i} ${escapeHtml(rec.id)}</div>
-    <div class="seq">${escapeHtml(rec.seq)}</div>
+    <div class="seq">${colorSeq(rec.seq)}</div>
     <div style="color:#a8a29e">${escapeHtml(rec.plus)}</div>
-    <div class="qual">${escapeHtml(rec.qual)}</div>
+    <div class="qual">${colorQual(rec.qual)}</div>
   `;
   return el;
 }
