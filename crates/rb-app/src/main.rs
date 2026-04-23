@@ -240,6 +240,10 @@ fn main() {
             commands::plugins::list_plugin_status,
             commands::plugins::reload_plugins,
             commands::plugins::get_plugin_manifest,
+            rb_fastq_viewer::commands::fastq_viewer_open,
+            rb_fastq_viewer::commands::fastq_viewer_read_records,
+            rb_fastq_viewer::commands::fastq_viewer_seek_percent,
+            rb_fastq_viewer::commands::fastq_viewer_search_id,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");

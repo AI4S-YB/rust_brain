@@ -5,6 +5,7 @@ members = [
     "crates/rb-ai",
     "crates/rb-app",
     "crates/rb-deseq2",
+    "crates/rb-fastq-viewer",
     "crates/rb-gff-convert",
     "crates/rb-plugin",
     "crates/rb-qc",
@@ -29,3 +30,6 @@ toml = "0.8"
 include_dir = "0.7"
 glob = "0.3"
 shlex = "1"
+bincode = "1.3"
+sha1 = "0.10"
+noodles-fastq = "0.22"
