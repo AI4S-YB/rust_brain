@@ -1,8 +1,9 @@
 use crate::error::{Result, ViewerError};
 use serde::{Deserialize, Serialize};
+use sha1::{Digest, Sha1};
 use std::fs::{File, Metadata};
 use std::io::{BufRead, BufReader};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const ANCHOR_SPACING: usize = 10_000;
 
@@ -75,6 +76,54 @@ impl SparseOffsetIndex {
     }
 }
 
+impl SparseOffsetIndex {
+    pub fn cache_key(file_path: &Path) -> String {
+        let abs = file_path.canonicalize().unwrap_or_else(|_| file_path.to_path_buf());
+        let mut hasher = Sha1::new();
+        hasher.update(abs.to_string_lossy().as_bytes());
+        let digest = hasher.finalize();
+        digest.iter().map(|b| format!("{:02x}", b)).collect()
+    }
+
+    pub fn cache_path(cache_dir: &Path, file_path: &Path) -> PathBuf {
+        cache_dir.join(format!("{}.idx", Self::cache_key(file_path)))
+    }
+
+    pub fn load_cached(cache_dir: &Path, file_path: &Path) -> Result<Option<Self>> {
+        let cp = Self::cache_path(cache_dir, file_path);
+        if !cp.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(&cp)?;
+        let idx: SparseOffsetIndex = bincode::deserialize(&bytes)
+            .map_err(|e| ViewerError::IndexCorrupt(e.to_string()))?;
+
+        let meta = std::fs::metadata(file_path)?;
+        let current_mtime = unix_mtime(&meta);
+        if idx.file_size != meta.len() || idx.mtime_unix != current_mtime {
+            return Ok(None); // stale
+        }
+        Ok(Some(idx))
+    }
+
+    pub fn save(&self, cache_dir: &Path, file_path: &Path) -> Result<()> {
+        std::fs::create_dir_all(cache_dir)?;
+        let cp = Self::cache_path(cache_dir, file_path);
+        let bytes = bincode::serialize(self)?;
+        std::fs::write(cp, bytes)?;
+        Ok(())
+    }
+
+    pub fn build_or_load(cache_dir: &Path, file_path: &Path) -> Result<(Self, bool)> {
+        if let Some(idx) = Self::load_cached(cache_dir, file_path)? {
+            return Ok((idx, true));
+        }
+        let idx = Self::build(file_path)?;
+        idx.save(cache_dir, file_path)?;
+        Ok((idx, false))
+    }
+}
+
 fn unix_mtime(meta: &Metadata) -> i64 {
     use std::time::UNIX_EPOCH;
     meta.modified()
@@ -135,5 +184,36 @@ mod tests {
         for w in idx.anchors.windows(2) {
             assert!(w[0] < w[1], "anchors must be strictly increasing");
         }
+    }
+
+    #[test]
+    fn cache_round_trip() {
+        let cache = tempfile::tempdir().unwrap();
+        let fp = fixture();
+        let (idx1, hit1) = SparseOffsetIndex::build_or_load(cache.path(), &fp).unwrap();
+        assert!(!hit1, "first call is a miss");
+        let (idx2, hit2) = SparseOffsetIndex::build_or_load(cache.path(), &fp).unwrap();
+        assert!(hit2, "second call hits cache");
+        assert_eq!(idx1.total_records, idx2.total_records);
+        assert_eq!(idx1.anchors, idx2.anchors);
+    }
+
+    #[test]
+    fn cache_invalidates_on_mtime_change() {
+        use std::fs::OpenOptions;
+        use std::io::Write;
+        let cache = tempfile::tempdir().unwrap();
+        let tmp_fq = tempfile::NamedTempFile::new().unwrap();
+        std::fs::copy(&fixture(), tmp_fq.path()).unwrap();
+        let (_, _hit1) = SparseOffsetIndex::build_or_load(cache.path(), tmp_fq.path()).unwrap();
+
+        // Append a record to change size+mtime.
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        let mut f = OpenOptions::new().append(true).open(tmp_fq.path()).unwrap();
+        writeln!(f, "@new_read\nACGT\n+\nIIII").unwrap();
+        drop(f);
+
+        let (_, hit2) = SparseOffsetIndex::build_or_load(cache.path(), tmp_fq.path()).unwrap();
+        assert!(!hit2, "cache must invalidate after file change");
     }
 }
