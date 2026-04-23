@@ -8,14 +8,19 @@ pub const ANCHOR_SPACING: usize = 10_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SparseOffsetIndex {
-    pub anchors: Vec<u64>,     // byte offset of record N where N = i * ANCHOR_SPACING
+    pub anchors: Vec<u64>,     // byte offset of record N where N = i * spacing
     pub total_records: usize,
     pub file_size: u64,
     pub mtime_unix: i64,
+    pub spacing: usize,
 }
 
 impl SparseOffsetIndex {
     pub fn build(path: &Path) -> Result<Self> {
+        Self::build_with_spacing(path, ANCHOR_SPACING)
+    }
+
+    pub fn build_with_spacing(path: &Path, spacing: usize) -> Result<Self> {
         if !path.exists() {
             return Err(ViewerError::NotFound(path.to_path_buf()));
         }
@@ -29,7 +34,7 @@ impl SparseOffsetIndex {
         let mut line_buf = String::new();
 
         loop {
-            if record_count % ANCHOR_SPACING == 0 {
+            if record_count % spacing == 0 {
                 anchors.push(offset);
             }
             // A FASTQ record is exactly 4 lines.
@@ -45,6 +50,7 @@ impl SparseOffsetIndex {
                             total_records: record_count,
                             file_size: meta.len(),
                             mtime_unix: unix_mtime(&meta),
+                            spacing,
                         });
                     }
                     return Err(ViewerError::Parse(format!(
@@ -60,10 +66,10 @@ impl SparseOffsetIndex {
     }
 
     /// Byte offset to seek to when jumping to `record_n`. Returns the offset of the nearest
-    /// preceding anchor; caller is responsible for scanning forward `(record_n - anchor_idx * ANCHOR_SPACING)`
+    /// preceding anchor; caller is responsible for scanning forward `(record_n - anchor_idx * self.spacing)`
     /// records after seeking.
     pub fn anchor_for(&self, record_n: usize) -> (usize, u64) {
-        let anchor_idx = record_n / ANCHOR_SPACING;
+        let anchor_idx = record_n / self.spacing;
         let offset = self.anchors.get(anchor_idx).copied().unwrap_or(0);
         (anchor_idx, offset)
     }
@@ -105,5 +111,29 @@ mod tests {
         let (anchor_idx, offset) = idx.anchor_for(50);
         assert_eq!(anchor_idx, 0);
         assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn larger_file_has_multiple_anchors() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/larger.fastq");
+        let idx = SparseOffsetIndex::build_with_spacing(&path, 1000).unwrap();
+        assert_eq!(idx.total_records, 5000);
+        // With spacing=1000 and 5000 records the loop pushes an anchor at record_count
+        // 0,1000,2000,3000,4000 (5 data anchors) and one more at 5000 (the EOF boundary)
+        // before the clean-exit path fires — 6 total.
+        assert_eq!(idx.anchors.len(), 6);
+        // Record 2500 sits in anchor bucket 2.
+        let (anchor_idx, offset) = idx.anchor_for(2500);
+        assert_eq!(anchor_idx, 2);
+        assert!(offset > 0);
+    }
+
+    #[test]
+    fn anchor_offsets_are_monotonic() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("testdata/larger.fastq");
+        let idx = SparseOffsetIndex::build_with_spacing(&path, 1000).unwrap();
+        for w in idx.anchors.windows(2) {
+            assert!(w[0] < w[1], "anchors must be strictly increasing");
+        }
     }
 }
