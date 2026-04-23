@@ -60,6 +60,14 @@ export async function navigate(view) {
       const m = await import('../modules/chat/session-list.js');
       if (state.currentView === view) m.renderSessionListPage(content);
     }
+  } else if (view === 'genome-viewer') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../utilities/genome-viewer/view.js');
+    if (state.currentView === view) m.renderGenomeViewerView(content);
+  } else if (view === 'fastq-viewer') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../utilities/fastq-viewer/view.js');
+    if (state.currentView === view) m.renderFastqViewerView(content);
   } else {
     await renderModuleView(content, view);
   }
