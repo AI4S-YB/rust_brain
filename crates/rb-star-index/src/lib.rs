@@ -53,6 +53,10 @@ impl Module for StarIndexModule {
                     "type": "array",
                     "items": { "type": "string" },
                     "description": "Extra CLI flags forwarded verbatim to STAR."
+                },
+                "output_dir": {
+                    "type": "string",
+                    "description": "Where to write the genome index. Defaults to the run's auto-created directory under `<project>/runs/star_index_<uuid>/`. Override to reuse a shared location like `/data/references/human_gr38_star/`."
                 }
             },
             "required": ["genome_fasta", "gtf_file"],
@@ -96,6 +100,19 @@ impl Module for StarIndexModule {
                     field: "extra_args".into(),
                     message: "extra_args must be an array of strings".into(),
                 });
+            }
+        }
+
+        if let Some(s) = params.get("output_dir").and_then(|v| v.as_str()) {
+            if !s.is_empty() {
+                let p = Path::new(s);
+                let parent = p.parent().unwrap_or(Path::new("."));
+                if !parent.as_os_str().is_empty() && !parent.exists() {
+                    errors.push(ValidationError {
+                        field: "output_dir".into(),
+                        message: format!("parent directory does not exist: {}", parent.display()),
+                    });
+                }
             }
         }
 
@@ -149,8 +166,12 @@ impl Module for StarIndexModule {
             })
             .unwrap_or_default();
 
-        // project_dir here is the run directory prepared by Runner.
-        let out_dir = project_dir.to_path_buf();
+        // project_dir here is the run directory prepared by Runner; honor an
+        // explicit user override so shared indexes can live outside the project.
+        let out_dir = match params.get("output_dir").and_then(|v| v.as_str()) {
+            Some(s) if !s.is_empty() => PathBuf::from(s),
+            _ => project_dir.to_path_buf(),
+        };
         std::fs::create_dir_all(&out_dir)?;
 
         let _ = events_tx

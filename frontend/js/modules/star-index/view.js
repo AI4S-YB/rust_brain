@@ -49,6 +49,16 @@ export function renderStarIndexView(container) {
                 <a href="#gff-convert" class="form-hint-link">${t('star_index.gtf_hint_link')}</a>
               </span>
             </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_index.output_dir')}</label>
+              <div class="input-with-browse">
+                <input type="text" class="form-input" name="output_dir" data-pick="dir" placeholder="${t('star_index.output_dir_placeholder')}" />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="output_dir">
+                  <i data-lucide="folder-open"></i> ${t('common.browse')}
+                </button>
+              </div>
+              <span class="form-hint">${t('star_index.output_dir_hint')}</span>
+            </div>
             <div class="form-row three-col">
               <div class="form-group">
                 <label class="form-label">${t('star_index.threads')}</label>

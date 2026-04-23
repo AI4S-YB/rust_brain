@@ -23,6 +23,7 @@ export async function submitStarIndex(form) {
   }
   const fd = new FormData(form);
   const extra_args = (fd.get('extra_args') || '').toString().split('\n').map(s => s.trim()).filter(Boolean);
+  const output_dir = (fd.get('output_dir') || '').toString().trim();
   const params = {
     genome_fasta: fd.get('genome_fasta'),
     gtf_file:     fd.get('gtf_file'),
@@ -31,6 +32,7 @@ export async function submitStarIndex(form) {
     genome_sa_index_nbases: parseInt(fd.get('genome_sa_index_nbases'), 10) || 14,
     extra_args,
   };
+  if (output_dir) params.output_dir = output_dir;
   markModuleRunPending('star-index');
   try {
     const runId = await modulesApi.run('star_index', params);
