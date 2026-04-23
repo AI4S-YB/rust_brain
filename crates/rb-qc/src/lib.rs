@@ -1,6 +1,6 @@
 use rb_core::cancel::CancellationToken;
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
-use rb_core::run_event::RunEvent;
+use rb_core::run_event::{LogStream, RunEvent};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
@@ -179,15 +179,22 @@ impl Module for QcModule {
 
         for (idx, input_path) in input_files.iter().enumerate() {
             let fraction = idx as f64 / total as f64;
+            let progress_msg = format!(
+                "Processing {} ({}/{})",
+                input_path.display(),
+                idx + 1,
+                total
+            );
             let _ = events_tx
                 .send(RunEvent::Progress {
                     fraction,
-                    message: format!(
-                        "Processing {} ({}/{})",
-                        input_path.display(),
-                        idx + 1,
-                        total
-                    ),
+                    message: progress_msg.clone(),
+                })
+                .await;
+            let _ = events_tx
+                .send(RunEvent::Log {
+                    line: progress_msg,
+                    stream: LogStream::Stdout,
                 })
                 .await;
 
@@ -248,7 +255,14 @@ impl Module for QcModule {
                         "error": report_error,
                         "fastqc_report": fastqc_report,
                     }));
-                    log_lines.push(format!("OK: {}", input_str));
+                    let ok_line = format!("OK: {}", input_str);
+                    log_lines.push(ok_line.clone());
+                    let _ = events_tx
+                        .send(RunEvent::Log {
+                            line: ok_line,
+                            stream: LogStream::Stdout,
+                        })
+                        .await;
                 }
                 Err(e) => {
                     processed.push(serde_json::json!({
@@ -262,7 +276,14 @@ impl Module for QcModule {
                         "error": e.to_string(),
                         "fastqc_report": Value::Null,
                     }));
-                    log_lines.push(format!("ERROR: {} — {}", input_str, e));
+                    let err_line = format!("ERROR: {} — {}", input_str, e);
+                    log_lines.push(err_line.clone());
+                    let _ = events_tx
+                        .send(RunEvent::Log {
+                            line: err_line,
+                            stream: LogStream::Stderr,
+                        })
+                        .await;
                 }
             }
         }
