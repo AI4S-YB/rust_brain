@@ -244,6 +244,16 @@ fn main() {
             rb_fastq_viewer::commands::fastq_viewer_read_records,
             rb_fastq_viewer::commands::fastq_viewer_seek_percent,
             rb_fastq_viewer::commands::fastq_viewer_search_id,
+            rb_genome_viewer::commands::genome_viewer_load_reference,
+            rb_genome_viewer::commands::genome_viewer_add_track,
+            rb_genome_viewer::commands::genome_viewer_remove_track,
+            rb_genome_viewer::commands::genome_viewer_list_tracks,
+            rb_genome_viewer::commands::genome_viewer_fetch_reference_region,
+            rb_genome_viewer::commands::genome_viewer_fetch_track_features,
+            rb_genome_viewer::commands::genome_viewer_search_feature,
+            rb_genome_viewer::commands::genome_viewer_bgzip_and_tabix,
+            rb_genome_viewer::commands::genome_viewer_get_session_state,
+            rb_genome_viewer::commands::genome_viewer_save_session_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");
