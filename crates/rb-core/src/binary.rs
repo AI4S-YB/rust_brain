@@ -36,6 +36,16 @@ pub const KNOWN_BINARIES: &[KnownBinary] = &[
         display_name: "gffread-rs",
         install_hint: "Prebuilt binaries at https://github.com/AI4S-YB/gffread_rs/releases — drop on PATH or set the path in Settings.",
     },
+    KnownBinary {
+        id: "rustqc",
+        display_name: "RustQC",
+        install_hint: "Prebuilt binaries at https://github.com/AI4S-YB/RustQC/releases — drop on PATH or set the path in Settings.",
+    },
+    KnownBinary {
+        id: "wgcna",
+        display_name: "WGCNA (WGCNA_rs)",
+        install_hint: "Prebuilt binaries at https://github.com/AI4S-YB/WGCNA_rs/releases — drop on PATH or set the path in Settings.",
+    },
 ];
 
 #[derive(Debug, thiserror::Error)]

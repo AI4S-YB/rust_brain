@@ -44,6 +44,9 @@ export async function navigate(view) {
   } else if (view === 'star-align') {
     const m = await import('../modules/star-align/view.js');
     if (state.currentView === view) m.renderStarAlignView(content);
+  } else if (view === 'rustqc') {
+    const m = await import('../modules/rustqc/view.js');
+    if (state.currentView === view) m.renderRustqcView(content);
   } else if (view === 'plots') {
     const m = await import('../modules/plots/view.js');
     if (state.currentView === view) m.renderPlotsView(content);
@@ -89,6 +92,11 @@ async function renderModuleView(content, moduleId) {
       if (state.currentView === moduleId) m.renderQCView(content);
       break;
     }
+    case 'rustqc': {
+      const m = await import('../modules/rustqc/view.js');
+      if (state.currentView === moduleId) m.renderRustqcView(content);
+      break;
+    }
     case 'trimming': {
       const m = await import('../modules/trimming/view.js');
       if (state.currentView === moduleId) m.renderTrimmingView(content);
@@ -114,6 +122,7 @@ async function renderModuleView(content, moduleId) {
 async function initChartsForView(view) {
   switch (view) {
     case 'qc':           loadRunsForView('qc', 'qc-runs'); break;
+    case 'rustqc':       loadRunsForView('rustqc', 'rustqc-runs'); break;
     case 'trimming':     loadRunsForView('trimming', 'trimming-runs'); break;
     case 'differential': loadRunsForView('deseq2', 'differential-runs'); break;
     case 'network':      loadRunsForView('wgcna', 'network-runs'); break;

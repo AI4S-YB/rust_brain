@@ -8,6 +8,7 @@ members = [
     "crates/rb-gff-convert",
     "crates/rb-plugin",
     "crates/rb-qc",
+    "crates/rb-rustqc",
     "crates/rb-star-align",
     "crates/rb-star-index",
     "crates/rb-trimming",

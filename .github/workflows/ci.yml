@@ -90,7 +90,7 @@ jobs:
         run: >
           cargo clippy
           -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2
-          -p rb-star-index -p rb-star-align -p rb-gff-convert
+          -p rb-star-index -p rb-star-align -p rb-gff-convert -p rb-rustqc
           -- -D warnings
         env:
           RUSTFLAGS: "--cap-lints=warn"
@@ -108,7 +108,7 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2 -p rb-star-index -p rb-star-align -p rb-gff-convert -- --check
+        run: cargo fmt -p rb-core -p rb-app -p rb-qc -p rb-trimming -p rb-deseq2 -p rb-star-index -p rb-star-align -p rb-gff-convert -p rb-rustqc -- --check
 
   build-and-release:
     name: Build & Release (${{ matrix.os }})
@@ -210,6 +210,96 @@ jobs:
               ;;
           esac
           ls -la crates/rb-app/binaries/
+
+      - name: Download bundled cutadapt-rs binary
+        shell: bash
+        env:
+          CUTADAPT_VERSION: v5.2
+        run: |
+          mkdir -p crates/rb-app/binaries
+          case "${{ runner.os }}" in
+            Linux)
+              URL="https://github.com/AI4S-YB/cutadapt-rs/releases/download/${CUTADAPT_VERSION}/cutadapt-rs-x86_64-linux-baseline.tar.gz"
+              curl -fsSL "$URL" | tar xz -C crates/rb-app/binaries
+              mv crates/rb-app/binaries/cutadapt crates/rb-app/binaries/cutadapt-rs
+              chmod +x crates/rb-app/binaries/cutadapt-rs
+              ;;
+            macOS)
+              URL="https://github.com/AI4S-YB/cutadapt-rs/releases/download/${CUTADAPT_VERSION}/cutadapt-rs-aarch64-macos.tar.gz"
+              curl -fsSL "$URL" | tar xz -C crates/rb-app/binaries
+              mv crates/rb-app/binaries/cutadapt crates/rb-app/binaries/cutadapt-rs
+              chmod +x crates/rb-app/binaries/cutadapt-rs
+              ;;
+            Windows)
+              URL="https://github.com/AI4S-YB/cutadapt-rs/releases/download/${CUTADAPT_VERSION}/cutadapt-rs-x86_64-windows.zip"
+              curl -fsSL -o /tmp/cutadapt.zip "$URL"
+              unzip -o -d crates/rb-app/binaries /tmp/cutadapt.zip
+              mv crates/rb-app/binaries/cutadapt.exe crates/rb-app/binaries/cutadapt-rs.exe
+              ;;
+          esac
+          ls -la crates/rb-app/binaries/
+
+      - name: Download bundled RustQC binary
+        shell: bash
+        env:
+          RUSTQC_VERSION: v0.3.0
+        run: |
+          mkdir -p crates/rb-app/binaries
+          rm -rf /tmp/rustqc_extract
+          mkdir -p /tmp/rustqc_extract
+          case "${{ runner.os }}" in
+            Linux)
+              URL="https://github.com/AI4S-YB/RustQC/releases/download/${RUSTQC_VERSION}/rustqc-linux-x86_64.tar.gz"
+              curl -fsSL "$URL" | tar xz -C /tmp/rustqc_extract
+              mv /tmp/rustqc_extract/rustqc-linux-x86_64/rustqc crates/rb-app/binaries/rustqc
+              chmod +x crates/rb-app/binaries/rustqc
+              ;;
+            macOS)
+              URL="https://github.com/AI4S-YB/RustQC/releases/download/${RUSTQC_VERSION}/rustqc-macos-aarch64.tar.gz"
+              curl -fsSL "$URL" | tar xz -C /tmp/rustqc_extract
+              mv /tmp/rustqc_extract/rustqc-macos-aarch64/rustqc crates/rb-app/binaries/rustqc
+              chmod +x crates/rb-app/binaries/rustqc
+              ;;
+            Windows)
+              URL="https://github.com/AI4S-YB/RustQC/releases/download/${RUSTQC_VERSION}/rustqc-windows-x86_64.zip"
+              curl -fsSL -o /tmp/rustqc.zip "$URL"
+              unzip -o -d /tmp/rustqc_extract /tmp/rustqc.zip
+              mv /tmp/rustqc_extract/rustqc-windows-x86_64/rustqc.exe crates/rb-app/binaries/rustqc.exe
+              ;;
+          esac
+          ls -la crates/rb-app/binaries/
+
+      - name: Download bundled WGCNA_rs binary
+        shell: bash
+        env:
+          WGCNA_VERSION: v1.74.3
+        run: |
+          # wgcna ships with runtime deps (libs/*.dylib on macOS, openblas.dll
+          # on Windows), so we extract into a dedicated subdir so the binary
+          # can find its siblings at runtime. The register_bundled call in
+          # main.rs points at "wgcna-dist/wgcna".
+          mkdir -p crates/rb-app/binaries/wgcna-dist
+          case "${{ runner.os }}" in
+            Linux)
+              URL="https://github.com/AI4S-YB/WGCNA_rs/releases/download/${WGCNA_VERSION}/wgcna-x86_64-linux-baseline.tar.gz"
+              curl -fsSL "$URL" | tar xz -C crates/rb-app/binaries/wgcna-dist
+              chmod +x crates/rb-app/binaries/wgcna-dist/wgcna
+              ;;
+            macOS)
+              URL="https://github.com/AI4S-YB/WGCNA_rs/releases/download/${WGCNA_VERSION}/wgcna-aarch64-macos.tar.gz"
+              curl -fsSL "$URL" | tar xz --strip-components=1 -C crates/rb-app/binaries/wgcna-dist
+              chmod +x crates/rb-app/binaries/wgcna-dist/wgcna
+              ;;
+            Windows)
+              URL="https://github.com/AI4S-YB/WGCNA_rs/releases/download/${WGCNA_VERSION}/wgcna-x86_64-windows.zip"
+              rm -rf /tmp/wgcna_extract
+              mkdir -p /tmp/wgcna_extract
+              curl -fsSL -o /tmp/wgcna.zip "$URL"
+              unzip -o -d /tmp/wgcna_extract /tmp/wgcna.zip
+              mv /tmp/wgcna_extract/wgcna-x86_64-windows/* crates/rb-app/binaries/wgcna-dist/
+              ;;
+          esac
+          ls -la crates/rb-app/binaries/wgcna-dist/
 
       - name: Build Tauri app
         working-directory: crates/rb-app

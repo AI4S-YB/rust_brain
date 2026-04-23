@@ -5,6 +5,7 @@ export const MODULES = [
   { id: 'qc',           view_id: 'qc',           name: 'QC Analysis',                    icon: 'microscope', color: 'teal',   tool: 'fastqc-rs',   status: 'ready', backend: 'qc',          source: 'builtin', has_native_view: true,  category: 'qc' },
   { id: 'trimming',     view_id: 'trimming',     name: 'Adapter Trimming',               icon: 'scissors',   color: 'blue',   tool: 'cutadapt-rs', status: 'ready', backend: 'trimming',    source: 'builtin', has_native_view: true,  category: 'trimming' },
   { id: 'star-align',   view_id: 'star-align',   name: 'Alignment & Quantification',     icon: 'git-merge',  color: 'purple', tool: 'STAR_rs',     status: 'ready', backend: 'star_align',  source: 'builtin', has_native_view: true,  category: 'alignment' },
+  { id: 'rustqc',       view_id: 'rustqc',       name: 'RNA-Seq Post-Align QC',          icon: 'shield-check', color: 'teal', tool: 'RustQC',      status: 'ready', backend: 'rustqc',      source: 'builtin', has_native_view: true,  category: 'qc' },
   { id: 'differential', view_id: 'differential', name: 'Differential Expr.',             icon: 'flame',      color: 'coral',  tool: 'DESeq2_rs',   status: 'ready', backend: 'deseq2',      source: 'builtin', has_native_view: true,  category: 'differential' },
   { id: 'network',      view_id: 'network',      name: 'Network Analysis',               icon: 'share-2',    color: 'green',  tool: 'WGCNA_rs',    status: 'soon',  utility: true,                                source: 'builtin', has_native_view: true,  category: 'other' },
   { id: 'enrichment',   view_id: 'enrichment',   name: 'Enrichment',                     icon: 'target',     color: 'slate',  tool: 'TBD',         status: 'soon',                                                source: 'builtin', has_native_view: true,  category: 'other' },
@@ -31,6 +32,7 @@ export function setBootstrapModules(descriptors) {
 function colorForBuiltin(id) {
   return ({
     qc: 'teal',
+    rustqc: 'teal',
     trimming: 'blue',
     star_align: 'purple',
     deseq2: 'coral',
@@ -78,6 +80,7 @@ export const MAX_COMPUTE_LOAD = 8;
 
 export const RUN_TASKS = {
   qc:           { backend: 'qc',          computeCost: 4 },
+  rustqc:       { backend: 'rustqc',      computeCost: 4 },
   trimming:     { backend: 'trimming',    computeCost: 4 },
   differential: { backend: 'deseq2',      computeCost: 2 },
   'star-index': { backend: 'star_index',  computeCost: 6 },

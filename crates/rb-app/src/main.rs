@@ -22,6 +22,7 @@ fn main() {
     registry.register(Arc::new(rb_gff_convert::GffConvertModule));
     registry.register(Arc::new(rb_star_index::StarIndexModule));
     registry.register(Arc::new(rb_star_align::StarAlignModule));
+    registry.register(Arc::new(rb_rustqc::RustqcModule));
 
     // 2. Build the binary resolver up-front so plugin modules can share it.
     let binary_resolver_inner = rb_core::binary::BinaryResolver::load().unwrap_or_else(|e| {
@@ -96,6 +97,7 @@ fn main() {
         Arc::new(rb_gff_convert::GffConvertModule),
         Arc::new(rb_star_index::StarIndexModule),
         Arc::new(rb_star_align::StarAlignModule),
+        Arc::new(rb_rustqc::RustqcModule),
     ];
     modules_for_ai.extend(plugin_modules.iter().cloned());
 
@@ -195,6 +197,10 @@ fn main() {
         .setup(|app| {
             register_bundled(app, "star", "star");
             register_bundled(app, "gffread-rs", "gffread-rs");
+            register_bundled(app, "cutadapt-rs", "cutadapt-rs");
+            register_bundled(app, "rustqc", "rustqc");
+            // wgcna ships with sibling runtime deps (libs/*.dylib, openblas.dll).
+            register_bundled(app, "wgcna", "wgcna-dist/wgcna");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
