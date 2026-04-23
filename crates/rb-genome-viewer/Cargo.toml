@@ -13,6 +13,7 @@ noodles-gff.workspace = true
 noodles-bed.workspace = true
 noodles-bgzf.workspace = true
 noodles-tabix.workspace = true
+noodles-csi.workspace = true
 noodles-core.workspace = true
 tauri = "2"
 uuid = { workspace = true }
