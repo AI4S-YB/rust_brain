@@ -1051,3 +1051,16 @@
   .plots-chart { height: 420px; }
   .plot-type-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+.run-error-box {
+  background: rgba(201, 80, 60, 0.06);
+  border: 1px solid rgba(201, 80, 60, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--mod-coral);
+  padding: 10px 12px;
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}

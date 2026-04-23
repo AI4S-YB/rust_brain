@@ -11,6 +11,10 @@ export const state = {
   activeRunByModule: {},
   pendingRunByModule: {},
   cancelRequestedByModule: {},
+  // Terminal run-completed/run-failed events received before the frontend had
+  // time to register the runId (race: backend can fail validation and emit
+  // before `run_module` IPC even returns). Consumed by registerStartedRun.
+  pendingTerminalByRunId: {},
   prefill: {},
 };
 

@@ -5,6 +5,7 @@ import { MODULES } from './constants.js';
 import { appendRunLog } from '../ui/log-panel.js';
 import { loadRunsForView } from '../modules/run-result.js';
 import { clearModuleRunStateByRunId, getBusyTaskCount } from './run-controls.js';
+import { showToast } from '../ui/modal.js';
 
 function refreshRunsForRun(runId) {
   if (!runId) return;
@@ -19,6 +20,39 @@ function refreshRunsForRun(runId) {
   return viewId;
 }
 
+export function applyRunCompleted(runId) {
+  const st = document.getElementById('statusText');
+  clearModuleRunStateByRunId(runId);
+  if (st) {
+    st.textContent = getBusyTaskCount() > 0
+      ? `${t('status.running_prefix')}…`
+      : t('status.ready');
+  }
+  const viewId = refreshRunsForRun(runId);
+  if (viewId) {
+    const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
+    if (badge) { badge.className = 'nav-badge done'; badge.textContent = t('badge.done'); }
+  }
+}
+
+export function applyRunFailed(runId, error) {
+  const err = error || t('status.run_failed');
+  const st = document.getElementById('statusText');
+  clearModuleRunStateByRunId(runId);
+  if (st) st.textContent = `${t('status.error_prefix')}: ${err}`;
+  console.error('[run-failed]', runId, err);
+  showToast({
+    title: t('status.run_failed'),
+    message: err,
+    duration: 6000,
+  });
+  const viewId = refreshRunsForRun(runId);
+  if (viewId) {
+    const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
+    if (badge) { badge.className = 'nav-badge'; badge.textContent = ''; }
+  }
+}
+
 export function installRuntimeListeners() {
   api.listen('run-progress', event => {
     const st = document.getElementById('statusText');
@@ -26,31 +60,26 @@ export function installRuntimeListeners() {
   });
 
   api.listen('run-completed', event => {
-    const st = document.getElementById('statusText');
-    clearModuleRunStateByRunId(event.payload?.runId);
-    if (st) {
-      st.textContent = getBusyTaskCount() > 0
-        ? `${t('status.running_prefix')}…`
-        : t('status.ready');
+    const runId = event.payload?.runId;
+    // Race: backend may emit the terminal before the frontend has had a chance
+    // to register the runId in state.runIdToModule (happens when validation
+    // fails synchronously inside module.run). Buffer and let registerStartedRun
+    // replay it.
+    if (runId && !state.runIdToModule[runId]) {
+      state.pendingTerminalByRunId[runId] = { kind: 'completed' };
+      return;
     }
-    const viewId = refreshRunsForRun(event.payload?.runId);
-    if (viewId) {
-      const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
-      if (badge) { badge.className = 'nav-badge done'; badge.textContent = t('badge.done'); }
-    }
+    applyRunCompleted(runId);
   });
 
   api.listen('run-failed', event => {
-    const err = event.payload?.error || t('status.run_failed');
-    const st = document.getElementById('statusText');
-    clearModuleRunStateByRunId(event.payload?.runId);
-    if (st) st.textContent = `${t('status.error_prefix')}: ${err}`;
-    console.error('[run-failed]', event.payload);
-    const viewId = refreshRunsForRun(event.payload?.runId);
-    if (viewId) {
-      const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
-      if (badge) { badge.className = 'nav-badge'; badge.textContent = ''; }
+    const runId = event.payload?.runId;
+    const err = event.payload?.error;
+    if (runId && !state.runIdToModule[runId]) {
+      state.pendingTerminalByRunId[runId] = { kind: 'failed', error: err };
+      return;
     }
+    applyRunFailed(runId, err);
   });
 
   if (window.__TAURI__?.event) {

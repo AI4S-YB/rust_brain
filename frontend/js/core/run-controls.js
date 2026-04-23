@@ -147,6 +147,17 @@ export async function registerStartedRun(moduleId, runId) {
   state.activeRunByModule[moduleId] = runId;
   syncRunButtons();
 
+  // If a terminal event (run-completed/run-failed) arrived before we could
+  // register the runId, replay it now so the button doesn't get stuck.
+  const pending = state.pendingTerminalByRunId[runId];
+  if (pending) {
+    delete state.pendingTerminalByRunId[runId];
+    const { applyRunCompleted, applyRunFailed } = await import('./runtime.js');
+    if (pending.kind === 'completed') applyRunCompleted(runId);
+    else applyRunFailed(runId, pending.error);
+    return false;
+  }
+
   if (state.cancelRequestedByModule[moduleId]) {
     await cancelModuleRun(moduleId);
     return false;

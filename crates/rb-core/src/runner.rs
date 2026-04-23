@@ -118,10 +118,10 @@ impl Runner {
                 .run(&params, &run_dir, events_tx, cancel_for_module)
                 .await;
 
-            let (status, module_result_opt) = match &result {
-                Ok(mr) => (RunStatus::Done, Some(mr.clone())),
-                Err(crate::module::ModuleError::Cancelled) => (RunStatus::Cancelled, None),
-                Err(_) => (RunStatus::Failed, None),
+            let (status, module_result_opt, error_opt) = match &result {
+                Ok(mr) => (RunStatus::Done, Some(mr.clone()), None),
+                Err(crate::module::ModuleError::Cancelled) => (RunStatus::Cancelled, None, None),
+                Err(e) => (RunStatus::Failed, None, Some(e.to_string())),
             };
 
             {
@@ -130,6 +130,7 @@ impl Runner {
                     run.status = status;
                     run.finished_at = Some(Utc::now());
                     run.result = module_result_opt;
+                    run.error = error_opt;
                 }
                 let _ = proj.save();
             }
@@ -272,5 +273,63 @@ mod runner_tests {
         }
         assert_eq!(got_log.lock().unwrap().as_slice(), &["hello".to_string()]);
         assert_eq!(got_prog.lock().unwrap().as_slice(), &[1.0]);
+    }
+
+    struct FailingModule;
+
+    #[async_trait::async_trait]
+    impl Module for FailingModule {
+        fn id(&self) -> &str {
+            "failer"
+        }
+        fn name(&self) -> &str {
+            "Failer"
+        }
+        fn validate(&self, _p: &serde_json::Value) -> Vec<ValidationError> {
+            vec![]
+        }
+        async fn run(
+            &self,
+            _p: &serde_json::Value,
+            _d: &std::path::Path,
+            _tx: mpsc::Sender<RunEvent>,
+            _c: CancellationToken,
+        ) -> Result<ModuleResult, ModuleError> {
+            Err(ModuleError::ToolError("boom: something went wrong".into()))
+        }
+    }
+
+    #[tokio::test]
+    async fn runner_persists_error_on_failed_run() {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = Project::create("t", tmp.path()).unwrap();
+        let runner = Runner::new(Arc::new(Mutex::new(project)));
+        let id = runner
+            .spawn(Arc::new(FailingModule), serde_json::json!({}))
+            .await
+            .unwrap();
+
+        for _ in 0..50 {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            let done = runner
+                .project()
+                .lock()
+                .await
+                .runs
+                .iter()
+                .any(|r| r.id == id && matches!(r.status, RunStatus::Failed));
+            if done {
+                break;
+            }
+        }
+
+        let proj = runner.project().lock().await;
+        let run = proj.runs.iter().find(|r| r.id == id).expect("run exists");
+        assert!(matches!(run.status, RunStatus::Failed));
+        let err = run.error.as_deref().expect("error persisted");
+        assert!(
+            err.contains("boom: something went wrong"),
+            "expected tool error in persisted message, got: {err:?}"
+        );
     }
 }

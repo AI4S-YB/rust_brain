@@ -26,6 +26,8 @@ pub struct RunRecord {
     pub started_at: Option<DateTime<Utc>>,
     pub finished_at: Option<DateTime<Utc>>,
     pub result: Option<ModuleResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -98,6 +100,7 @@ impl Project {
             started_at: None,
             finished_at: None,
             result: None,
+            error: None,
         };
 
         self.runs.push(record.clone());
