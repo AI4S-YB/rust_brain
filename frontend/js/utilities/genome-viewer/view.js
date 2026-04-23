@@ -61,6 +61,20 @@ export async function renderGenomeViewerView(content) {
             reader: new TauriFeatureReader({ trackId: tm.track_id, kind: tm.kind }),
           });
         }
+        if (tm.suggest_bgzip) {
+          const ok = confirm(
+            `${p.split(/[\\/]/).pop()} is large (>200 MB). Build bgzip + tabix index for faster future opens?\n` +
+            `This will create a .gz file next to the original (the original is preserved).`
+          );
+          if (ok) {
+            try {
+              const res = await api('genome_viewer_bgzip_and_tabix', { path: p });
+              console.log(`bgzipped: ${res.new_path}`);
+            } catch (err) {
+              alert(`bgzip failed: ${err?.message || err}`);
+            }
+          }
+        }
       } catch (err) {
         alert(`Failed to load ${p}: ${err?.message || err}`);
       }
