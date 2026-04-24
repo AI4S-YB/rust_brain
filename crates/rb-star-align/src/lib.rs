@@ -2,9 +2,9 @@ pub mod counts;
 pub mod log_final;
 mod subprocess;
 
+use rb_core::asset::{AssetKind, DeclaredAsset};
 use rb_core::binary::BinaryResolver;
 use rb_core::cancel::CancellationToken;
-use rb_core::asset::{AssetKind, DeclaredAsset};
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
 use rb_core::run_event::RunEvent;
 use std::path::{Path, PathBuf};
@@ -109,8 +109,12 @@ fn strand_from_params(params: &serde_json::Value) -> Result<(String, counts::Str
         .and_then(|v| v.as_str())
         .unwrap_or("unstranded")
         .to_string();
-    let strand = counts::Strand::from_str(&strand_str)
-        .ok_or_else(|| format!("strand must be unstranded/forward/reverse, got '{}'", strand_str))?;
+    let strand = counts::Strand::from_str(&strand_str).ok_or_else(|| {
+        format!(
+            "strand must be unstranded/forward/reverse, got '{}'",
+            strand_str
+        )
+    })?;
     Ok((strand_str, strand))
 }
 
@@ -215,7 +219,9 @@ impl Module for StarAlignModule {
         if r1.len() > 1 {
             errors.push(ValidationError {
                 field: "reads_1".into(),
-                message: "STAR alignment runs one sample at a time; provide exactly one reads_1 path".into(),
+                message:
+                    "STAR alignment runs one sample at a time; provide exactly one reads_1 path"
+                        .into(),
             });
         }
         for (i, v) in r1.iter().enumerate() {
@@ -239,7 +245,9 @@ impl Module for StarAlignModule {
             if r2.len() > 1 {
                 errors.push(ValidationError {
                     field: "reads_2".into(),
-                    message: "STAR alignment runs one sample at a time; provide at most one reads_2 path".into(),
+                    message:
+                        "STAR alignment runs one sample at a time; provide at most one reads_2 path"
+                            .into(),
                 });
             }
             if !r2.is_empty() && r2.len() != r1.len() {
@@ -416,11 +424,8 @@ impl Module for StarAlignModule {
             let log_stats = std::fs::read_to_string(&log_final_path)
                 .ok()
                 .map(|t| log_final::parse(&t));
-            let sample_counts = counts::read_reads_per_gene(
-                &reads_per_gene,
-                counts::Strand::Unstranded,
-            )
-            .ok();
+            let sample_counts =
+                counts::read_reads_per_gene(&reads_per_gene, counts::Strand::Unstranded).ok();
 
             let stats_json = log_stats
                 .as_ref()
@@ -614,8 +619,7 @@ impl Module for CountsMergeModule {
                 .map(|p| sample_name_from_reads_per_gene(p))
                 .collect();
         }
-        let (strand_str, strand) =
-            strand_from_params(params).map_err(ModuleError::ToolError)?;
+        let (strand_str, strand) = strand_from_params(params).map_err(ModuleError::ToolError)?;
         let output_name = params
             .get("output_name")
             .and_then(|v| v.as_str())
@@ -631,9 +635,8 @@ impl Module for CountsMergeModule {
                     message: format!("Reading {}", sample_names[idx]),
                 })
                 .await;
-            let counts = counts::read_reads_per_gene(Path::new(path), strand).map_err(|e| {
-                ModuleError::ToolError(format!("parse {}: {}", path, e))
-            })?;
+            let counts = counts::read_reads_per_gene(Path::new(path), strand)
+                .map_err(|e| ModuleError::ToolError(format!("parse {}: {}", path, e)))?;
             per_sample.push(counts);
         }
 
