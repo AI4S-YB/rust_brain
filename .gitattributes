@@ -1,0 +1,10 @@
+*.bed text eol=lf
+*.fa text eol=lf
+*.fai text eol=lf
+*.fasta text eol=lf
+*.fastq text eol=lf
+*.fna text eol=lf
+*.fq text eol=lf
+*.gff text eol=lf
+*.gff3 text eol=lf
+*.gtf text eol=lf

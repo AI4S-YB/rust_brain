@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::BufReader,
+    io::{BufReader, ErrorKind},
     path::{Path, PathBuf},
 };
 
@@ -38,30 +38,25 @@ impl ReferenceHandle {
     /// * Returns an error if `path` does not exist.
     /// * If `path + ".fai"` does not exist, builds and writes it; sets `fai_built: true`.
     /// * Otherwise reads the existing index; sets `fai_built: false`.
+    /// * If the existing index is invalid, rebuilds it; sets `fai_built: true`.
     /// * Returns both the handle (for queries) and metadata (chroms, lengths, build flag).
     pub fn load(path: &Path) -> Result<(Self, ReferenceMeta)> {
         if !path.exists() {
             return Err(ViewerError::NotFound(path.to_path_buf()));
         }
 
-        // Derive the .fai path: append ".fai" to the FASTA path.
-        let fai_path = {
-            let p = path.to_path_buf();
-            let mut os = p.into_os_string();
-            os.push(".fai");
-            PathBuf::from(os)
-        };
+        let fai_path = Self::fai_path(path);
 
         let (index, fai_built) = if fai_path.exists() {
-            // Read existing index.
-            let idx = fasta::fai::fs::read(&fai_path)?;
-            (idx, false)
+            match fasta::fai::fs::read(&fai_path) {
+                Ok(idx) => (idx, false),
+                Err(err) if err.kind() == ErrorKind::InvalidData => {
+                    (Self::build_index(path, &fai_path)?, true)
+                }
+                Err(err) => return Err(err.into()),
+            }
         } else {
-            // Build the index from the FASTA file.
-            let idx = fasta::fs::index(path)?;
-            // Write it next to the FASTA.
-            fasta::fai::fs::write(&fai_path, &idx)?;
-            (idx, true)
+            (Self::build_index(path, &fai_path)?, true)
         };
 
         // Extract chromosome names and lengths from the index records.
@@ -86,6 +81,18 @@ impl ReferenceHandle {
         };
 
         Ok((handle, meta))
+    }
+
+    fn fai_path(path: &Path) -> PathBuf {
+        let mut os = path.as_os_str().to_os_string();
+        os.push(".fai");
+        PathBuf::from(os)
+    }
+
+    fn build_index(path: &Path, fai_path: &Path) -> Result<fasta::fai::Index> {
+        let index = fasta::fs::index(path)?;
+        fasta::fai::fs::write(fai_path, &index)?;
+        Ok(index)
     }
 
     /// Fetch a subsequence from the reference.
@@ -139,6 +146,20 @@ mod tests {
         assert_eq!(meta.chroms[0].length, 128);
         assert_eq!(meta.chroms[1].name, "chr2");
         assert_eq!(meta.chroms[1].length, 128);
+    }
+
+    #[test]
+    fn rebuilds_invalid_existing_fai() {
+        let (_tmp, fa) = isolated_fa();
+        let fai = ReferenceHandle::fai_path(&fa);
+        std::fs::write(&fai, b"chr1\t128\t16\t64\t65\r\nchr2\t128\t162\t64\t65\r\n").unwrap();
+
+        let (handle, meta) = ReferenceHandle::load(&fa).unwrap();
+
+        assert!(meta.fai_built);
+        assert_eq!(meta.chroms.len(), 2);
+        assert_eq!(handle.fetch_region("chr2", 1, 4).unwrap(), "GGGG");
+        assert!(!std::fs::read_to_string(&fai).unwrap().contains('\r'));
     }
 
     #[test]
