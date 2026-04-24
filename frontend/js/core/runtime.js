@@ -10,7 +10,7 @@ import {
   moduleIdForRunId,
   onlyActiveRunId,
 } from './run-controls.js';
-import { showToast } from '../ui/modal.js';
+import { confirmModal, showToast } from '../ui/modal.js';
 
 function runIdFromPayload(payload) {
   return payload?.runId
@@ -133,4 +133,31 @@ export function installRuntimeListeners() {
       if (runId) appendRunLog(runId, line, stream);
     });
   }
+
+  installCloseGuard();
+}
+
+let closeInFlight = false;
+
+function installCloseGuard() {
+  api.listen('close-requested', async (event) => {
+    if (closeInFlight) return;
+    closeInFlight = true;
+    try {
+      const active = Number(event?.payload?.active) || getBusyTaskCount() || 1;
+      const confirmed = await confirmModal({
+        title: t('status.close_confirm_title'),
+        message: t('status.close_confirm_message', { n: active }),
+        okLabel: t('status.close_confirm_exit'),
+        cancelLabel: t('common.cancel'),
+      });
+      if (confirmed) {
+        await api.invoke('force_close_app');
+      }
+    } catch (err) {
+      console.error('[close-guard] failed:', err);
+    } finally {
+      closeInFlight = false;
+    }
+  });
 }

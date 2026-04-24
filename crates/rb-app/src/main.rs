@@ -6,13 +6,41 @@ mod state;
 
 use state::{AppState, ModuleRegistry};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{path::BaseDirectory, Manager};
+use tauri::{path::BaseDirectory, Emitter, Manager};
 
 /// Bundled plugin manifests embedded at compile time. The directory may be
 /// empty (it always contains a `.keep` to ensure it's checked into git).
 pub static BUNDLED_PLUGINS: include_dir::Dir<'_> =
     include_dir::include_dir!("$CARGO_MANIFEST_DIR/plugins");
+
+/// Shared flag so `force_close_app` can tell the window-close handler to let
+/// the next CloseRequested through without re-prompting.
+struct CloseConfirmed(Arc<AtomicBool>);
+
+#[tauri::command]
+async fn force_close_app(
+    window: tauri::Window,
+    state: tauri::State<'_, AppState>,
+    close_state: tauri::State<'_, CloseConfirmed>,
+) -> Result<(), String> {
+    // Cancel in-flight runs in parallel so subprocesses get a chance to exit
+    // cleanly before the window (and with it, the tokio runtime) tears down.
+    // Each `cancel` call has a 500ms cooperative grace period — running them
+    // sequentially would scale badly with many active runs.
+    let runner_opt = { state.runner.lock().await.clone() };
+    if let Some(runner) = runner_opt {
+        let ids = runner.active_run_ids().await;
+        let cancels = ids.into_iter().map(|id| {
+            let runner = runner.clone();
+            async move { runner.cancel(&id).await }
+        });
+        futures_util::future::join_all(cancels).await;
+    }
+    close_state.0.store(true, Ordering::SeqCst);
+    window.close().map_err(|e| e.to_string())
+}
 
 fn main() {
     // 1. First-party module registry (unchanged).
@@ -193,8 +221,13 @@ fn main() {
             .collect();
     }
 
+    // Flips to true once the user confirms closing while runs are in flight —
+    // stops the window close handler from asking twice.
+    let close_confirmed = Arc::new(AtomicBool::new(false));
+
     tauri::Builder::default()
         .manage(app_state)
+        .manage(CloseConfirmed(close_confirmed.clone()))
         .setup(|app| {
             register_bundled(app, "star", "star");
             register_bundled(app, "gffread-rs", "gffread-rs");
@@ -203,6 +236,38 @@ fn main() {
             // wgcna ships with sibling runtime deps (libs/*.dylib, openblas.dll).
             register_bundled(app, "wgcna", "wgcna-dist/wgcna");
             Ok(())
+        })
+        .on_window_event({
+            let close_confirmed = close_confirmed.clone();
+            move |window, event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    if close_confirmed.load(Ordering::SeqCst) {
+                        return;
+                    }
+                    let state = window.state::<AppState>();
+                    let runner_mutex = state.runner.clone();
+                    // `active_run_count` is a lock-free atomic, so a `try_lock`
+                    // is only needed to confirm a runner exists — the count
+                    // itself never blocks.
+                    let active = match runner_mutex.try_lock() {
+                        Ok(guard) => guard
+                            .as_ref()
+                            .map(|r| r.active_run_count())
+                            .unwrap_or(0),
+                        // If the runner lock is momentarily held, err on the
+                        // side of asking — a spurious prompt is better than
+                        // silently killing a run.
+                        Err(_) => 1,
+                    };
+                    if active > 0 {
+                        api.prevent_close();
+                        let _ = window.emit(
+                            "close-requested",
+                            serde_json::json!({ "active": active }),
+                        );
+                    }
+                }
+            }
         })
         .invoke_handler(tauri::generate_handler![
             commands::project::create_project,
@@ -217,6 +282,7 @@ fn main() {
             commands::modules::clear_runs,
             commands::modules::get_run_sizes,
             commands::modules::list_modules,
+            force_close_app,
             commands::inputs::list_inputs,
             commands::inputs::register_input,
             commands::inputs::register_inputs_batch,

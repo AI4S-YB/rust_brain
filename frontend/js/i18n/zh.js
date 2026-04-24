@@ -347,6 +347,9 @@
         no_runs: '暂无运行记录。',
         load_runs_failed: '无法加载运行记录',
         run_label: '运行',
+        close_confirm_title: '仍有任务正在运行',
+        close_confirm_message: '还有 {n} 个任务正在运行。现在退出会取消它们，尚未保存的输出可能会丢失。确定要退出吗？',
+        close_confirm_exit: '退出并取消',
       },
       project: {
         no_project: '未选择项目',

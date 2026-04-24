@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -25,6 +26,9 @@ pub struct Runner {
     on_log: Option<Arc<LogCallback>>,
     on_complete: Option<Arc<CompletionCallback>>,
     active_runs: Arc<Mutex<HashMap<String, ActiveRun>>>,
+    // Mirrors `active_runs.len()` for lock-free, synchronous reads (e.g. from
+    // a Tauri window close handler that can't await an async mutex).
+    active_run_count: Arc<AtomicUsize>,
 }
 
 impl Runner {
@@ -35,7 +39,19 @@ impl Runner {
             on_log: None,
             on_complete: None,
             active_runs: Arc::new(Mutex::new(HashMap::new())),
+            active_run_count: Arc::new(AtomicUsize::new(0)),
         }
+    }
+
+    /// Non-blocking snapshot of how many runs are currently in-flight.
+    pub fn active_run_count(&self) -> usize {
+        self.active_run_count.load(Ordering::SeqCst)
+    }
+
+    /// Snapshot of in-flight run ids, for bulk cancellation.
+    pub async fn active_run_ids(&self) -> Vec<String> {
+        let active = self.active_runs.lock().await;
+        active.keys().cloned().collect()
     }
 
     pub fn on_progress(mut self, cb: ProgressCallback) -> Self {
@@ -93,6 +109,7 @@ impl Runner {
 
         let project_arc = Arc::clone(&self.project);
         let active_runs_arc = Arc::clone(&self.active_runs);
+        let active_count_arc = Arc::clone(&self.active_run_count);
         let on_progress_arc = self.on_progress.clone();
         let on_log_arc = self.on_log.clone();
         let on_complete_arc = self.on_complete.clone();
@@ -162,7 +179,9 @@ impl Runner {
 
             {
                 let mut active = active_runs_arc.lock().await;
-                active.remove(&rid);
+                if active.remove(&rid).is_some() {
+                    active_count_arc.fetch_sub(1, Ordering::SeqCst);
+                }
             }
 
             if let Some(cb) = &on_complete_arc {
@@ -180,6 +199,7 @@ impl Runner {
                     cancel: cancel_token,
                 },
             );
+            self.active_run_count.fetch_add(1, Ordering::SeqCst);
         }
 
         Ok(run_id)
@@ -188,7 +208,11 @@ impl Runner {
     pub async fn cancel(&self, run_id: &str) {
         let entry = {
             let mut active = self.active_runs.lock().await;
-            active.remove(run_id)
+            let removed = active.remove(run_id);
+            if removed.is_some() {
+                self.active_run_count.fetch_sub(1, Ordering::SeqCst);
+            }
+            removed
         };
 
         if let Some(ActiveRun { handle, cancel }) = entry {
