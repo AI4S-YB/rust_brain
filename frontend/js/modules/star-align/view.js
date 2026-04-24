@@ -77,6 +77,15 @@ export function renderStarAlignView(container) {
               <label class="form-label">${t('star_align.threads')}</label>
               <input type="number" class="form-input" name="threads" value="4" min="1" />
             </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_align.sort_bam')}</label>
+              <select class="form-input" name="sort_bam">
+                <option value="unsorted">${t('star_align.sort_unsorted')}</option>
+                <option value="coordinate">${t('star_align.sort_coordinate')}</option>
+                <option value="both">${t('star_align.sort_both')}</option>
+              </select>
+              <span class="form-hint">${t('star_align.sort_bam_hint')}</span>
+            </div>
             <div class="collapsible">
               <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
                 ${t('common.advanced_options')} <i data-lucide="chevron-down"></i>

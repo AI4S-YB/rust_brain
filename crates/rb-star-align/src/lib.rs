@@ -160,6 +160,12 @@ impl Module for StarAlignModule {
                     "default": 4,
                     "description": "Threads passed to STAR via --runThreadN."
                 },
+                "sort_bam": {
+                    "type": "string",
+                    "enum": ["unsorted", "coordinate", "both"],
+                    "default": "unsorted",
+                    "description": "BAM output mode. 'unsorted' emits Aligned.out.bam; 'coordinate' emits Aligned.sortedByCoord.out.bam (required by IGV/indexing); 'both' emits both files."
+                },
                 "extra_args": {
                     "type": "array",
                     "items": { "type": "string" },
@@ -284,6 +290,19 @@ impl Module for StarAlignModule {
             }
         }
 
+        if let Some(v) = params.get("sort_bam") {
+            let ok = v
+                .as_str()
+                .map(|s| matches!(s, "unsorted" | "coordinate" | "both"))
+                .unwrap_or(false);
+            if !ok {
+                errors.push(ValidationError {
+                    field: "sort_bam".into(),
+                    message: "sort_bam must be one of: unsorted, coordinate, both".into(),
+                });
+            }
+        }
+
         if let Ok(resolver) = BinaryResolver::load() {
             if let Err(e) = resolver.resolve("star") {
                 errors.push(ValidationError {
@@ -334,6 +353,11 @@ impl Module for StarAlignModule {
             sample_names = reads_1.iter().map(|r| sample_name_from_r1(r)).collect();
         }
         let threads = params.get("threads").and_then(|v| v.as_u64()).unwrap_or(4);
+        let sort_bam = params
+            .get("sort_bam")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unsorted")
+            .to_string();
         let extra: Vec<String> = params
             .get("extra_args")
             .and_then(|v| v.as_array())
@@ -396,7 +420,18 @@ impl Module for StarAlignModule {
             args.push("GeneCounts".into());
             args.push("--outSAMtype".into());
             args.push("BAM".into());
-            args.push("Unsorted".into());
+            match sort_bam.as_str() {
+                "coordinate" => {
+                    args.push("SortedByCoordinate".into());
+                }
+                "both" => {
+                    args.push("Unsorted".into());
+                    args.push("SortedByCoordinate".into());
+                }
+                _ => {
+                    args.push("Unsorted".into());
+                }
+            }
             args.extend(extra.iter().cloned());
 
             let status =
@@ -405,7 +440,13 @@ impl Module for StarAlignModule {
 
             let log_final_path = sample_out.join("Log.final.out");
             let reads_per_gene = sample_out.join("ReadsPerGene.out.tab");
-            let bam = sample_out.join("Aligned.out.bam");
+            let bam_unsorted = sample_out.join("Aligned.out.bam");
+            let bam_sorted = sample_out.join("Aligned.sortedByCoord.out.bam");
+            let bam = match sort_bam.as_str() {
+                "coordinate" => bam_sorted.clone(),
+                "both" => bam_sorted.clone(),
+                _ => bam_unsorted.clone(),
+            };
 
             if !status.success() {
                 samples_summary.push(serde_json::json!({
@@ -457,7 +498,10 @@ impl Module for StarAlignModule {
             }));
 
             if bam.exists() {
-                output_files.push(bam);
+                output_files.push(bam.clone());
+            }
+            if sort_bam == "both" && bam_unsorted.exists() && bam_unsorted != bam {
+                output_files.push(bam_unsorted.clone());
             }
             if reads_per_gene.exists() {
                 output_files.push(reads_per_gene);
