@@ -4,6 +4,7 @@ members = [
     "crates/rb-core",
     "crates/rb-ai",
     "crates/rb-app",
+    "crates/rb-bam-tools",
     "crates/rb-deseq2",
     "crates/rb-fastq-viewer",
     "crates/rb-genome-viewer",
@@ -33,6 +34,8 @@ glob = "0.3"
 shlex = "1"
 bincode = "1.3"
 sha1 = "0.10"
+noodles-bam = "0.88"
+noodles-sam = "0.84"
 noodles-fastq = "0.22"
 noodles-fasta = "0.60"
 noodles-gff = "0.56"

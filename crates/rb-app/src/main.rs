@@ -58,6 +58,7 @@ fn main() {
     registry.register(Arc::new(rb_gff_convert::GffConvertModule));
     registry.register(Arc::new(rb_star_index::StarIndexModule));
     registry.register(Arc::new(rb_star_align::StarAlignModule));
+    registry.register(Arc::new(rb_star_align::CountsMergeModule));
     registry.register(Arc::new(rb_rustqc::RustqcModule));
 
     // 2. Build the binary resolver up-front so plugin modules can share it.
@@ -133,6 +134,7 @@ fn main() {
         Arc::new(rb_gff_convert::GffConvertModule),
         Arc::new(rb_star_index::StarIndexModule),
         Arc::new(rb_star_align::StarAlignModule),
+        Arc::new(rb_star_align::CountsMergeModule),
         Arc::new(rb_rustqc::RustqcModule),
     ];
     modules_for_ai.extend(plugin_modules.iter().cloned());
@@ -342,6 +344,10 @@ fn main() {
             rb_genome_viewer::commands::genome_viewer_bgzip_and_tabix,
             rb_genome_viewer::commands::genome_viewer_get_session_state,
             rb_genome_viewer::commands::genome_viewer_save_session_state,
+            rb_bam_tools::commands::bam_tools_index,
+            rb_bam_tools::commands::bam_tools_index_status,
+            rb_bam_tools::commands::bam_tools_header_references,
+            rb_bam_tools::commands::bam_tools_extract_region,
         ])
         .run(tauri::generate_context!())
         .expect("error while running RustBrain");

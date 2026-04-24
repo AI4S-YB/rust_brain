@@ -4,12 +4,14 @@ mod subprocess;
 
 use rb_core::binary::BinaryResolver;
 use rb_core::cancel::CancellationToken;
+use rb_core::asset::{AssetKind, DeclaredAsset};
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
 use rb_core::run_event::RunEvent;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 
 pub struct StarAlignModule;
+pub struct CountsMergeModule;
 
 fn sample_name_from_r1(r1: &str) -> String {
     let p = Path::new(r1);
@@ -30,13 +32,95 @@ fn sample_name_from_r1(r1: &str) -> String {
     name
 }
 
+fn sample_name_from_reads_per_gene(path: &str) -> String {
+    let p = Path::new(path);
+    if let Some(parent) = p.parent().and_then(|x| x.file_name()) {
+        let name = parent.to_string_lossy();
+        if !name.is_empty() {
+            return name.to_string();
+        }
+    }
+    p.file_stem()
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_else(|| "sample".into())
+}
+
+fn string_array_or_lines(params: &serde_json::Value, key: &str) -> Vec<String> {
+    match params.get(key) {
+        Some(v) if v.is_array() => v
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+            .filter(|s| !s.is_empty())
+            .collect(),
+        Some(v) if v.is_string() => v
+            .as_str()
+            .unwrap()
+            .lines()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+fn validate_sample_names(
+    names: &[String],
+    expected_len: usize,
+    field: &str,
+    errors: &mut Vec<ValidationError>,
+) {
+    if !names.is_empty() && names.len() != expected_len {
+        errors.push(ValidationError {
+            field: field.into(),
+            message: format!(
+                "{} length ({}) must match input length ({})",
+                field,
+                names.len(),
+                expected_len
+            ),
+        });
+    }
+    let mut seen = std::collections::HashSet::new();
+    for (i, s) in names.iter().enumerate() {
+        if s.is_empty()
+            || !s
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
+        {
+            errors.push(ValidationError {
+                field: format!("{}[{}]", field, i),
+                message: "must be non-empty and match [A-Za-z0-9_.-]+".into(),
+            });
+        }
+        if !seen.insert(s) {
+            errors.push(ValidationError {
+                field: format!("{}[{}]", field, i),
+                message: format!("duplicate sample name: {}", s),
+            });
+        }
+    }
+}
+
+fn strand_from_params(params: &serde_json::Value) -> Result<(String, counts::Strand), String> {
+    let strand_str = params
+        .get("strand")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unstranded")
+        .to_string();
+    let strand = counts::Strand::from_str(&strand_str)
+        .ok_or_else(|| format!("strand must be unstranded/forward/reverse, got '{}'", strand_str))?;
+    Ok((strand_str, strand))
+}
+
 #[async_trait::async_trait]
 impl Module for StarAlignModule {
     fn id(&self) -> &str {
         "star_align"
     }
     fn name(&self) -> &str {
-        "STAR Alignment & Quantification"
+        "STAR Single-Sample Alignment"
     }
 
     fn params_schema(&self) -> Option<serde_json::Value> {
@@ -51,23 +135,20 @@ impl Module for StarAlignModule {
                     "type": "array",
                     "items": { "type": "string" },
                     "minItems": 1,
-                    "description": "FASTQ paths for mate 1 (or single-end reads), one entry per sample."
+                    "maxItems": 1,
+                    "description": "FASTQ path for mate 1 (or single-end reads). STAR runs one sample at a time."
                 },
                 "reads_2": {
                     "type": "array",
                     "items": { "type": "string" },
-                    "description": "FASTQ paths for mate 2. Omit or leave empty for single-end. If provided, length must match reads_1."
+                    "maxItems": 1,
+                    "description": "FASTQ path for mate 2. Omit or leave empty for single-end."
                 },
                 "sample_names": {
                     "type": "array",
                     "items": { "type": "string" },
-                    "description": "Optional sample names (must match reads_1 length, chars [A-Za-z0-9_.-]). Defaults are derived from reads_1 filenames."
-                },
-                "strand": {
-                    "type": "string",
-                    "enum": ["unstranded", "forward", "reverse"],
-                    "default": "unstranded",
-                    "description": "Library strandedness; selects which column of ReadsPerGene.out.tab to use."
+                    "maxItems": 1,
+                    "description": "Optional sample name (chars [A-Za-z0-9_.-]). Defaults are derived from the reads_1 filename."
                 },
                 "threads": {
                     "type": "integer",
@@ -88,8 +169,8 @@ impl Module for StarAlignModule {
 
     fn ai_hint(&self, lang: &str) -> String {
         match lang {
-            "zh" => "用 run_star_align 把测序 reads 比对到基因组,并产出 counts_matrix.tsv 供 run_deseq2 使用。genome_dir 用 run_star_index 的输出目录;reads_1 是 mate1/单端 FASTQ 列表,双端时用 reads_2 提供等长的 mate2 列表。".into(),
-            _    => "Use run_star_align to align reads to the genome and produce a counts_matrix.tsv consumed by run_deseq2. `genome_dir` is the output of run_star_index; `reads_1` lists mate-1 (or single-end) FASTQs and `reads_2` lists the matching mate-2 files for paired-end data.".into(),
+            "zh" => "用 run_star_align 把单个样本的 reads 比对到基因组,产出 BAM、Log.final.out 和 ReadsPerGene.out.tab。多个样本完成后,再用 run_counts_merge 合并多个 ReadsPerGene.out.tab 生成 DESeq2 所需的 counts_matrix.tsv。".into(),
+            _    => "Use run_star_align to align one sample at a time and produce BAM, Log.final.out, and ReadsPerGene.out.tab. After multiple samples finish, use run_counts_merge to merge ReadsPerGene.out.tab files into the counts_matrix.tsv consumed by DESeq2.".into(),
         }
     }
 
@@ -131,6 +212,12 @@ impl Module for StarAlignModule {
                 message: "reads_1 must be a non-empty array".into(),
             });
         }
+        if r1.len() > 1 {
+            errors.push(ValidationError {
+                field: "reads_1".into(),
+                message: "STAR alignment runs one sample at a time; provide exactly one reads_1 path".into(),
+            });
+        }
         for (i, v) in r1.iter().enumerate() {
             match v.as_str() {
                 None => errors.push(ValidationError {
@@ -149,6 +236,12 @@ impl Module for StarAlignModule {
         }
 
         if let Some(r2) = params.get("reads_2").and_then(|v| v.as_array()) {
+            if r2.len() > 1 {
+                errors.push(ValidationError {
+                    field: "reads_2".into(),
+                    message: "STAR alignment runs one sample at a time; provide at most one reads_2 path".into(),
+                });
+            }
             if !r2.is_empty() && r2.len() != r1.len() {
                 errors.push(ValidationError {
                     field: "reads_2".into(),
@@ -171,50 +264,8 @@ impl Module for StarAlignModule {
             }
         }
 
-        if let Some(names) = params.get("sample_names").and_then(|v| v.as_array()) {
-            if names.len() != r1.len() {
-                errors.push(ValidationError {
-                    field: "sample_names".into(),
-                    message: format!(
-                        "sample_names length ({}) must match reads_1 length ({})",
-                        names.len(),
-                        r1.len()
-                    ),
-                });
-            }
-            let mut seen = std::collections::HashSet::new();
-            for (i, v) in names.iter().enumerate() {
-                let s = v.as_str().unwrap_or("");
-                if s.is_empty()
-                    || !s
-                        .chars()
-                        .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
-                {
-                    errors.push(ValidationError {
-                        field: format!("sample_names[{}]", i),
-                        message: "must be non-empty and match [A-Za-z0-9_.-]+".into(),
-                    });
-                }
-                if !seen.insert(s) {
-                    errors.push(ValidationError {
-                        field: format!("sample_names[{}]", i),
-                        message: format!("duplicate sample name: {}", s),
-                    });
-                }
-            }
-        }
-
-        match params
-            .get("strand")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unstranded")
-        {
-            "unstranded" | "forward" | "reverse" => {}
-            other => errors.push(ValidationError {
-                field: "strand".into(),
-                message: format!("strand must be unstranded/forward/reverse, got '{}'", other),
-            }),
-        }
+        let names = string_array_or_lines(params, "sample_names");
+        validate_sample_names(&names, r1.len(), "sample_names", &mut errors);
 
         if let Some(v) = params.get("extra_args") {
             if !v.is_array() || !v.as_array().unwrap().iter().all(|x| x.is_string()) {
@@ -270,21 +321,11 @@ impl Module for StarAlignModule {
                     .collect()
             })
             .unwrap_or_default();
-        let sample_names: Vec<String> = match params.get("sample_names").and_then(|v| v.as_array())
-        {
-            Some(a) => a
-                .iter()
-                .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                .collect(),
-            None => reads_1.iter().map(|r| sample_name_from_r1(r)).collect(),
-        };
+        let mut sample_names = string_array_or_lines(params, "sample_names");
+        if sample_names.is_empty() {
+            sample_names = reads_1.iter().map(|r| sample_name_from_r1(r)).collect();
+        }
         let threads = params.get("threads").and_then(|v| v.as_u64()).unwrap_or(4);
-        let strand_str = params
-            .get("strand")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unstranded")
-            .to_string();
-        let strand = counts::Strand::from_str(&strand_str).unwrap();
         let extra: Vec<String> = params
             .get("extra_args")
             .and_then(|v| v.as_array())
@@ -299,7 +340,6 @@ impl Module for StarAlignModule {
         std::fs::create_dir_all(&run_dir)?;
 
         let total = reads_1.len();
-        let mut per_sample_counts: Vec<counts::SampleCounts> = Vec::with_capacity(total);
         let mut samples_summary: Vec<serde_json::Value> = Vec::with_capacity(total);
         let mut output_files: Vec<PathBuf> = Vec::new();
         let mut combined_log = String::new();
@@ -370,26 +410,22 @@ impl Module for StarAlignModule {
                     name,
                     status.code().unwrap_or(-1)
                 ));
-                // Insert an empty counts entry so matrix alignment stays consistent,
-                // otherwise the sample would be missing from the matrix columns.
-                per_sample_counts.push(counts::SampleCounts {
-                    summary: counts::SampleSummary::default(),
-                    genes: std::collections::BTreeMap::new(),
-                });
                 continue;
             }
 
             let log_stats = std::fs::read_to_string(&log_final_path)
                 .ok()
                 .map(|t| log_final::parse(&t));
-            let sample_counts =
-                counts::read_reads_per_gene(&reads_per_gene, strand).map_err(|e| {
-                    ModuleError::ToolError(format!("parse {}: {}", reads_per_gene.display(), e))
-                })?;
+            let sample_counts = counts::read_reads_per_gene(
+                &reads_per_gene,
+                counts::Strand::Unstranded,
+            )
+            .ok();
 
             let stats_json = log_stats
                 .as_ref()
                 .map(|s| {
+                    let counts_summary = sample_counts.as_ref().map(|c| &c.summary);
                     serde_json::json!({
                         "input_reads":           s.input_reads,
                         "uniquely_mapped":       s.uniquely_mapped,
@@ -398,10 +434,10 @@ impl Module for StarAlignModule {
                         "multi_mapped_pct":      s.multi_mapped_pct,
                         "unmapped":              s.unmapped,
                         "unmapped_pct":          s.unmapped_pct,
-                        "n_unmapped":            sample_counts.summary.n_unmapped,
-                        "n_multimapping":        sample_counts.summary.n_multimapping,
-                        "n_nofeature":           sample_counts.summary.n_nofeature,
-                        "n_ambiguous":           sample_counts.summary.n_ambiguous,
+                        "n_unmapped":            counts_summary.map(|c| c.n_unmapped),
+                        "n_multimapping":        counts_summary.map(|c| c.n_multimapping),
+                        "n_nofeature":           counts_summary.map(|c| c.n_nofeature),
+                        "n_ambiguous":           counts_summary.map(|c| c.n_ambiguous),
                     })
                 })
                 .unwrap_or(serde_json::Value::Null);
@@ -424,20 +460,7 @@ impl Module for StarAlignModule {
             if log_final_path.exists() {
                 output_files.push(log_final_path);
             }
-
-            per_sample_counts.push(sample_counts);
         }
-
-        let _ = events_tx
-            .send(RunEvent::Progress {
-                fraction: 1.0,
-                message: "Merging counts matrix".into(),
-            })
-            .await;
-
-        let matrix_path = run_dir.join("counts_matrix.tsv");
-        counts::write_counts_matrix(&matrix_path, &sample_names, &per_sample_counts)?;
-        output_files.push(matrix_path.clone());
 
         let _ = events_tx
             .send(RunEvent::Progress {
@@ -448,8 +471,10 @@ impl Module for StarAlignModule {
 
         let summary = serde_json::json!({
             "run_dir": run_dir.display().to_string(),
-            "counts_matrix": matrix_path.display().to_string(),
-            "strand": strand_str,
+            "reads_per_gene": samples_summary
+                .iter()
+                .find_map(|s| s.get("reads_per_gene").and_then(|v| v.as_str()))
+                .unwrap_or(""),
             "genome_dir": genome_dir,
             "samples": samples_summary,
         });
@@ -459,6 +484,204 @@ impl Module for StarAlignModule {
             summary,
             log: combined_log,
         })
+    }
+}
+
+#[async_trait::async_trait]
+impl Module for CountsMergeModule {
+    fn id(&self) -> &str {
+        "counts_merge"
+    }
+
+    fn name(&self) -> &str {
+        "Counts Matrix Merge"
+    }
+
+    fn params_schema(&self) -> Option<serde_json::Value> {
+        Some(serde_json::json!({
+            "type": "object",
+            "properties": {
+                "reads_per_gene": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "minItems": 1,
+                    "description": "ReadsPerGene.out.tab files produced by STAR, one per sample."
+                },
+                "sample_names": {
+                    "type": ["array", "string"],
+                    "description": "Optional sample names matching reads_per_gene order. A textarea string is split by lines."
+                },
+                "strand": {
+                    "type": "string",
+                    "enum": ["unstranded", "forward", "reverse"],
+                    "default": "unstranded",
+                    "description": "Which count column to use from each ReadsPerGene.out.tab file."
+                },
+                "output_name": {
+                    "type": "string",
+                    "default": "counts_matrix.tsv",
+                    "description": "Output TSV filename written inside this run directory."
+                }
+            },
+            "required": ["reads_per_gene"],
+            "additionalProperties": false
+        }))
+    }
+
+    fn ai_hint(&self, lang: &str) -> String {
+        match lang {
+            "zh" => "用 run_counts_merge 合并多个 STAR ReadsPerGene.out.tab 文件。reads_per_gene 按样本顺序传入, sample_names 可选但建议提供; strand 选择使用 unstranded/forward/reverse 哪一列,输出 counts_matrix.tsv 供 run_deseq2 使用。".into(),
+            _ => "Use run_counts_merge to merge multiple STAR ReadsPerGene.out.tab files. Pass reads_per_gene in sample order, optionally provide sample_names, choose the unstranded/forward/reverse count column with strand, and use the output counts_matrix.tsv in run_deseq2.".into(),
+        }
+    }
+
+    fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {
+        let mut errors = Vec::new();
+        let files = params
+            .get("reads_per_gene")
+            .and_then(|v| v.as_array())
+            .cloned()
+            .unwrap_or_default();
+        if files.is_empty() {
+            errors.push(ValidationError {
+                field: "reads_per_gene".into(),
+                message: "reads_per_gene must contain at least one file".into(),
+            });
+        }
+        for (i, v) in files.iter().enumerate() {
+            match v.as_str() {
+                Some(path) if Path::new(path).is_file() => {}
+                Some(path) => errors.push(ValidationError {
+                    field: format!("reads_per_gene[{}]", i),
+                    message: format!("file does not exist: {}", path),
+                }),
+                None => errors.push(ValidationError {
+                    field: format!("reads_per_gene[{}]", i),
+                    message: "must be a string path".into(),
+                }),
+            }
+        }
+
+        let names = string_array_or_lines(params, "sample_names");
+        validate_sample_names(&names, files.len(), "sample_names", &mut errors);
+
+        if let Err(message) = strand_from_params(params) {
+            errors.push(ValidationError {
+                field: "strand".into(),
+                message,
+            });
+        }
+
+        if let Some(output_name) = params.get("output_name").and_then(|v| v.as_str()) {
+            if output_name.trim().is_empty()
+                || output_name.contains('/')
+                || output_name.contains('\\')
+                || output_name == "."
+                || output_name == ".."
+            {
+                errors.push(ValidationError {
+                    field: "output_name".into(),
+                    message: "output_name must be a filename inside the run directory".into(),
+                });
+            }
+        }
+
+        errors
+    }
+
+    async fn run(
+        &self,
+        params: &serde_json::Value,
+        project_dir: &Path,
+        events_tx: mpsc::Sender<RunEvent>,
+        _cancel: CancellationToken,
+    ) -> Result<ModuleResult, ModuleError> {
+        let errors = self.validate(params);
+        if !errors.is_empty() {
+            return Err(ModuleError::InvalidParams(errors));
+        }
+
+        let files: Vec<String> = params["reads_per_gene"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+            .collect();
+        let mut sample_names = string_array_or_lines(params, "sample_names");
+        if sample_names.is_empty() {
+            sample_names = files
+                .iter()
+                .map(|p| sample_name_from_reads_per_gene(p))
+                .collect();
+        }
+        let (strand_str, strand) =
+            strand_from_params(params).map_err(ModuleError::ToolError)?;
+        let output_name = params
+            .get("output_name")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or("counts_matrix.tsv");
+
+        std::fs::create_dir_all(project_dir)?;
+        let mut per_sample = Vec::with_capacity(files.len());
+        for (idx, path) in files.iter().enumerate() {
+            let _ = events_tx
+                .send(RunEvent::Progress {
+                    fraction: idx as f64 / files.len() as f64,
+                    message: format!("Reading {}", sample_names[idx]),
+                })
+                .await;
+            let counts = counts::read_reads_per_gene(Path::new(path), strand).map_err(|e| {
+                ModuleError::ToolError(format!("parse {}: {}", path, e))
+            })?;
+            per_sample.push(counts);
+        }
+
+        let matrix_path = project_dir.join(output_name);
+        counts::write_counts_matrix(&matrix_path, &sample_names, &per_sample)?;
+        let gene_count = counts::union_gene_count(&per_sample);
+
+        let _ = events_tx
+            .send(RunEvent::Progress {
+                fraction: 1.0,
+                message: "Done".into(),
+            })
+            .await;
+
+        let summary = serde_json::json!({
+            "counts_matrix": matrix_path.display().to_string(),
+            "strand": strand_str,
+            "sample_count": sample_names.len(),
+            "gene_count": gene_count,
+            "samples": sample_names.iter().zip(files.iter()).map(|(name, path)| {
+                serde_json::json!({ "name": name, "reads_per_gene": path })
+            }).collect::<Vec<_>>(),
+        });
+
+        Ok(ModuleResult {
+            output_files: vec![matrix_path],
+            summary,
+            log: format!(
+                "Merged {} ReadsPerGene files into a {}-gene count matrix",
+                sample_names.len(),
+                gene_count
+            ),
+        })
+    }
+
+    fn produced_assets(&self, result: &ModuleResult) -> Vec<DeclaredAsset> {
+        let Some(path) = result.summary.get("counts_matrix").and_then(|v| v.as_str()) else {
+            return Vec::new();
+        };
+        let Some(file_name) = Path::new(path).file_name() else {
+            return Vec::new();
+        };
+        vec![DeclaredAsset {
+            kind: AssetKind::CountsMatrix,
+            relative_path: PathBuf::from(file_name),
+            display_name: "Counts matrix".into(),
+            schema: Some("gene_id x samples count matrix (TSV)".into()),
+        }]
     }
 }
 
@@ -508,17 +731,69 @@ mod tests {
 
     #[test]
     fn validate_rejects_bad_strand() {
+        let m = CountsMergeModule;
+        let errs = m.validate(&serde_json::json!({
+            "reads_per_gene": [fixture_path("ReadsPerGene.sample1.out.tab")],
+            "strand": "weird",
+        }));
+        assert!(errs.iter().any(|e| e.field == "strand"));
+    }
+
+    #[test]
+    fn validate_rejects_multiple_r1_files() {
         let tmp = tempfile::tempdir().unwrap();
         let gd = tmp.path().join("gdir");
         std::fs::create_dir_all(&gd).unwrap();
         std::fs::write(gd.join("SA"), "").unwrap();
         let r1 = tmp.path().join("a_R1.fq");
         std::fs::write(&r1, "").unwrap();
+        let r1b = tmp.path().join("b_R1.fq");
+        std::fs::write(&r1b, "").unwrap();
         let m = StarAlignModule;
         let errs = m.validate(&serde_json::json!({
-            "genome_dir": gd, "reads_1": [r1], "strand": "weird",
+            "genome_dir": gd, "reads_1": [r1, r1b],
         }));
-        assert!(errs.iter().any(|e| e.field == "strand"));
+        assert!(errs.iter().any(|e| e.field == "reads_1"));
+    }
+
+    fn fixture_path(name: &str) -> String {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures")
+            .join(name)
+            .display()
+            .to_string()
+    }
+
+    #[tokio::test]
+    async fn counts_merge_writes_matrix_and_declares_asset() {
+        let tmp = tempfile::tempdir().unwrap();
+        let m = CountsMergeModule;
+        let (tx, mut rx) = mpsc::channel(4);
+        let result = m
+            .run(
+                &serde_json::json!({
+                    "reads_per_gene": [
+                        fixture_path("ReadsPerGene.sample1.out.tab"),
+                        fixture_path("ReadsPerGene.sample2.out.tab")
+                    ],
+                    "sample_names": ["S1", "S2"],
+                    "strand": "unstranded"
+                }),
+                tmp.path(),
+                tx,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap();
+        while rx.try_recv().is_ok() {}
+        let matrix = tmp.path().join("counts_matrix.tsv");
+        assert!(matrix.exists());
+        let text = std::fs::read_to_string(matrix).unwrap();
+        assert!(text.starts_with("gene_id\tS1\tS2\n"));
+        assert_eq!(result.summary["gene_count"], 4);
+        let assets = m.produced_assets(&result);
+        assert_eq!(assets.len(), 1);
+        assert_eq!(assets[0].kind, AssetKind::CountsMatrix);
     }
 }
 

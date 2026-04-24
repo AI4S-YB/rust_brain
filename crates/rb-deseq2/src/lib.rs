@@ -22,7 +22,7 @@ impl Module for DeseqModule {
             "properties": {
                 "counts_path": {
                     "type": "string",
-                    "description": "Path to counts matrix TSV (from run_star_align or equivalent)."
+                    "description": "Path to counts matrix TSV (from run_counts_merge or equivalent)."
                 },
                 "coldata_path": {
                     "type": "string",
@@ -44,8 +44,8 @@ impl Module for DeseqModule {
 
     fn ai_hint(&self, lang: &str) -> String {
         match lang {
-            "zh" => "用 run_deseq2 做差异表达分析。counts_path 通常是 run_star_align 产出的 counts_matrix.tsv;coldata_path 是用户在项目里提供的样本分组表;design 形如 '~condition',reference 指定该因子的基线水平。".into(),
-            _ => "Use run_deseq2 for differential expression analysis. counts_path is typically the counts_matrix.tsv produced by run_star_align; coldata_path is a user-provided sample metadata table; design is an R-style formula like '~condition' and reference sets the baseline level of that factor.".into(),
+            "zh" => "用 run_deseq2 做差异表达分析。counts_path 通常是 run_counts_merge 产出的 counts_matrix.tsv;coldata_path 是用户在项目里提供的样本分组表;design 形如 '~condition',reference 指定该因子的基线水平。".into(),
+            _ => "Use run_deseq2 for differential expression analysis. counts_path is typically the counts_matrix.tsv produced by run_counts_merge; coldata_path is a user-provided sample metadata table; design is an R-style formula like '~condition' and reference sets the baseline level of that factor.".into(),
         }
     }
 

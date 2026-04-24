@@ -3,8 +3,27 @@ import { KNOWN_VIEWS, MODULES } from './constants.js';
 import { t, navKey } from './i18n-helpers.js';
 import { renderComingSoon, renderEmptyState } from '../ui/coming-soon.js';
 import { renderDashboardView } from '../modules/dashboard/view.js';
+import { projectNew, projectOpen } from '../modules/dashboard/project.js';
 import { loadRunsForView } from '../modules/run-result.js';
 import { syncRunButtons } from './run-controls.js';
+import { escapeHtml } from '../ui/escape.js';
+
+const PROJECT_REQUIRED_VIEWS = new Set([
+  'chat',
+  'tasks',
+  'inputs',
+  'samples',
+  'assets',
+  'qc',
+  'trimming',
+  'star-index',
+  'star-align',
+  'counts-merge',
+  'rustqc',
+  'differential',
+  'network',
+  'gff-convert',
+]);
 
 export async function navigate(view) {
   state.currentView = view;
@@ -29,7 +48,9 @@ export async function navigate(view) {
   if (!content) return;
   content.scrollTop = 0;
 
-  if (view === 'dashboard') {
+  if (!state.projectOpen && viewRequiresProject(view)) {
+    renderProjectRequiredView(content, view, label);
+  } else if (view === 'dashboard') {
     renderDashboardView(content);
   } else if (view === 'settings') {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
@@ -44,6 +65,9 @@ export async function navigate(view) {
   } else if (view === 'star-align') {
     const m = await import('../modules/star-align/view.js');
     if (state.currentView === view) m.renderStarAlignView(content);
+  } else if (view === 'counts-merge') {
+    const m = await import('../modules/counts-merge/view.js');
+    if (state.currentView === view) m.renderCountsMergeView(content);
   } else if (view === 'rustqc') {
     const m = await import('../modules/rustqc/view.js');
     if (state.currentView === view) m.renderRustqcView(content);
@@ -84,6 +108,10 @@ export async function navigate(view) {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
     const m = await import('../utilities/fastq-viewer/view.js');
     if (state.currentView === view) m.renderFastqViewerView(content);
+  } else if (view === 'bam-tools') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../utilities/bam-tools/view.js');
+    if (state.currentView === view) m.renderBamToolsView(content);
   } else {
     await renderModuleView(content, view);
   }
@@ -91,6 +119,53 @@ export async function navigate(view) {
   syncRunButtons(content);
   if (window.lucide) window.lucide.createIcons();
   requestAnimationFrame(() => initChartsForView(view));
+}
+
+function viewRequiresProject(view) {
+  const baseView = view.startsWith('chat/') ? 'chat' : view;
+  if (PROJECT_REQUIRED_VIEWS.has(baseView)) return true;
+  const mod = MODULES.find(m => m.id === baseView || m.view_id === baseView);
+  return Boolean(mod?.backend);
+}
+
+function renderProjectRequiredView(content, requestedView, viewLabel) {
+  content.innerHTML = `
+    <div class="module-view project-required-shell">
+      <div class="card project-required-card animate-slide-up">
+        <div class="project-required-icon"><i data-lucide="folder-open"></i></div>
+        <h1>${escapeHtml(t('project.required_title'))}</h1>
+        <p>${escapeHtml(t('project.required_message', { view: viewLabel }))}</p>
+        <div class="project-required-actions">
+          <button type="button" class="btn btn-primary" data-project-required-new>
+            <i data-lucide="folder-plus"></i>
+            ${escapeHtml(t('project.new'))}
+          </button>
+          <button type="button" class="btn btn-secondary" data-project-required-open>
+            <i data-lucide="folder-open"></i>
+            ${escapeHtml(t('project.open'))}
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  content.querySelector('[data-project-required-new]')?.addEventListener('click', () => {
+    openProjectThenContinue(projectNew, requestedView);
+  });
+  content.querySelector('[data-project-required-open]')?.addEventListener('click', () => {
+    openProjectThenContinue(projectOpen, requestedView);
+  });
+}
+
+async function openProjectThenContinue(openFn, requestedView) {
+  const info = await openFn();
+  if (!info) return;
+  const target = info.default_view === 'ai' ? 'chat' : requestedView;
+  if (location.hash !== `#${target}`) {
+    location.hash = `#${target}`;
+  } else {
+    await navigate(target);
+  }
 }
 
 async function renderModuleView(content, moduleId) {
@@ -152,6 +227,7 @@ async function initChartsForView(view) {
     case 'network':      loadRunsForView('wgcna', 'network-runs'); break;
     case 'gff-convert':  loadRunsForView('gff_convert', 'gff-convert-runs'); break;
     case 'star-align':   loadRunsForView('star_align', 'star-align-runs'); break;
+    case 'counts-merge': loadRunsForView('counts_merge', 'counts-merge-runs'); break;
     case 'star-index':   loadRunsForView('star_index', 'star-index-runs'); break;
   }
 }

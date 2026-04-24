@@ -1,15 +1,16 @@
 import { t } from '../../core/i18n-helpers.js';
 import { filesApi } from '../../api/files.js';
 import { ECHART_THEME } from '../../core/echarts-theme.js';
+import { escapeHtml } from '../../ui/escape.js';
 
 export function renderStarAlignResult(result, runId) {
   const suffix = runId || 'current';
   const chartId = `star-align-chart-${suffix}`;
   const previewId = `star-align-preview-${suffix}`;
-  const btnId = `star-to-deseq-${suffix}`;
 
   const samples = (result.summary && result.summary.samples) || [];
-  const matrixPath = result.summary && result.summary.counts_matrix;
+  const firstSample = samples.find(s => s && s.reads_per_gene) || {};
+  const readsPerGenePath = (result.summary && result.summary.reads_per_gene) || firstSample.reads_per_gene;
   const data = {
     names: samples.map(s => s.name),
     uniq:  samples.map(s => (s.stats && s.stats.uniquely_mapped) || 0),
@@ -19,27 +20,42 @@ export function renderStarAlignResult(result, runId) {
   setTimeout(() => renderMappingRateChart(chartId, data), 0);
 
   let previewHtml = '';
-  if (matrixPath) {
-    filesApi.readTablePreview(matrixPath, { maxRows: 50, maxCols: 10 })
-      .then(rows => {
+  if (readsPerGenePath) {
+    filesApi.readTablePreview(readsPerGenePath, { maxRows: 50, maxCols: 4, hasHeader: false })
+      .then(preview => {
         const el = document.getElementById(previewId);
-        if (!el || !rows || rows.length === 0) return;
-        const header = rows[0].map(c => `<th>${c}</th>`).join('');
-        const body = rows.slice(1).map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
-        el.innerHTML = `<table class="data-table"><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
-      }).catch(() => {});
+        if (!el) return;
+        el.innerHTML = renderTablePreview(preview);
+      }).catch(err => {
+        const el = document.getElementById(previewId);
+        if (el) el.innerHTML = `<p><em>${escapeHtml(t('star_align.preview_failed'))}: ${escapeHtml(String(err))}</em></p>`;
+      });
   } else {
-    previewHtml = `<p><em>${t('star_align.no_matrix')}</em></p>`;
+    previewHtml = `<p><em>${t('star_align.no_reads_per_gene')}</em></p>`;
   }
 
   return `
     <h3>${t('star_align.mapping_rate')}</h3>
     <div id="${chartId}" style="width: 100%; height: 320px;"></div>
-    <h3>${t('star_align.matrix_preview')}</h3>
-    <div id="${previewId}">${t('common.loading')}</div>
-    ${matrixPath ? `<button id="${btnId}" data-matrix="${matrixPath}">${t('star_align.use_in_deseq')}</button>` : ''}
+    <h3>${t('star_align.reads_per_gene_preview')}</h3>
+    <div id="${previewId}">${readsPerGenePath ? t('common.loading') : ''}</div>
     ${previewHtml}
   `;
+}
+
+function renderTablePreview(preview) {
+  const headers = Array.isArray(preview?.headers) ? preview.headers : [];
+  const rows = Array.isArray(preview?.rows) ? preview.rows : [];
+  if (headers.length === 0 && rows.length === 0) {
+    return `<p><em>${escapeHtml(t('common.no_summary'))}</em></p>`;
+  }
+  const head = headers.length
+    ? `<thead><tr>${headers.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>`
+    : '';
+  const body = rows
+    .map(r => '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>')
+    .join('');
+  return `<table class="data-table">${head}<tbody>${body}</tbody></table>`;
 }
 
 export function renderMappingRateChart(elId, data) {

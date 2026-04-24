@@ -313,6 +313,7 @@ pub async fn list_modules(
 fn view_id_for_builtin(id: &str) -> String {
     match id {
         "deseq2" => "differential".into(),
+        "counts_merge" => "counts-merge".into(),
         "gff_convert" => "gff-convert".into(),
         "star_index" => "star-index".into(),
         "star_align" => "star-align".into(),
@@ -325,6 +326,7 @@ fn category_for_builtin(id: &str) -> &'static str {
         "qc" => "qc",
         "trimming" => "trimming",
         "star_index" | "star_align" => "alignment",
+        "counts_merge" => "quantification",
         "gff_convert" => "annotation",
         "deseq2" => "differential",
         _ => "other",
@@ -336,6 +338,7 @@ fn icon_for_builtin(id: &str) -> &'static str {
         "qc" => "microscope",
         "trimming" => "scissors",
         "star_align" => "git-merge",
+        "counts_merge" => "table",
         "star_index" => "database",
         "gff_convert" => "file-code-2",
         "deseq2" => "flame",

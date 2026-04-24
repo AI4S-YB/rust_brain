@@ -1,6 +1,6 @@
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
-import { attachAssetPicker, attachInputPicker, attachSamplesPicker } from '../../ui/registry-picker.js';
+import { attachAssetPicker, attachInputPicker } from '../../ui/registry-picker.js';
 
 export function renderStarAlignView(container) {
   container.innerHTML = `
@@ -40,11 +40,6 @@ export function renderStarAlignView(container) {
               </div>
             </div>
             <div class="form-group">
-              <div class="registry-picker registry-picker-samples"
-                   data-kind="sample"
-                   data-lineage-key="input"></div>
-            </div>
-            <div class="form-group">
               <label class="form-label">${t('star_align.reads_1')}</label>
               <div class="registry-picker"
                    data-kind="input"
@@ -53,8 +48,8 @@ export function renderStarAlignView(container) {
                    data-lineage-key="input"
                    style="margin-bottom:8px"></div>
               <div class="input-with-browse">
-                <input type="text" class="form-input" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz /path/to/S2_R1.fq.gz" />
-                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_1" data-pick-mode="multi">
+                <input type="text" class="form-input" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz" />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_1">
                   <i data-lucide="folder-open"></i> ${t('common.browse')}
                 </button>
               </div>
@@ -68,29 +63,19 @@ export function renderStarAlignView(container) {
                    data-lineage-key="input"
                    style="margin-bottom:8px"></div>
               <div class="input-with-browse">
-                <input type="text" class="form-input" name="reads_2" placeholder="/path/to/S1_R2.fq.gz /path/to/S2_R2.fq.gz" />
-                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_2" data-pick-mode="multi">
+                <input type="text" class="form-input" name="reads_2" placeholder="/path/to/S1_R2.fq.gz" />
+                <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_2">
                   <i data-lucide="folder-open"></i> ${t('common.browse')}
                 </button>
               </div>
             </div>
             <div class="form-group">
-              <label class="form-label">${t('star_align.sample_names')}</label>
-              <textarea class="form-input form-textarea" name="sample_names" rows="3" placeholder="S1&#10;S2"></textarea>
+              <label class="form-label">${t('star_align.sample_name')}</label>
+              <input type="text" class="form-input" name="sample_name" placeholder="S1" />
             </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">${t('star_align.threads')}</label>
-                <input type="number" class="form-input" name="threads" value="4" min="1" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">${t('star_align.strand')}</label>
-                <div class="segmented">
-                  <label><input type="radio" name="strand" value="unstranded" checked /> <span>${t('star_align.strand_unstranded')}</span></label>
-                  <label><input type="radio" name="strand" value="forward" /> <span>${t('star_align.strand_forward')}</span></label>
-                  <label><input type="radio" name="strand" value="reverse" /> <span>${t('star_align.strand_reverse')}</span></label>
-                </div>
-              </div>
+            <div class="form-group">
+              <label class="form-label">${t('star_align.threads')}</label>
+              <input type="number" class="form-input" name="threads" value="4" min="1" />
             </div>
             <div class="collapsible">
               <button type="button" class="collapsible-trigger" data-act="collapsible-toggle">
@@ -130,16 +115,5 @@ export function renderStarAlignView(container) {
   form?.querySelectorAll('.registry-picker[data-kind="input"][data-input-kind="Fastq"]')
     .forEach(host => attachInputPicker(host));
 
-  const samplesHost = form?.querySelector('.registry-picker-samples');
-  if (samplesHost) {
-    attachSamplesPicker(samplesHost, ({ r1_paths, r2_paths, names }) => {
-      const r1 = form.querySelector('input[name="reads_1"]');
-      const r2 = form.querySelector('input[name="reads_2"]');
-      const nm = form.querySelector('textarea[name="sample_names"]');
-      if (r1) r1.value = r1_paths.join(' ');
-      if (r2) r2.value = r2_paths.join(' ');
-      if (nm) nm.value = names.join('\n');
-    });
-  }
   if (window.lucide) window.lucide.createIcons();
 }

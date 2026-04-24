@@ -627,12 +627,15 @@
               return Promise.resolve(null);
             }
             if (cmd === 'read_table_preview') {
-              return Promise.resolve([
+              const rows = [
                 ['gene_id', 'S1', 'S2'],
                 ['GENE_A', '100', '50'],
                 ['GENE_B', '200', '0'],
                 ['GENE_D', '0', '300'],
-              ]);
+              ];
+              return Promise.resolve(args?.hasHeader === false
+                ? { headers: [], rows }
+                : { headers: rows[0], rows: rows.slice(1) });
             }
 
             // --- chat session CRUD ---
@@ -816,6 +819,12 @@
           <span data-i18n="nav.star_align">STAR Alignment</span>
           <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
         </a>
+        <a class="nav-item" data-view="counts-merge" data-color="green" href="#counts-merge">
+          <span class="pipeline-dot" style="--dot-color: var(--mod-green)"></span>
+          <i data-lucide="table"></i>
+          <span data-i18n="nav.counts_merge">Counts Matrix</span>
+          <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
+        </a>
         <a class="nav-item" data-view="rustqc" data-color="teal" href="#rustqc">
           <span class="pipeline-dot" style="--dot-color: var(--mod-teal)"></span>
           <i data-lucide="shield-check"></i>
@@ -866,6 +875,12 @@
           <span class="pipeline-dot" style="--dot-color: var(--mod-teal, #0d7377)"></span>
           <i data-lucide="file-text"></i>
           <span data-i18n="nav.fastq_viewer">FASTQ Viewer</span>
+          <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
+        </a>
+        <a class="nav-item" data-view="bam-tools" data-color="coral" href="#bam-tools">
+          <span class="pipeline-dot" style="--dot-color: var(--mod-coral, #c9503c)"></span>
+          <i data-lucide="database"></i>
+          <span data-i18n="nav.bam_tools">BAM Tools</span>
           <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
         </a>
       </div>

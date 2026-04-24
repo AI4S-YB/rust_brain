@@ -15,32 +15,36 @@ function setProjectUI(name) {
 }
 
 export async function projectOpenFromPath(dir) {
-  if (!dir) return;
+  if (!dir) return null;
   try {
     const result = await projectApi.open(dir);
     const name = (result && result.name) ? result.name : dir;
     setProjectUI(name);
     if (result && result.default_view === 'ai') location.hash = '#chat';
+    return result;
   } catch (err) {
     console.warn('[projectOpenFromPath] invoke failed:', err);
     alertModal({ title: 'Error', message: 'Failed to open project: ' + err });
+    return null;
   }
 }
 
 export async function projectNew() {
   const picked = await projectNewModal();
-  if (!picked) return;
+  if (!picked) return null;
   const { name, default_view } = picked;
   try {
     const dir = await filesApi.selectDirectory();
-    if (!dir) return;
+    if (!dir) return null;
     const info = await projectApi.create({ name, dir, defaultView: default_view });
-    setProjectUI(name);
+    setProjectUI((info && info.name) ? info.name : name);
     const dv = (info && info.default_view) || default_view;
     if (dv === 'ai') location.hash = '#chat';
+    return info;
   } catch (err) {
     console.warn('[projectNew] select/open failed:', err);
     alertModal({ title: 'Error', message: 'Failed to create project: ' + err });
+    return null;
   }
 }
 
@@ -51,16 +55,18 @@ export async function projectOpen() {
   } catch (err) {
     console.warn('[projectOpen] selectDirectory failed:', err);
     alertModal({ title: 'Error', message: 'Failed to select project directory: ' + err });
-    return;
+    return null;
   }
-  if (!dir) return;
+  if (!dir) return null;
   try {
     const result = await projectApi.open(dir);
     const name = (result && result.name) ? result.name : dir || 'Opened Project';
     setProjectUI(name);
     if (result && result.default_view === 'ai') location.hash = '#chat';
+    return result;
   } catch (err) {
     console.warn('[projectOpen] invoke failed:', err);
     alertModal({ title: 'Error', message: 'Failed to open project: ' + err });
+    return null;
   }
 }

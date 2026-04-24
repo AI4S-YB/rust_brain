@@ -4,6 +4,7 @@ import { escapeHtml } from '../ui/escape.js';
 import { MODULES } from '../core/constants.js';
 import { state } from '../core/state.js';
 import { renderGffConvertResult } from './gff-convert/result.js';
+import { renderCountsMergeResult } from './counts-merge/result.js';
 import { renderQcResult } from './qc/result.js';
 import { renderStarAlignResult } from './star-align/result.js';
 import { renderTrimmingResult } from './trimming/result.js';
@@ -23,6 +24,7 @@ export function renderRunResultHtml(moduleId, result, runId) {
     case 'trimming': html = renderTrimmingResult(result, runId); break;
     case 'gff_convert': html = renderGffConvertResult(result, runId); break;
     case 'star_align': html = renderStarAlignResult(result, runId); break;
+    case 'counts_merge': html = renderCountsMergeResult(result, runId); break;
     default: html = renderGenericResult(result); break;
   }
   return html;

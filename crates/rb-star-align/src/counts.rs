@@ -104,6 +104,16 @@ pub fn write_counts_matrix(
     Ok(())
 }
 
+pub fn union_gene_count(per_sample: &[SampleCounts]) -> usize {
+    let mut all_genes: BTreeMap<String, ()> = BTreeMap::new();
+    for s in per_sample {
+        for g in s.genes.keys() {
+            all_genes.insert(g.clone(), ());
+        }
+    }
+    all_genes.len()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -158,5 +168,14 @@ mod tests {
         assert_eq!(lines[2], "GENE_B\t200\t0"); // S2 missing → 0
         assert_eq!(lines[3], "GENE_C\t0\t0");
         assert_eq!(lines[4], "GENE_D\t0\t300"); // S1 missing → 0
+    }
+
+    #[test]
+    fn union_gene_count_counts_unique_gene_ids() {
+        let s1 = read_reads_per_gene(&fixture("ReadsPerGene.sample1.out.tab"), Strand::Unstranded)
+            .unwrap();
+        let s2 = read_reads_per_gene(&fixture("ReadsPerGene.sample2.out.tab"), Strand::Unstranded)
+            .unwrap();
+        assert_eq!(union_gene_count(&[s1, s2]), 4);
     }
 }

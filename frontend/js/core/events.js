@@ -98,10 +98,12 @@ export function setupEvents() {
   });
 
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('[id^="star-to-deseq"]');
+    const btn = e.target.closest('[data-use-in-deseq], [id^="star-to-deseq"]');
     if (!btn) return;
+    const matrix = btn.dataset.useInDeseq || btn.dataset.matrix;
+    if (!matrix) return;
     state.prefill = state.prefill || {};
-    state.prefill.differential = { counts_matrix: btn.dataset.matrix };
+    state.prefill.differential = { counts_matrix: matrix };
     navigate('differential');
   });
 

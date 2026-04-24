@@ -4,7 +4,8 @@
 export const MODULES = [
   { id: 'qc',           view_id: 'qc',           name: 'QC Analysis',                    icon: 'microscope', color: 'teal',   tool: 'fastqc-rs',   status: 'ready', backend: 'qc',          source: 'builtin', has_native_view: true,  category: 'qc' },
   { id: 'trimming',     view_id: 'trimming',     name: 'Adapter Trimming',               icon: 'scissors',   color: 'blue',   tool: 'cutadapt-rs', status: 'ready', backend: 'trimming',    source: 'builtin', has_native_view: true,  category: 'trimming' },
-  { id: 'star-align',   view_id: 'star-align',   name: 'Alignment & Quantification',     icon: 'git-merge',  color: 'purple', tool: 'STAR_rs',     status: 'ready', backend: 'star_align',  source: 'builtin', has_native_view: true,  category: 'alignment' },
+  { id: 'star-align',   view_id: 'star-align',   name: 'STAR Single-Sample Alignment',   icon: 'git-merge',  color: 'purple', tool: 'STAR_rs',     status: 'ready', backend: 'star_align',  source: 'builtin', has_native_view: true,  category: 'alignment' },
+  { id: 'counts-merge', view_id: 'counts-merge', name: 'Counts Matrix Merge',            icon: 'table',      color: 'green',  tool: 'STAR ReadsPerGene', status: 'ready', backend: 'counts_merge', source: 'builtin', has_native_view: true, category: 'quantification' },
   { id: 'rustqc',       view_id: 'rustqc',       name: 'RNA-Seq Post-Align QC',          icon: 'shield-check', color: 'teal', tool: 'RustQC',      status: 'ready', backend: 'rustqc',      source: 'builtin', has_native_view: true,  category: 'qc' },
   { id: 'differential', view_id: 'differential', name: 'Differential Expr.',             icon: 'flame',      color: 'coral',  tool: 'DESeq2_rs',   status: 'ready', backend: 'deseq2',      source: 'builtin', has_native_view: true,  category: 'differential' },
   { id: 'network',      view_id: 'network',      name: 'Network Analysis',               icon: 'share-2',    color: 'green',  tool: 'WGCNA_rs',    status: 'soon',  utility: true,                                source: 'builtin', has_native_view: true,  category: 'other' },
@@ -16,6 +17,7 @@ export const MODULES = [
 export const UTILITIES = [
   { id: 'genome-viewer', view_id: 'genome-viewer', name: 'Genome Viewer', icon: 'map',       color: 'purple', category: 'viewer', source: 'builtin' },
   { id: 'fastq-viewer',  view_id: 'fastq-viewer',  name: 'FASTQ Viewer',  icon: 'file-text', color: 'teal',   category: 'viewer', source: 'builtin' },
+  { id: 'bam-tools',     view_id: 'bam-tools',     name: 'BAM Tools',     icon: 'database',  color: 'coral',  category: 'tool',   source: 'builtin' },
 ];
 
 /**
@@ -52,6 +54,7 @@ function colorForBuiltin(id) {
     rustqc: 'teal',
     trimming: 'blue',
     star_align: 'purple',
+    counts_merge: 'green',
     deseq2: 'coral',
     star_index: 'purple',
     gff_convert: 'gold',
@@ -72,7 +75,7 @@ export const COLOR_MAP = {
 export const KNOWN_VIEWS = new Set();
 function rebuildKnownViews() {
   KNOWN_VIEWS.clear();
-  ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'chat', 'plots', 'tasks', 'inputs', 'samples', 'assets']
+  ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'counts-merge', 'chat', 'plots', 'tasks', 'inputs', 'samples', 'assets']
     .forEach(v => KNOWN_VIEWS.add(v));
   MODULES.forEach(m => KNOWN_VIEWS.add(m.view_id || m.id));
   UTILITIES.forEach(u => KNOWN_VIEWS.add(u.view_id || u.id));
@@ -103,5 +106,6 @@ export const RUN_TASKS = {
   differential: { backend: 'deseq2',      computeCost: 2 },
   'star-index': { backend: 'star_index',  computeCost: 6 },
   'star-align': { backend: 'star_align',  computeCost: 7 },
+  'counts-merge': { backend: 'counts_merge', computeCost: 1 },
   'gff-convert': { backend: 'gff_convert', computeCost: 1 },
 };

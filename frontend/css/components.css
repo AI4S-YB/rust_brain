@@ -555,6 +555,57 @@
   line-height: 1.6;
 }
 
+.project-required-shell {
+  min-height: min(560px, calc(100vh - 180px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.project-required-card {
+  width: min(100%, 520px);
+  text-align: left;
+}
+
+.project-required-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(13,115,119,0.1);
+  color: var(--mod-teal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.project-required-icon [data-lucide] {
+  width: 24px;
+  height: 24px;
+}
+
+.project-required-card h1 {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.project-required-card p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 0;
+}
+
+.project-required-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+
 
 /* --- Divider --- */
 .divider {
