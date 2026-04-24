@@ -1,5 +1,6 @@
 pub mod subprocess;
 
+use rb_core::asset::{AssetKind, DeclaredAsset};
 use rb_core::binary::BinaryResolver;
 use rb_core::cancel::CancellationToken;
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
@@ -69,6 +70,29 @@ impl Module for StarIndexModule {
             "zh" => "用 run_star_index 为 STAR 比对生成基因组索引。每个参考基因组只需做一次,生成的索引目录之后喂给 run_star_align 的 genome_dir。".into(),
             _ => "Use run_star_index to build a STAR genome index — a one-time setup per reference. The resulting directory is passed to run_star_align as `genome_dir`.".into(),
         }
+    }
+
+    fn produced_assets(&self, result: &ModuleResult) -> Vec<DeclaredAsset> {
+        // summary.genome_dir carries the absolute output directory.
+        // Path::join with an absolute path returns that path as-is,
+        // so this works whether the index sits inside the run dir or at
+        // a user-chosen location like /data/references/.
+        let Some(genome_dir) = result.summary.get("genome_dir").and_then(|v| v.as_str()) else {
+            return Vec::new();
+        };
+        let fasta_name = result
+            .summary
+            .get("genome_fasta")
+            .and_then(|v| v.as_str())
+            .and_then(|p| std::path::Path::new(p).file_stem().and_then(|s| s.to_str()))
+            .unwrap_or("genome")
+            .to_string();
+        vec![DeclaredAsset {
+            kind: AssetKind::StarIndex,
+            relative_path: PathBuf::from(genome_dir),
+            display_name: format!("STAR index ({})", fasta_name),
+            schema: Some("STAR 2.7 genome index".into()),
+        }]
     }
 
     fn validate(&self, params: &serde_json::Value) -> Vec<ValidationError> {

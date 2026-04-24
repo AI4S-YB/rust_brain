@@ -1,0 +1,195 @@
+/* ============================================================
+   Tasks (Run-record management) view
+   ============================================================ */
+
+.tasks-toolbar {
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.tasks-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.tasks-toolbar-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+.tasks-filter {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.tasks-filter select {
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+
+.tasks-summary {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-default);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.tasks-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.tasks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+}
+
+.tasks-table thead th {
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tasks-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  vertical-align: middle;
+}
+
+.tasks-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.tasks-table tbody tr:hover {
+  background: rgba(13, 115, 119, 0.04);
+}
+
+.tasks-col-check {
+  width: 36px;
+  text-align: center;
+}
+
+.tasks-col-id code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.tasks-col-size {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tasks-col-time {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.tasks-col-actions {
+  width: 68px;
+  text-align: right;
+}
+
+.tasks-col-lineage {
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.tasks-lineage-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-right: 4px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.tasks-lineage-chip.tasks-lineage-in  { background: rgba(59, 110, 165, 0.12);  color: #3b6ea5; }
+.tasks-lineage-chip.tasks-lineage-out { background: rgba(124, 92, 191, 0.12);  color: #7c5cbf; }
+
+.tasks-lineage-empty {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.tasks-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px !important;
+}
+
+/* Status pills */
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.status-pill.status-done      { background: rgba(45, 134, 89, 0.14);   color: #2d8659; }
+.status-pill.status-failed    { background: rgba(201, 80, 60, 0.14);   color: #c9503c; }
+.status-pill.status-cancelled { background: rgba(92, 112, 128, 0.14);  color: #5c7080; }
+.status-pill.status-running   { background: rgba(59, 110, 165, 0.14);  color: #3b6ea5; }
+.status-pill.status-pending   { background: rgba(184, 134, 11, 0.14);  color: #b8860b; }
+.status-pill.status-unknown   { background: rgba(92, 112, 128, 0.08);  color: #5c7080; }
+
+/* Per-run delete button shown inline in run-result panels */
+.run-entry-summary-text {
+  flex: 1;
+}
+
+details.run-entry > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.run-delete-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  padding: 4px 6px;
+  cursor: pointer;
+  transition: all var(--duration-fast) ease;
+}
+
+.run-delete-btn:hover:not(:disabled) {
+  background: rgba(201, 80, 60, 0.08);
+  border-color: rgba(201, 80, 60, 0.4);
+  color: #c9503c;
+}
+
+.run-delete-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.run-delete-btn [data-lucide] {
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+}

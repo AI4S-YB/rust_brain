@@ -5,6 +5,7 @@ import { navigate } from './router.js';
 import { modulesApi } from '../api/modules.js';
 import { loadRunsForView } from '../modules/run-result.js';
 import { runStartedToast } from '../ui/modal.js';
+import { collectLineage } from '../ui/registry-picker.js';
 import {
   canStartModuleRun,
   cancelModuleRun,
@@ -83,7 +84,10 @@ export async function runModule(id) {
     if (st) st.textContent = `${t('status.running_prefix')} ${displayName}…`;
     if (badge) { badge.className = 'nav-badge running'; badge.textContent = t('badge.running'); }
 
-    const runId = await modulesApi.run(backendId, params);
+    const formScope = document.querySelector('.module-view') || document;
+    const fakeForm = { querySelectorAll: (sel) => formScope.querySelectorAll(sel) };
+    const { inputsUsed, assetsUsed } = collectLineage(fakeForm);
+    const runId = await modulesApi.run(backendId, params, { inputsUsed, assetsUsed });
     if (runId) {
       const started = await registerStartedRun(id, runId);
       const containerId = `${id}-runs`;

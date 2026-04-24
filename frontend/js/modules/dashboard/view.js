@@ -3,10 +3,74 @@ import { t, navKey } from '../../core/i18n-helpers.js';
 import { projectApi } from '../../api/project.js';
 import { projectOpenFromPath } from './project.js';
 import { escapeHtml } from '../../ui/escape.js';
+import { inputsApi } from '../../api/inputs.js';
+import { samplesApi } from '../../api/samples.js';
+import { assetsApi } from '../../api/assets.js';
+import { modulesApi } from '../../api/modules.js';
+import { formatBytes } from '../run-result.js';
 
 export function renderDashboardView(container) {
   container.innerHTML = renderDashboardHtml();
   populateRecentProjects();
+  populateProjectOverview();
+}
+
+async function populateProjectOverview() {
+  const card = document.getElementById('project-overview-card');
+  if (!card) return;
+  // Fire all four queries in parallel; tolerate "no project open" → hide card.
+  const results = await Promise.allSettled([
+    inputsApi.list(),
+    samplesApi.list(),
+    assetsApi.list(),
+    modulesApi.listRuns(null),
+  ]);
+  if (results.every(r => r.status === 'rejected')) {
+    card.hidden = true;
+    return;
+  }
+  const inputs = results[0].status === 'fulfilled' ? results[0].value || [] : [];
+  const samples = results[1].status === 'fulfilled' ? results[1].value || [] : [];
+  const assets = results[2].status === 'fulfilled' ? results[2].value || [] : [];
+  const runs = results[3].status === 'fulfilled' ? results[3].value || [] : [];
+
+  const inputBytes = inputs.reduce((a, r) => a + (r.size_bytes || 0), 0);
+  const assetBytes = assets.reduce((a, r) => a + (r.size_bytes || 0), 0);
+  const missing = inputs.filter(r => r.missing).length;
+  const runsByStatus = runs.reduce((acc, r) => {
+    acc[r.status] = (acc[r.status] || 0) + 1;
+    return acc;
+  }, {});
+
+  const tile = (icon, label, value, hint) => `
+    <div class="overview-tile">
+      <div class="overview-tile-icon"><i data-lucide="${icon}"></i></div>
+      <div>
+        <div class="overview-tile-value">${escapeHtml(String(value))}</div>
+        <div class="overview-tile-label">${escapeHtml(label)}</div>
+        ${hint ? `<div class="overview-tile-hint">${escapeHtml(hint)}</div>` : ''}
+      </div>
+    </div>`;
+
+  card.innerHTML = `
+    <div class="card-header" style="margin-bottom: 12px">
+      <span class="card-title">
+        <i data-lucide="bar-chart-3" style="width:15px;height:15px;vertical-align:-2px;margin-right:6px"></i>
+        ${escapeHtml(t('dashboard.overview_title'))}
+      </span>
+    </div>
+    <div class="overview-grid">
+      ${tile('database', t('nav.inputs'),  inputs.length, missing ? t('dashboard.overview_missing', { n: missing }) : formatBytes(inputBytes))}
+      ${tile('users',    t('nav.samples'), samples.length, samples.filter(s => s.paired).length + ' PE')}
+      ${tile('package',  t('nav.assets'),  assets.length, formatBytes(assetBytes))}
+      ${tile('list-checks', t('nav.tasks'), runs.length, [
+        runsByStatus.Done     ? `${runsByStatus.Done} ✓`  : null,
+        runsByStatus.Failed   ? `${runsByStatus.Failed} ✗` : null,
+        runsByStatus.Running  ? `${runsByStatus.Running} ●` : null,
+      ].filter(Boolean).join(' · '))}
+    </div>
+  `;
+  if (window.lucide) window.lucide.createIcons();
 }
 
 async function populateRecentProjects() {
@@ -77,6 +141,8 @@ function renderDashboardHtml() {
           <div class="recent-empty">${t('common.loading')}</div>
         </div>
       </div>
+
+      <div id="project-overview-card" class="card animate-slide-up project-overview-card" style="animation-delay: 55ms; margin-bottom: 16px; padding: 16px 24px;"></div>
 
       <div class="pipeline-flow-container card animate-slide-up" style="animation-delay: 60ms; padding: 16px 24px;">
         <div class="card-header" style="margin-bottom: 8px">

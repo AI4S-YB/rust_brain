@@ -1,5 +1,6 @@
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
+import { attachAssetPicker, attachSamplesPicker } from '../../ui/registry-picker.js';
 
 export function renderStarAlignView(container) {
   container.innerHTML = `
@@ -23,6 +24,13 @@ export function renderStarAlignView(container) {
         <div class="panel-body">
           <form id="form-star-align">
             <div class="form-group">
+              <div class="registry-picker"
+                   data-kind="asset"
+                   data-asset-kind="StarIndex"
+                   data-target-name="genome_dir"
+                   data-lineage-key="asset"></div>
+            </div>
+            <div class="form-group">
               <label class="form-label">${t('star_align.genome_dir')}</label>
               <div class="input-with-browse">
                 <input type="text" class="form-input" name="genome_dir" required placeholder="/path/to/star_index" />
@@ -30,6 +38,11 @@ export function renderStarAlignView(container) {
                   <i data-lucide="folder-open"></i> ${t('common.browse')}
                 </button>
               </div>
+            </div>
+            <div class="form-group">
+              <div class="registry-picker registry-picker-samples"
+                   data-kind="sample"
+                   data-lineage-key="input"></div>
             </div>
             <div class="form-group">
               <label class="form-label">${t('star_align.reads_1')}</label>
@@ -97,4 +110,21 @@ export function renderStarAlignView(container) {
       ${renderLogPanel('star-align')}
     </div>
   `;
+
+  const form = container.querySelector('#form-star-align');
+  const assetHost = form?.querySelector('.registry-picker[data-kind="asset"]');
+  if (assetHost) attachAssetPicker(assetHost);
+
+  const samplesHost = form?.querySelector('.registry-picker-samples');
+  if (samplesHost) {
+    attachSamplesPicker(samplesHost, ({ r1_paths, r2_paths, names }) => {
+      const r1 = form.querySelector('input[name="reads_1"]');
+      const r2 = form.querySelector('input[name="reads_2"]');
+      const nm = form.querySelector('textarea[name="sample_names"]');
+      if (r1) r1.value = r1_paths.join(' ');
+      if (r2) r2.value = r2_paths.join(' ');
+      if (nm) nm.value = names.join('\n');
+    });
+  }
+  if (window.lucide) window.lucide.createIcons();
 }

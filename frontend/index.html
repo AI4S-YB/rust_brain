@@ -48,6 +48,42 @@
       // --- chat session store (in-memory) ---
       const _mockSessions = new Map();
       const _mockRuns = new Map();
+      const _mockInputs = new Map();
+      const _mockSamples = new Map();
+      const _mockAssets = new Map();
+
+      // Seed a few assets so the #assets page isn't empty on first preview.
+      (function _seedMockAssets() {
+        const now = new Date().toISOString();
+        const assets = [
+          { id: 'as_mock1', kind: 'StarIndex', path: '/tmp/mock/runs/star_index_x/index', size_bytes: 18_253_611_008, produced_by_run_id: 'star_index_seeded', display_name: 'STAR index (grch38)', schema: 'STAR 2.7', created_at: now },
+          { id: 'as_mock2', kind: 'TrimmedFastq', path: '/tmp/mock/runs/trim_y/sample_01_R1.trimmed.fastq.gz', size_bytes: 163_577_856, produced_by_run_id: 'trim_seeded', display_name: 'sample_01_R1 trimmed', created_at: now },
+        ];
+        assets.forEach(a => _mockAssets.set(a.id, a));
+      })();
+
+      // Seed a few inputs so the #inputs page isn't empty on first preview.
+      (function _seedMockInputs() {
+        const now = new Date().toISOString();
+        const samples = [
+          { path: '/tmp/mock/sample_01_R1.fastq.gz', kind: 'Fastq',  size: 184_320_000 },
+          { path: '/tmp/mock/sample_01_R2.fastq.gz', kind: 'Fastq',  size: 188_743_680 },
+          { path: '/tmp/mock/genome/grch38.fa',      kind: 'Fasta',  size: 3_120_000_000 },
+          { path: '/tmp/mock/anno.gtf',              kind: 'Gtf',    size: 47_185_920 },
+        ];
+        samples.forEach((s, i) => {
+          const id = 'in_mock' + i;
+          _mockInputs.set(id, {
+            id,
+            path: s.path,
+            display_name: s.path.split('/').pop(),
+            kind: s.kind,
+            size_bytes: s.size,
+            registered_at: now,
+            missing: false,
+          });
+        });
+      })();
 
       const _mockBaseName = (path) => String(path || '').split(/[\\/]/).pop() || 'sample.fastq.gz';
       const _mockStripSeqExtensions = (name) => String(name || '').replace(/(\.gz|\.bz2|\.txt|\.fastq|\.fq|\.csfastq|\.sam|\.bam|\.ubam)+$/i, '');
@@ -420,6 +456,170 @@
               }
               return Promise.resolve(null);
             }
+            if (cmd === 'delete_run') {
+              if (args?.runId) _mockRuns.delete(args.runId);
+              return Promise.resolve(null);
+            }
+            if (cmd === 'clear_runs') {
+              const wantedStatuses = Array.isArray(args?.statuses) ? args.statuses : null;
+              const wantedModule = args?.moduleId || null;
+              let deleted = 0;
+              for (const [id, run] of [..._mockRuns.entries()]) {
+                if (run.status === 'Running' || run.status === 'Pending') continue;
+                if (wantedModule && run.module_id !== wantedModule) continue;
+                if (wantedStatuses && !wantedStatuses.includes(run.status)) continue;
+                _mockRuns.delete(id);
+                deleted++;
+              }
+              return Promise.resolve({ deleted, skipped_running: 0, errors: [] });
+            }
+            if (cmd === 'get_run_sizes') {
+              const out = {};
+              const ids = Array.isArray(args?.runIds) ? args.runIds : [..._mockRuns.keys()];
+              ids.forEach((id, i) => { out[id] = 1024 * (12 + ((i * 37) % 500)); });
+              return Promise.resolve(out);
+            }
+
+            // --- inputs registry (P1) ---
+            if (cmd === 'list_inputs') {
+              return Promise.resolve([..._mockInputs.values()]);
+            }
+            if (cmd === 'register_input') {
+              const path = args?.path || '';
+              for (const rec of _mockInputs.values()) {
+                if (rec.path === path) return Promise.resolve(rec);
+              }
+              const id = 'in_' + Math.random().toString(16).slice(2, 10);
+              const rec = {
+                id,
+                path,
+                display_name: String(path).split(/[\\/]/).pop() || path,
+                kind: args?.kind || 'Other',
+                size_bytes: Math.floor(Math.random() * 500_000_000),
+                registered_at: new Date().toISOString(),
+                missing: false,
+              };
+              _mockInputs.set(id, rec);
+              return Promise.resolve(rec);
+            }
+            if (cmd === 'register_inputs_batch') {
+              const paths = args?.paths || [];
+              const registered = [];
+              for (const p of paths) {
+                let existing = null;
+                for (const rec of _mockInputs.values()) {
+                  if (rec.path === p) { existing = rec; break; }
+                }
+                if (existing) { registered.push(existing); continue; }
+                const id = 'in_' + Math.random().toString(16).slice(2, 10);
+                const rec = {
+                  id,
+                  path: p,
+                  display_name: String(p).split(/[\\/]/).pop() || p,
+                  kind: 'Other',
+                  size_bytes: Math.floor(Math.random() * 500_000_000),
+                  registered_at: new Date().toISOString(),
+                  missing: false,
+                };
+                _mockInputs.set(id, rec);
+                registered.push(rec);
+              }
+              return Promise.resolve({ registered, errors: [] });
+            }
+            if (cmd === 'update_input') {
+              const rec = _mockInputs.get(args?.id);
+              if (!rec) return Promise.reject('not found');
+              const patch = args?.patch || {};
+              if (patch.display_name) rec.display_name = patch.display_name;
+              if (patch.kind) rec.kind = patch.kind;
+              if ('notes' in patch) rec.notes = patch.notes || null;
+              return Promise.resolve(rec);
+            }
+            if (cmd === 'delete_input') {
+              _mockInputs.delete(args?.id);
+              return Promise.resolve(null);
+            }
+            if (cmd === 'scan_inputs') {
+              return Promise.resolve({
+                refreshed: _mockInputs.size,
+                now_missing: 0,
+                recovered: 0,
+              });
+            }
+
+            // --- samples registry (P2) ---
+            if (cmd === 'list_samples') {
+              return Promise.resolve([..._mockSamples.values()]);
+            }
+            if (cmd === 'create_sample') {
+              const id = 'sam_' + Math.random().toString(16).slice(2, 10);
+              const rec = {
+                id,
+                name: args?.name || 'sample',
+                group: args?.group || null,
+                condition: args?.condition || null,
+                inputs: args?.inputIds || [],
+                paired: (args?.inputIds?.length || 0) >= 2,
+              };
+              _mockSamples.set(id, rec);
+              return Promise.resolve(rec);
+            }
+            if (cmd === 'update_sample') {
+              const rec = _mockSamples.get(args?.id);
+              if (!rec) return Promise.reject('not found');
+              const patch = args?.patch || {};
+              if ('name' in patch && patch.name) rec.name = patch.name;
+              if ('group' in patch) rec.group = patch.group || null;
+              if ('condition' in patch) rec.condition = patch.condition || null;
+              if (Array.isArray(patch.inputs)) {
+                rec.inputs = patch.inputs;
+                rec.paired = patch.inputs.length >= 2;
+              }
+              return Promise.resolve(rec);
+            }
+            if (cmd === 'delete_sample') {
+              _mockSamples.delete(args?.id);
+              return Promise.resolve(null);
+            }
+            if (cmd === 'import_samples_from_tsv') {
+              // Mock: just create a single placeholder sample so the UI shows feedback.
+              const id = 'sam_' + Math.random().toString(16).slice(2, 10);
+              const rec = { id, name: 'imported_from_tsv', group: null, condition: null, inputs: [], paired: false };
+              _mockSamples.set(id, rec);
+              return Promise.resolve({ created: [rec], errors: [] });
+            }
+            if (cmd === 'auto_pair_samples') {
+              // Group mock inputs by _R1/_R2 stem
+              const byStem = {};
+              const created = [];
+              for (const inp of _mockInputs.values()) {
+                if (inp.kind !== 'Fastq') continue;
+                const name = inp.display_name || '';
+                const m = name.match(/^(.+?)_(R?)(1|2)(?:\.(fastq|fq)(\.gz|\.bz2)?)?$/i);
+                if (!m) continue;
+                const stem = m[1];
+                const idx = m[3] === '1' ? 0 : 1;
+                byStem[stem] = byStem[stem] || [null, null];
+                byStem[stem][idx] = inp.id;
+              }
+              for (const [stem, pair] of Object.entries(byStem)) {
+                if (!pair[0] || !pair[1]) continue;
+                const id = 'sam_' + Math.random().toString(16).slice(2, 10);
+                const rec = { id, name: stem, group: null, condition: null, inputs: pair, paired: true };
+                _mockSamples.set(id, rec);
+                created.push(rec);
+              }
+              return Promise.resolve(created);
+            }
+
+            // --- assets registry (P3) ---
+            if (cmd === 'list_assets') {
+              return Promise.resolve([..._mockAssets.values()]);
+            }
+            if (cmd === 'delete_asset') {
+              _mockAssets.delete(args?.id);
+              return Promise.resolve(null);
+            }
             if (cmd === 'read_table_preview') {
               return Promise.resolve([
                 ['gene_id', 'S1', 'S2'],
@@ -561,6 +761,26 @@
           <i data-lucide="message-square"></i>
           <span data-i18n="nav.chat">Chat</span>
           <span class="nav-badge ready" data-i18n="badge.ready">Ready</span>
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-section-title" data-i18n="nav.project">Project</div>
+        <a class="nav-item" data-view="inputs" href="#inputs">
+          <i data-lucide="database"></i>
+          <span data-i18n="nav.inputs">Inputs</span>
+        </a>
+        <a class="nav-item" data-view="samples" href="#samples">
+          <i data-lucide="users"></i>
+          <span data-i18n="nav.samples">Samples</span>
+        </a>
+        <a class="nav-item" data-view="assets" href="#assets">
+          <i data-lucide="package"></i>
+          <span data-i18n="nav.assets">Assets</span>
+        </a>
+        <a class="nav-item" data-view="tasks" href="#tasks">
+          <i data-lucide="list-checks"></i>
+          <span data-i18n="nav.tasks">Tasks</span>
         </a>
       </div>
 

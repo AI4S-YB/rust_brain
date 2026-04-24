@@ -1,10 +1,33 @@
+import { state } from '../../core/state.js';
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
 import { renderModuleHeader } from '../module-header.js';
+import { attachSamplesPicker } from '../../ui/registry-picker.js';
+import { renderFileList } from '../../ui/file-drop.js';
+import { inputsApi } from '../../api/inputs.js';
 
 export function renderTrimmingView(container) {
   const mod = { id: 'trimming', icon: 'scissors', color: 'blue', tool: 'cutadapt-rs', status: 'ready' };
   container.innerHTML = `<div class="module-view">${renderModuleHeader(mod)}${renderTrimmingBody()}</div>`;
+
+  const samplesHost = container.querySelector('.registry-picker-samples');
+  if (samplesHost) {
+    // onPick gives input_ids — we need their actual file paths. Re-hydrate
+    // from the Inputs API call that happened inside the modal.
+    attachSamplesPicker(samplesHost, async ({ input_ids }) => {
+      if (!input_ids.length) return;
+      const all = await inputsApi.list();
+      const byId = new Map((all || []).map(i => [i.id, i]));
+      const files = input_ids
+        .map(id => byId.get(id))
+        .filter(Boolean)
+        .map(i => ({ name: i.display_name, path: i.path, size: i.size_bytes || 0 }));
+      state.files['trimming'] = files;
+      const list = document.getElementById('trimming-file-list');
+      if (list) renderFileList(list, 'trimming');
+    });
+  }
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function renderTrimmingBody() {
@@ -14,6 +37,10 @@ function renderTrimmingBody() {
         <div class="module-panel animate-slide-up" style="animation-delay:100ms">
           <div class="panel-header"><span class="panel-title">${t('trimming.input_files')}</span></div>
           <div class="panel-body">
+            <div class="registry-picker registry-picker-samples"
+                 data-kind="sample"
+                 data-lineage-key="input"
+                 style="margin-bottom:12px"></div>
             <div class="file-drop-zone" data-module="trimming" data-param="input_files" data-accept=".fastq,.fq,.fastq.gz,.fq.gz">
               <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
               <div class="file-drop-text">${t('trimming.drop_text')}</div>

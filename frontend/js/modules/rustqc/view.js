@@ -1,10 +1,45 @@
+import { state } from '../../core/state.js';
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
 import { renderModuleHeader } from '../module-header.js';
+import { attachInputPicker, attachAssetPicker } from '../../ui/registry-picker.js';
+import { renderFileList } from '../../ui/file-drop.js';
 
 export function renderRustqcView(container) {
   const mod = { id: 'rustqc', icon: 'shield-check', color: 'teal', tool: 'RustQC', status: 'ready' };
   container.innerHTML = `<div class="module-view">${renderModuleHeader(mod)}${renderRustqcBody()}</div>`;
+
+  // BAM asset picker: appends to input_bams list (multi).
+  const bamHost = container.querySelector('.registry-picker[data-asset-kind="Bam"]');
+  if (bamHost) {
+    attachAssetPicker(bamHost, (asset) => {
+      if (!asset) return;
+      if (!state.files['rustqc']) state.files['rustqc'] = [];
+      // Avoid duplicates by path
+      if (!state.files['rustqc'].some(f => f.path === asset.path)) {
+        state.files['rustqc'].push({
+          name: asset.display_name,
+          path: asset.path,
+          size: asset.size_bytes || 0,
+        });
+      }
+      const list = document.getElementById('rustqc-file-list');
+      if (list) renderFileList(list, 'rustqc');
+    });
+  }
+
+  // GTF input / asset pickers: single → data-param-single zone
+  const gtfInputHost = container.querySelector('.registry-picker[data-kind="input"][data-input-kind="Gtf"]');
+  const gtfAssetHost = container.querySelector('.registry-picker[data-kind="asset"][data-asset-kind="Gtf"]');
+  const setGtf = (rec) => {
+    state.files['rustqc-gtf'] = rec
+      ? [{ name: rec.display_name, path: rec.path, size: rec.size_bytes || 0 }]
+      : [];
+  };
+  if (gtfInputHost) attachInputPicker(gtfInputHost, setGtf);
+  if (gtfAssetHost) attachAssetPicker(gtfAssetHost, setGtf);
+
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function renderRustqcBody() {
@@ -14,6 +49,11 @@ function renderRustqcBody() {
         <div class="module-panel animate-slide-up" style="animation-delay:100ms">
           <div class="panel-header"><span class="panel-title">${t('rustqc.input_bams')}</span></div>
           <div class="panel-body">
+            <div class="registry-picker"
+                 data-kind="asset"
+                 data-asset-kind="Bam"
+                 data-lineage-key="asset"
+                 style="margin-bottom:12px"></div>
             <div class="file-drop-zone" data-module="rustqc" data-param="input_bams" data-accept=".bam,.sam,.cram">
               <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
               <div class="file-drop-text">${t('rustqc.drop_text')}</div>
@@ -25,7 +65,17 @@ function renderRustqcBody() {
         <div class="module-panel animate-slide-up" style="animation-delay:140ms">
           <div class="panel-header"><span class="panel-title">${t('rustqc.annotation')}</span></div>
           <div class="panel-body">
-            <div class="file-drop-zone" data-module="rustqc" data-param="gtf" data-param-single data-accept=".gtf,.gtf.gz">
+            <div class="registry-picker"
+                 data-kind="input"
+                 data-input-kind="Gtf"
+                 data-lineage-key="input"
+                 style="margin-bottom:8px"></div>
+            <div class="registry-picker"
+                 data-kind="asset"
+                 data-asset-kind="Gtf"
+                 data-lineage-key="asset"
+                 style="margin-bottom:12px"></div>
+            <div class="file-drop-zone" data-module="rustqc-gtf" data-param="gtf" data-param-single data-accept=".gtf,.gtf.gz">
               <div class="file-drop-icon"><i data-lucide="file-text"></i></div>
               <div class="file-drop-text">${t('rustqc.drop_gtf')}</div>
               <div class="file-drop-hint">${t('rustqc.drop_gtf_hint')}</div>

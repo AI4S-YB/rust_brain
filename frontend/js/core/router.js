@@ -50,6 +50,22 @@ export async function navigate(view) {
   } else if (view === 'plots') {
     const m = await import('../modules/plots/view.js');
     if (state.currentView === view) m.renderPlotsView(content);
+  } else if (view === 'tasks') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../modules/tasks/view.js');
+    if (state.currentView === view) m.renderTasksView(content);
+  } else if (view === 'inputs') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../modules/inputs/view.js');
+    if (state.currentView === view) m.renderInputsView(content);
+  } else if (view === 'samples') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../modules/samples/view.js');
+    if (state.currentView === view) m.renderSamplesView(content);
+  } else if (view === 'assets') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    const m = await import('../modules/assets/view.js');
+    if (state.currentView === view) m.renderAssetsView(content);
   } else if (view === 'chat' || view.startsWith('chat/')) {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
     const sessionId = view.startsWith('chat/') ? view.slice('chat/'.length) : null;

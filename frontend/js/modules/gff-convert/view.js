@@ -1,5 +1,6 @@
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
+import { attachInputPicker } from '../../ui/registry-picker.js';
 
 export function renderGffConvertView(container) {
   container.innerHTML = `
@@ -24,6 +25,18 @@ export function renderGffConvertView(container) {
           <form id="form-gff-convert">
             <div class="form-group">
               <label class="form-label">${t('gff_convert.input_file')}</label>
+              <div class="registry-picker"
+                   data-kind="input"
+                   data-input-kind="Gff"
+                   data-target-name="input_file"
+                   data-lineage-key="input"
+                   style="margin-bottom:8px"></div>
+              <div class="registry-picker"
+                   data-kind="input"
+                   data-input-kind="Gtf"
+                   data-target-name="input_file"
+                   data-lineage-key="input"
+                   style="margin-bottom:8px"></div>
               <div class="input-with-browse">
                 <input type="text" class="form-input" name="input_file" data-pick="file" placeholder="/path/to/anno.gff3" required />
                 <button type="button" class="btn btn-secondary btn-sm" data-pick-for="input_file">
@@ -68,4 +81,8 @@ export function renderGffConvertView(container) {
       ${renderLogPanel('gff-convert')}
     </div>
   `;
+
+  const form = container.querySelector('#form-gff-convert');
+  form?.querySelectorAll('.registry-picker[data-kind="input"]').forEach(h => attachInputPicker(h));
+  if (window.lucide) window.lucide.createIcons();
 }

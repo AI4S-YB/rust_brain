@@ -58,6 +58,21 @@ impl Runner {
     }
 
     pub async fn spawn(&self, module: Arc<dyn Module>, params: Value) -> Result<String, String> {
+        self.spawn_with_lineage(module, params, Vec::new(), Vec::new())
+            .await
+    }
+
+    /// Like `spawn`, but also records which registered InputRecord ids and
+    /// AssetRecord ids this run consumes. Used by the frontend when the user
+    /// picks from the Inputs / Assets registry in a module form so the
+    /// Tasks / Assets views can show lineage.
+    pub async fn spawn_with_lineage(
+        &self,
+        module: Arc<dyn Module>,
+        params: Value,
+        inputs_used: Vec<String>,
+        assets_used: Vec<String>,
+    ) -> Result<String, String> {
         let run_id = {
             let mut proj = self.project.lock().await;
             proj.create_run(module.id(), params.clone()).id
@@ -68,6 +83,8 @@ impl Runner {
             if let Some(run) = proj.runs.iter_mut().find(|r| r.id == run_id) {
                 run.status = RunStatus::Running;
                 run.started_at = Some(Utc::now());
+                run.inputs_used = inputs_used;
+                run.assets_used = assets_used;
             }
             proj.save().map_err(|e| e.to_string())?;
         }
@@ -124,6 +141,13 @@ impl Runner {
                 Err(e) => (RunStatus::Failed, None, Some(e.to_string())),
             };
 
+            // Compute declared assets from the module *before* locking the
+            // project, so the module doesn't race with UI reads.
+            let declared_assets = match &result {
+                Ok(mr) => module.produced_assets(mr),
+                _ => Vec::new(),
+            };
+
             {
                 let mut proj = project_arc.lock().await;
                 if let Some(run) = proj.runs.iter_mut().find(|r| r.id == rid) {
@@ -131,6 +155,13 @@ impl Runner {
                     run.finished_at = Some(Utc::now());
                     run.result = module_result_opt;
                     run.error = error_opt;
+                }
+                // Auto-register assets declared by the module. Errors are
+                // logged but do not fail the run — lineage is advisory.
+                if !declared_assets.is_empty() {
+                    if let Err(e) = proj.register_declared_assets(&rid, &declared_assets) {
+                        eprintln!("asset auto-register for run {rid} failed: {e}");
+                    }
                 }
                 let _ = proj.save();
             }

@@ -2,6 +2,7 @@ import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
 import { alertModal, runStartedToast } from '../../ui/modal.js';
 import { t, navKey } from '../../core/i18n-helpers.js';
+import { collectLineage } from '../../ui/registry-picker.js';
 import {
   canStartModuleRun,
   cancelModuleRun,
@@ -30,8 +31,9 @@ export async function submitGffConvert(form) {
     extra_args,
   };
   markModuleRunPending('gff-convert');
+  const { inputsUsed, assetsUsed } = collectLineage(form);
   try {
-    const runId = await modulesApi.run('gff_convert', params);
+    const runId = await modulesApi.run('gff_convert', params, { inputsUsed, assetsUsed });
     const started = runId ? await registerStartedRun('gff-convert', runId) : false;
     navigate('gff-convert');
     if (started) runStartedToast({ module: t(navKey('gff-convert')), runId });

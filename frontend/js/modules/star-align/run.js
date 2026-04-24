@@ -2,6 +2,7 @@ import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
 import { alertModal, runStartedToast } from '../../ui/modal.js';
 import { t, navKey } from '../../core/i18n-helpers.js';
+import { collectLineage } from '../../ui/registry-picker.js';
 import {
   canStartModuleRun,
   cancelModuleRun,
@@ -36,8 +37,9 @@ export async function submitStarAlign(form) {
   if (params.sample_names.length === 0) delete params.sample_names;
   if (params.reads_2.length === 0) delete params.reads_2;
   markModuleRunPending('star-align');
+  const { inputsUsed, assetsUsed } = collectLineage(form);
   try {
-    const runId = await modulesApi.run('star_align', params);
+    const runId = await modulesApi.run('star_align', params, { inputsUsed, assetsUsed });
     const started = runId ? await registerStartedRun('star-align', runId) : false;
     navigate('star-align');
     if (started) runStartedToast({ module: t(navKey('star-align')), runId });

@@ -62,6 +62,16 @@ pub trait Module: Send + Sync {
     fn ai_hint(&self, _lang: &str) -> String {
         String::new()
     }
+
+    /// Describe the reusable assets a successful run produces. The Runner
+    /// uses these declarations to auto-register `AssetRecord`s in the
+    /// project's `assets[]` list with `produced_by_run_id` set.
+    ///
+    /// The `relative_path` on each `DeclaredAsset` is resolved against the
+    /// run's output directory. Default: no declared assets.
+    fn produced_assets(&self, _result: &ModuleResult) -> Vec<crate::asset::DeclaredAsset> {
+        Vec::new()
+    }
 }
 
 #[cfg(test)]

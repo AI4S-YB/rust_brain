@@ -2,6 +2,7 @@ import { state } from '../../core/state.js';
 import { t } from '../../core/i18n-helpers.js';
 import { escapeHtml } from '../../ui/escape.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
+import { attachInputPicker, attachAssetPicker } from '../../ui/registry-picker.js';
 
 export function renderStarIndexView(container) {
   const prefill = (state.prefill && state.prefill.star_index) || {};
@@ -29,6 +30,12 @@ export function renderStarIndexView(container) {
           <form id="form-star-index">
             <div class="form-group">
               <label class="form-label">${t('star_index.genome_fasta')}</label>
+              <div class="registry-picker"
+                   data-kind="input"
+                   data-input-kind="Fasta"
+                   data-target-name="genome_fasta"
+                   data-lineage-key="input"
+                   style="margin-bottom:8px"></div>
               <div class="input-with-browse">
                 <input type="text" class="form-input" name="genome_fasta" data-pick="file" placeholder="/path/to/genome.fa" required />
                 <button type="button" class="btn btn-secondary btn-sm" data-pick-for="genome_fasta">
@@ -38,6 +45,18 @@ export function renderStarIndexView(container) {
             </div>
             <div class="form-group">
               <label class="form-label">${t('star_index.gtf')}</label>
+              <div class="registry-picker"
+                   data-kind="input"
+                   data-input-kind="Gtf"
+                   data-target-name="gtf_file"
+                   data-lineage-key="input"
+                   style="margin-bottom:8px"></div>
+              <div class="registry-picker"
+                   data-kind="asset"
+                   data-asset-kind="Gtf"
+                   data-target-name="gtf_file"
+                   data-lineage-key="asset"
+                   style="margin-bottom:8px"></div>
               <div class="input-with-browse">
                 <input type="text" class="form-input" name="gtf_file" data-pick="file" value="${escapeHtml(gtfValue)}" placeholder="/path/to/annotation.gtf" required />
                 <button type="button" class="btn btn-secondary btn-sm" data-pick-for="gtf_file">
@@ -103,4 +122,9 @@ export function renderStarIndexView(container) {
       ${renderLogPanel('star-index')}
     </div>
   `;
+
+  const form = container.querySelector('#form-star-index');
+  form?.querySelectorAll('.registry-picker[data-kind="input"]').forEach(h => attachInputPicker(h));
+  form?.querySelectorAll('.registry-picker[data-kind="asset"]').forEach(h => attachAssetPicker(h));
+  if (window.lucide) window.lucide.createIcons();
 }

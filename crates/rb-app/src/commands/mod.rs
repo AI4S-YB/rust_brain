@@ -1,7 +1,10 @@
 pub mod ai_provider;
+pub mod assets;
 pub mod chat;
 pub mod files;
+pub mod inputs;
 pub mod modules;
 pub mod plugins;
 pub mod project;
+pub mod samples;
 pub mod settings;

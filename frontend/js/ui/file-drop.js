@@ -1,5 +1,7 @@
 import { state } from '../core/state.js';
 import { t } from '../core/i18n-helpers.js';
+import { inputsApi } from '../api/inputs.js';
+import { invalidatePickerCache } from './registry-picker.js';
 
 export function fmtSize(b) {
   if (!b) return '0 B';
@@ -34,6 +36,27 @@ export function handleFileDrop(zone, fileList) {
   const list = document.getElementById(`${mid}-file-list`);
   if (list) renderFileList(list, mid);
   refreshFileBadges(mid);
+  maybeAutoRegister(incoming);
+}
+
+/**
+ * Best-effort: register each incoming file as a project Input so it shows up
+ * in the registry picker next time. Only runs for absolute paths — real
+ * drag-from-OS events where the browser hides the path are silently skipped.
+ */
+async function maybeAutoRegister(incoming) {
+  const absolutes = incoming
+    .map(f => f.path)
+    .filter(p => typeof p === 'string' && (p.startsWith('/') || /^[a-zA-Z]:[\\/]/.test(p)));
+  if (absolutes.length === 0) return;
+  let anyOk = false;
+  for (const p of absolutes) {
+    try {
+      await inputsApi.register(p);
+      anyOk = true;
+    } catch { /* silent */ }
+  }
+  if (anyOk) invalidatePickerCache();
 }
 
 export function renderFileList(el, mid) {

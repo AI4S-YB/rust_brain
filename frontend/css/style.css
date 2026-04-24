@@ -9,6 +9,9 @@
 @import url('module-view.css');      /* per-view scaffolding (panels, charts, results, settings grid) */
 @import url('views/dashboard.css');
 @import url('views/settings.css');
+@import url('views/tasks.css');
+@import url('views/inputs.css');
+@import url('views/samples.css');
 @import url('motion.css');           /* keyframes + animation utilities */
 @import url('responsive.css');       /* media queries — last so they win the cascade */
 @import url('chat.css');             /* chat view (pre-existing, unchanged) */

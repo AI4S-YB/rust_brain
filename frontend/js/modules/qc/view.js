@@ -2,10 +2,32 @@ import { state } from '../../core/state.js';
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
 import { renderModuleHeader } from '../module-header.js';
+import { attachSamplesPicker } from '../../ui/registry-picker.js';
+import { renderFileList } from '../../ui/file-drop.js';
+import { inputsApi } from '../../api/inputs.js';
 
 export function renderQCView(container) {
   const mod = { id: 'qc', icon: 'microscope', color: 'teal', tool: 'fastqc-rs', status: 'ready' };
   container.innerHTML = `<div class="module-view">${renderModuleHeader(mod)}${renderQCBody()}</div>`;
+
+  const samplesHost = container.querySelector('.registry-picker-samples');
+  if (samplesHost) {
+    attachSamplesPicker(samplesHost, async ({ input_ids }) => {
+      if (!input_ids.length) return;
+      const all = await inputsApi.list();
+      const byId = new Map((all || []).map(i => [i.id, i]));
+      state.files['qc'] = input_ids
+        .map(id => byId.get(id))
+        .filter(Boolean)
+        .map(i => ({ name: i.display_name, path: i.path, size: i.size_bytes || 0 }));
+      const list = document.getElementById('qc-file-list');
+      if (list) renderFileList(list, 'qc');
+      document.querySelectorAll('[data-files-count="qc"]').forEach(el => {
+        el.textContent = t('qc.files_count', { n: state.files.qc.length });
+      });
+    });
+  }
+  if (window.lucide) window.lucide.createIcons();
 }
 
 function renderQCBody() {
@@ -18,6 +40,10 @@ function renderQCBody() {
             <span class="badge badge-teal" data-files-count="qc" data-files-count-key="qc.files_count">${t('qc.files_count', { n: state.files.qc.length })}</span>
           </div>
           <div class="panel-body">
+            <div class="registry-picker registry-picker-samples"
+                 data-kind="sample"
+                 data-lineage-key="input"
+                 style="margin-bottom:12px"></div>
             <div class="file-drop-zone" data-module="qc" data-param="input_files" data-accept=".fastq,.fq,.fastq.gz,.fq.gz,.bam,.sam">
               <div class="file-drop-icon"><i data-lucide="upload-cloud"></i></div>
               <div class="file-drop-text">${t('qc.drop_text')}</div>

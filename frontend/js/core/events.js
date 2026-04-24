@@ -12,6 +12,9 @@ import { alertModal } from '../ui/modal.js';
 import { projectNew, projectOpen } from '../modules/dashboard/project.js';
 import { runModule, resetForm } from './actions.js';
 import { cancelModuleRun } from './run-controls.js';
+import { deleteRunWithConfirm } from '../modules/run-result.js';
+import { inputsApi } from '../api/inputs.js';
+import { invalidatePickerCache } from '../ui/registry-picker.js';
 import { toggleCollapsible } from '../ui/collapsible.js';
 import { exportTableAsTSV } from '../ui/export-tsv.js';
 import { setFontSize } from './font-size.js';
@@ -19,7 +22,7 @@ import { setFontSize } from './font-size.js';
 export function setupEvents() {
   document.addEventListener('click', e => {
     const act = e.target.closest('[data-act]');
-    if (act && dispatchAction(act)) return;
+    if (act && dispatchAction(act, e)) return;
 
     const nav = e.target.closest('[data-view]');
     if (nav) {
@@ -127,6 +130,27 @@ export function setupEvents() {
     if (Array.isArray(picked)) input.value = picked.join(' ');
     else if (picked) input.value = picked;
     input.title = input.value;
+
+    // P4 enhancement: picked file(s) are also auto-registered as project Inputs
+    // so they show up in the registry picker next time. Dir picks are skipped
+    // (directories aren't a registerable Input kind). Failures are silent —
+    // this is a best-effort hook, the form path still works on its own.
+    if (mode !== 'dir') {
+      const paths = Array.isArray(picked) ? picked : (picked ? [picked] : []);
+      let anyOk = false;
+      for (const p of paths) {
+        try {
+          await inputsApi.register(p);
+          anyOk = true;
+        } catch { /* silent */ }
+      }
+      if (anyOk) {
+        // Next time a picker is opened (on view re-render or interaction),
+        // it will include the freshly-registered file. We deliberately don't
+        // re-render open pickers here to avoid resetting an existing selection.
+        invalidatePickerCache();
+      }
+    }
   });
 
   document.addEventListener('click', async (e) => {
@@ -175,7 +199,7 @@ export function setupEvents() {
   });
 }
 
-function dispatchAction(el) {
+function dispatchAction(el, event) {
   switch (el.dataset.act) {
     case 'run-module':
       runModule(el.dataset.mod);
@@ -195,6 +219,16 @@ function dispatchAction(el) {
     case 'goto-settings':
       navigate('settings');
       return true;
+    case 'delete-run': {
+      // The delete button lives inside <summary>; prevent the default toggle
+      // so clicking it doesn't also collapse the details panel.
+      event?.preventDefault();
+      event?.stopPropagation();
+      const runId = el.dataset.runId;
+      const container = el.closest('[data-runs-module-id]');
+      deleteRunWithConfirm(runId, container);
+      return true;
+    }
     case 'reload-plugins': {
       el.disabled = true;
       import('../api/plugins.js').then(m => m.pluginsApi.reload())

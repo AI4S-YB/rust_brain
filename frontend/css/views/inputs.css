@@ -1,0 +1,196 @@
+/* ============================================================
+   Inputs (project-level input registry) view
+   ============================================================ */
+
+.inputs-toolbar {
+  padding: 14px 18px;
+  margin-bottom: 14px;
+}
+
+.inputs-toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.inputs-toolbar-spacer {
+  flex: 1;
+  min-width: 12px;
+}
+
+.inputs-filter {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.inputs-filter select {
+  padding: 6px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+}
+
+.inputs-search {
+  padding: 7px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  min-width: 200px;
+}
+
+.inputs-search:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--accent-light);
+  outline: none;
+}
+
+.inputs-summary {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-default);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.inputs-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.inputs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+}
+
+.inputs-table thead th {
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.inputs-table tbody td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-default);
+  vertical-align: middle;
+}
+
+.inputs-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.inputs-table tbody tr:hover {
+  background: rgba(13, 115, 119, 0.04);
+}
+
+.inputs-table tbody tr.input-missing {
+  background: rgba(201, 80, 60, 0.04);
+  border-left: 3px solid rgba(201, 80, 60, 0.5);
+}
+
+.inputs-col-check   { width: 36px; text-align: center; }
+.inputs-col-name    { min-width: 180px; }
+.inputs-col-path    { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inputs-col-path code { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); }
+.inputs-col-size    { font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+.inputs-col-time    { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
+.inputs-col-status  { white-space: nowrap; }
+.inputs-col-actions { width: 68px; text-align: right; }
+
+.inputs-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px !important;
+}
+
+.inputs-name-edit {
+  width: 100%;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.inputs-name-edit:hover {
+  border-color: var(--border-default);
+}
+
+.inputs-name-edit:focus {
+  outline: none;
+  background: var(--bg-surface);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+/* Kind pills — color-coded per InputKind */
+.kind-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.kind-pill.kind-fastq         { background: rgba(13, 115, 119, 0.14);  color: #0d7377; }
+.kind-pill.kind-fasta         { background: rgba(124, 92, 191, 0.14);  color: #7c5cbf; }
+.kind-pill.kind-gtf           { background: rgba(201, 80, 60, 0.14);   color: #c9503c; }
+.kind-pill.kind-gff           { background: rgba(184, 134, 11, 0.14);  color: #b8860b; }
+.kind-pill.kind-countsmatrix  { background: rgba(59, 110, 165, 0.14);  color: #3b6ea5; }
+.kind-pill.kind-samplesheet   { background: rgba(45, 134, 89, 0.14);   color: #2d8659; }
+.kind-pill.kind-other         { background: rgba(92, 112, 128, 0.14);  color: #5c7080; }
+.kind-pill.kind-starindex     { background: rgba(124, 92, 191, 0.14);  color: #7c5cbf; }
+.kind-pill.kind-bam           { background: rgba(13, 115, 119, 0.14);  color: #0d7377; }
+.kind-pill.kind-trimmedfastq  { background: rgba(59, 110, 165, 0.14);  color: #3b6ea5; }
+.kind-pill.kind-report        { background: rgba(184, 134, 11, 0.14);  color: #b8860b; }
+
+.status-pill.status-missing {
+  background: rgba(201, 80, 60, 0.16);
+  color: #c9503c;
+}
+
+/* Registry picker — shared P4 component */
+.registry-picker {
+  padding: 10px 12px;
+  background: rgba(13, 115, 119, 0.04);
+  border: 1px dashed rgba(13, 115, 119, 0.25);
+  border-radius: var(--radius-sm);
+}
+
+.registry-picker-label {
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.registry-picker-select {
+  width: 100%;
+}
+
+.registry-picker-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+}

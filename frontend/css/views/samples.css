@@ -1,0 +1,122 @@
+/* Samples view — reuses inputs-table base, adds chip styling */
+
+.samples-col-inputs {
+  min-width: 280px;
+  line-height: 2;
+}
+
+.sample-input-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px 3px 10px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  margin-right: 6px;
+  margin-bottom: 4px;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sample-input-chip.sample-input-missing {
+  background: rgba(201, 80, 60, 0.1);
+  color: #c9503c;
+}
+
+.sample-chip-x {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 0.95rem;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.sample-chip-x:hover {
+  opacity: 1;
+  color: #c9503c;
+}
+
+.sample-no-inputs {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.sample-name-edit {
+  width: 100%;
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 0.87rem;
+  transition: border-color var(--duration-fast) ease;
+}
+
+.sample-name-edit:hover {
+  border-color: var(--border-default);
+}
+
+.sample-name-edit:focus {
+  outline: none;
+  background: var(--bg-surface);
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-light);
+}
+
+.samples-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 24px !important;
+}
+
+/* Pick-inputs modal */
+.samples-pick-modal {
+  max-width: 640px;
+  width: 90vw;
+}
+
+.samples-pick-list {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 8px;
+  margin: 12px 0;
+  background: var(--bg-surface);
+}
+
+.samples-pick-row {
+  display: grid;
+  grid-template-columns: 24px 90px 1fr auto;
+  gap: 10px;
+  padding: 6px 8px;
+  align-items: center;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.samples-pick-row:hover {
+  background: var(--bg-inset);
+}
+
+.samples-pick-name {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.samples-pick-size {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}

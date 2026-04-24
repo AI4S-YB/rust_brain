@@ -1,6 +1,7 @@
 use rb_core::module::ValidationError;
-use rb_core::project::RunRecord;
+use rb_core::project::{RunRecord, RunStatus};
 use serde_json::Value;
+use std::collections::HashMap;
 use tauri::State;
 
 use crate::state::AppState;
@@ -24,6 +25,8 @@ pub async fn validate_params(
 pub async fn run_module(
     module_id: String,
     params: Value,
+    inputs_used: Option<Vec<String>>,
+    assets_used: Option<Vec<String>>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let module = {
@@ -41,7 +44,14 @@ pub async fn run_module(
             .clone()
     };
 
-    runner.spawn(module, params).await
+    runner
+        .spawn_with_lineage(
+            module,
+            params,
+            inputs_used.unwrap_or_default(),
+            assets_used.unwrap_or_default(),
+        )
+        .await
 }
 
 #[tauri::command]
@@ -102,6 +112,139 @@ pub async fn list_runs(
         .collect();
 
     Ok(runs)
+}
+
+#[tauri::command]
+pub async fn delete_run(run_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
+
+    let mut project = runner.project().lock().await;
+    project.delete_run(&run_id).map_err(|e| e.to_string())
+}
+
+#[derive(Debug, Serialize)]
+pub struct ClearRunsResult {
+    pub deleted: u32,
+    pub skipped_running: u32,
+    pub errors: Vec<String>,
+}
+
+/// Bulk-delete runs matching filters.
+/// - `module_id`: only runs for this backend module id (None = any module).
+/// - `statuses`: only runs whose status matches one of these (None = any status).
+/// Running / Pending runs are always skipped to avoid racing the Runner.
+#[tauri::command]
+pub async fn clear_runs(
+    module_id: Option<String>,
+    statuses: Option<Vec<String>>,
+    state: State<'_, AppState>,
+) -> Result<ClearRunsResult, String> {
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
+
+    let wanted: Option<Vec<RunStatus>> =
+        statuses.map(|v| v.into_iter().filter_map(parse_status).collect());
+
+    let ids_to_delete: Vec<String> = {
+        let project = runner.project().lock().await;
+        project
+            .runs
+            .iter()
+            .filter(|r| match &module_id {
+                Some(m) => r.module_id == *m,
+                None => true,
+            })
+            .filter(|r| match &wanted {
+                Some(list) => list.contains(&r.status),
+                None => true,
+            })
+            .filter(|r| !matches!(r.status, RunStatus::Running | RunStatus::Pending))
+            .map(|r| r.id.clone())
+            .collect()
+    };
+
+    let mut deleted = 0u32;
+    let mut errors = Vec::new();
+    {
+        let mut project = runner.project().lock().await;
+        for id in &ids_to_delete {
+            match project.delete_run(id) {
+                Ok(()) => deleted += 1,
+                Err(e) => errors.push(format!("{}: {}", id, e)),
+            }
+        }
+    }
+
+    let skipped_running: u32 = {
+        let project = runner.project().lock().await;
+        project
+            .runs
+            .iter()
+            .filter(|r| match &module_id {
+                Some(m) => r.module_id == *m,
+                None => true,
+            })
+            .filter(|r| match &wanted {
+                Some(list) => list.contains(&r.status),
+                None => true,
+            })
+            .filter(|r| matches!(r.status, RunStatus::Running | RunStatus::Pending))
+            .count() as u32
+    };
+
+    Ok(ClearRunsResult {
+        deleted,
+        skipped_running,
+        errors,
+    })
+}
+
+fn parse_status(s: String) -> Option<RunStatus> {
+    match s.as_str() {
+        "Pending" => Some(RunStatus::Pending),
+        "Running" => Some(RunStatus::Running),
+        "Done" => Some(RunStatus::Done),
+        "Failed" => Some(RunStatus::Failed),
+        "Cancelled" => Some(RunStatus::Cancelled),
+        _ => None,
+    }
+}
+
+#[tauri::command]
+pub async fn get_run_sizes(
+    run_ids: Option<Vec<String>>,
+    state: State<'_, AppState>,
+) -> Result<HashMap<String, u64>, String> {
+    let runner = {
+        let guard = state.runner.lock().await;
+        guard
+            .as_ref()
+            .ok_or_else(|| "no project open".to_string())?
+            .clone()
+    };
+
+    let project = runner.project().lock().await;
+    let ids: Vec<String> = match run_ids {
+        Some(v) => v,
+        None => project.runs.iter().map(|r| r.id.clone()).collect(),
+    };
+
+    let mut out = HashMap::new();
+    for id in ids {
+        out.insert(id.clone(), project.run_dir_size(&id));
+    }
+    Ok(out)
 }
 
 use serde::Serialize;

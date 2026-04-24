@@ -2,6 +2,7 @@ import { modulesApi } from '../../api/modules.js';
 import { navigate } from '../../core/router.js';
 import { alertModal, runStartedToast } from '../../ui/modal.js';
 import { t, navKey } from '../../core/i18n-helpers.js';
+import { collectLineage } from '../../ui/registry-picker.js';
 import {
   canStartModuleRun,
   cancelModuleRun,
@@ -34,8 +35,9 @@ export async function submitStarIndex(form) {
   };
   if (output_dir) params.output_dir = output_dir;
   markModuleRunPending('star-index');
+  const { inputsUsed, assetsUsed } = collectLineage(form);
   try {
-    const runId = await modulesApi.run('star_index', params);
+    const runId = await modulesApi.run('star_index', params, { inputsUsed, assetsUsed });
     const started = runId ? await registerStartedRun('star-index', runId) : false;
     navigate('star-index');
     if (started) runStartedToast({ module: t(navKey('star-index')), runId });

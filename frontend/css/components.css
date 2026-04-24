@@ -93,6 +93,18 @@
   color: var(--text-primary);
 }
 
+.btn-danger {
+  background: #c9503c;
+  color: white;
+  border-color: #c9503c;
+}
+
+.btn-danger:hover {
+  background: #b33f2b;
+  box-shadow: var(--shadow-colored);
+  transform: translateY(-1px);
+}
+
 .btn-sm {
   padding: 7px 14px;
   font-size: 0.82rem;
