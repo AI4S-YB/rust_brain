@@ -39,7 +39,14 @@ async fn force_close_app(
         futures_util::future::join_all(cancels).await;
     }
     close_state.0.store(true, Ordering::SeqCst);
-    window.close().map_err(|e| e.to_string())
+    // If close() itself fails, clear the flag so a later close attempt still
+    // triggers the confirm prompt instead of silently slipping through the
+    // one-shot short-circuit in the window-close handler.
+    if let Err(e) = window.close() {
+        close_state.0.store(false, Ordering::SeqCst);
+        return Err(e.to_string());
+    }
+    Ok(())
 }
 
 fn main() {

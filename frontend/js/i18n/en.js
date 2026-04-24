@@ -348,7 +348,7 @@
         load_runs_failed: 'Could not load runs',
         run_label: 'Run',
         close_confirm_title: 'Runs in progress',
-        close_confirm_message: '{n} task(s) are still running. Exiting now will cancel them and any unsaved output may be lost. Exit anyway?',
+        close_confirm_message: 'There are runs in progress ({n}). Exiting now will cancel them and any unsaved output may be lost. Exit anyway?',
         close_confirm_exit: 'Exit and cancel',
       },
       project: {
