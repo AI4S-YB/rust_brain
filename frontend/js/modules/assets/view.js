@@ -109,6 +109,9 @@ async function handleDelete(id) {
 }
 
 function bindEvents(container) {
+  if (container.dataset.assetsEventsBound === 'true') return;
+  container.dataset.assetsEventsBound = 'true';
+
   container.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;

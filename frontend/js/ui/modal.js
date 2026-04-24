@@ -47,8 +47,11 @@ function openModal({ title, message, input, buttons }) {
 
     const inputEl = backdrop.querySelector('.modal-input');
     const prevFocus = document.activeElement;
+    let settled = false;
 
     const finish = (result) => {
+      if (settled) return;
+      settled = true;
       document.removeEventListener('keydown', onKey, true);
       backdrop.remove();
       if (prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();

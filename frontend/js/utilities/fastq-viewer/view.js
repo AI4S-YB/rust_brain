@@ -65,7 +65,10 @@ export function renderFastqViewerView(content) {
     jumpEl.max = res.total_records - 1;
   }
 
-  content.addEventListener('click', async (e) => {
+  if (content._fastqViewerClickHandler) {
+    content.removeEventListener('click', content._fastqViewerClickHandler);
+  }
+  content._fastqViewerClickHandler = async (e) => {
     const act = e.target.closest('[data-act]')?.dataset.act;
     if (act === 'fastq-open') openFile();
     if (act === 'fastq-search-next') {
@@ -81,7 +84,8 @@ export function renderFastqViewerView(content) {
         state.searchCursor = 0; // wrap
       }
     }
-  });
+  };
+  content.addEventListener('click', content._fastqViewerClickHandler);
 
   jumpEl.addEventListener('change', () => list.scrollToIndex(Number(jumpEl.value)));
   pctEl.addEventListener('change', async () => {

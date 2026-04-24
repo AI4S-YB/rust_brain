@@ -1,4 +1,4 @@
-use rb_core::sample::{SamplePatch, SampleRecord};
+use rb_core::sample::{ReadPairPattern, SamplePairPreview, SamplePatch, SampleRecord};
 use serde::Serialize;
 use std::path::PathBuf;
 use tauri::State;
@@ -66,6 +66,17 @@ pub async fn delete_sample(id: String, state: State<'_, AppState>) -> Result<(),
 #[tauri::command]
 pub async fn auto_pair_samples(state: State<'_, AppState>) -> Result<Vec<SampleRecord>, String> {
     with_project(&state, |p| p.auto_pair_samples().map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+pub async fn preview_auto_pair_samples(
+    patterns: Option<Vec<ReadPairPattern>>,
+    state: State<'_, AppState>,
+) -> Result<Vec<SamplePairPreview>, String> {
+    with_project(&state, |p| {
+        Ok(p.preview_auto_pair_samples(&patterns.unwrap_or_default()))
+    })
+    .await
 }
 
 #[tauri::command]

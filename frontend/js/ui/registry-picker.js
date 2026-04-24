@@ -225,7 +225,12 @@ function openSamplesModal(samples, inputMap, onOk) {
     </div>`;
   document.body.appendChild(backdrop);
 
-  const close = () => backdrop.remove();
+  let settled = false;
+  const close = () => {
+    if (settled) return;
+    settled = true;
+    backdrop.remove();
+  };
   backdrop.querySelector('[data-role=cancel]').addEventListener('click', close);
   backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
   backdrop.querySelector('[data-role=ok]').addEventListener('click', () => {

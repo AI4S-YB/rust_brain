@@ -26,6 +26,7 @@ export function renderPlotsView(container) {
     id: 'plots', icon: 'line-chart', color: 'gold',
     tool: 'ECharts 5', status: 'ready', name: t('plots.title'),
   };
+  cleanupBindings(container);
   container.innerHTML = `<div class="module-view">${renderModuleHeader(mod)}${renderBody()}</div>`;
   bind(container);
   resetWith(local.chartType, { loadSample: true });
@@ -121,7 +122,7 @@ function bind(container) {
     });
   });
 
-  container.addEventListener('click', (ev) => {
+  const clickHandler = (ev) => {
     const target = ev.target.closest('[data-plot-act]');
     if (!target) return;
     const act = target.dataset.plotAct;
@@ -137,7 +138,9 @@ function bind(container) {
     else if (act === 'export-tsv' && local.table) {
       exportTsv(local.table, `rustbrain_${local.chartType}`);
     }
-  });
+  };
+  container._plotsClickHandler = clickHandler;
+  container.addEventListener('click', clickHandler);
 
   const textarea = container.querySelector('#plots-data');
   textarea.addEventListener('input', () => onDataChanged(textarea.value));
@@ -161,6 +164,25 @@ function bind(container) {
       if (local.chartInstance) local.chartInstance.resize();
     });
     local.resizeObs.observe(chartEl);
+  }
+}
+
+function cleanupBindings(container) {
+  if (container._plotsClickHandler) {
+    container.removeEventListener('click', container._plotsClickHandler);
+    delete container._plotsClickHandler;
+  }
+  if (local.resizeHandler) {
+    window.removeEventListener('resize', local.resizeHandler);
+    local.resizeHandler = null;
+  }
+  if (local.resizeObs) {
+    try { local.resizeObs.disconnect(); } catch (_) {}
+    local.resizeObs = null;
+  }
+  if (local.chartInstance) {
+    try { local.chartInstance.dispose(); } catch (_) {}
+    local.chartInstance = null;
   }
 }
 

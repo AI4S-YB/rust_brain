@@ -21,6 +21,9 @@ export const samplesApi = {
   autoPair() {
     return api.invoke('auto_pair_samples');
   },
+  previewAutoPair(patterns = []) {
+    return api.invoke('preview_auto_pair_samples', { patterns });
+  },
   importTsv(path) {
     return api.invoke('import_samples_from_tsv', { path });
   },

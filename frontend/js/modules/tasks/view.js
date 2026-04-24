@@ -140,6 +140,9 @@ async function loadAll() {
 }
 
 function bindEvents(container) {
+  if (container.dataset.tasksEventsBound === 'true') return;
+  container.dataset.tasksEventsBound = 'true';
+
   container.addEventListener('change', (e) => {
     if (e.target.id === 'tasks-filter-status') {
       viewState.filterStatus = e.target.value;

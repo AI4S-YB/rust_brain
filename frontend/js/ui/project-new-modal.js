@@ -37,8 +37,11 @@ export function projectNewModal() {
     const input = backdrop.querySelector('.modal-input');
     const ok = backdrop.querySelector('.modal-ok');
     const cancel = backdrop.querySelector('.modal-cancel');
+    let settled = false;
 
     const close = (result) => {
+      if (settled) return;
+      settled = true;
       backdrop.remove();
       resolve(result);
     };

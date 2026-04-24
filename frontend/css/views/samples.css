@@ -5,6 +5,11 @@
   line-height: 2;
 }
 
+.samples-col-actions {
+  width: 96px;
+  text-align: right;
+}
+
 .sample-input-chip {
   display: inline-flex;
   align-items: center;
@@ -119,4 +124,116 @@
   color: var(--text-muted);
   font-size: 0.78rem;
   white-space: nowrap;
+}
+
+.samples-auto-pair-modal {
+  max-width: 980px;
+  width: 94vw;
+}
+
+.samples-pattern-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.samples-pattern-field {
+  display: grid;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.samples-pattern-field textarea {
+  min-height: 54px;
+  resize: vertical;
+  padding: 8px 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+}
+
+.samples-pattern-field textarea:focus,
+.samples-pair-name:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 2px var(--accent-light);
+  outline: none;
+}
+
+.samples-pair-error {
+  min-height: 18px;
+  color: #c9503c;
+  font-size: 0.8rem;
+}
+
+.samples-pair-preview {
+  max-height: min(52vh, 460px);
+  overflow: auto;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+}
+
+.samples-pair-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.samples-pair-table th,
+.samples-pair-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-default);
+  vertical-align: middle;
+}
+
+.samples-pair-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.samples-pair-table tr:last-child td {
+  border-bottom: none;
+}
+
+.samples-pair-name {
+  min-width: 150px;
+}
+
+.samples-pair-file {
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.samples-pair-pattern,
+.samples-pair-muted {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+@media (max-width: 720px) {
+  .samples-pattern-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .samples-auto-pair-modal {
+    width: 96vw;
+  }
 }

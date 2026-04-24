@@ -228,6 +228,7 @@ fn main() {
             commands::samples::update_sample,
             commands::samples::delete_sample,
             commands::samples::auto_pair_samples,
+            commands::samples::preview_auto_pair_samples,
             commands::samples::import_samples_from_tsv,
             commands::assets::list_assets,
             commands::assets::delete_asset,

@@ -214,6 +214,9 @@ async function handleRename(id, newName) {
 }
 
 function bindEvents(container) {
+  if (container.dataset.inputsEventsBound === 'true') return;
+  container.dataset.inputsEventsBound = 'true';
+
   container.addEventListener('click', async (e) => {
     const btn = e.target.closest('[data-act]');
     if (!btn) return;

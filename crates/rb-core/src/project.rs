@@ -11,7 +11,10 @@ use crate::input::{
     detect_kind, new_input_id, InputKind, InputPatch, InputRecord, InputScanReport,
 };
 use crate::module::ModuleResult;
-use crate::sample::{new_sample_id, SamplePatch, SampleRecord};
+use crate::sample::{
+    classify_read_pair_name, default_read_pair_patterns, new_sample_id, strip_fastq_ext,
+    ReadPairPattern, SamplePairPreview, SamplePatch, SampleRecord,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub enum RunStatus {
@@ -444,56 +447,127 @@ impl Project {
         Ok(())
     }
 
-    /// Build samples by auto-pairing `_R1` / `_R2` among the project's
-    /// already-registered FASTQ inputs. Skips inputs that are already part
-    /// of a sample. Returns the newly created samples.
-    pub fn auto_pair_samples(&mut self) -> io::Result<Vec<SampleRecord>> {
-        use crate::sample::pair_fastq_names;
+    /// Preview samples that would be created by auto-pairing registered FASTQ
+    /// inputs. Skips inputs that are already part of a sample.
+    pub fn preview_auto_pair_samples(
+        &self,
+        patterns: &[ReadPairPattern],
+    ) -> Vec<SamplePairPreview> {
         let already_linked: std::collections::HashSet<String> = self
             .samples
             .iter()
             .flat_map(|s| s.inputs.iter().cloned())
             .collect();
+        let patterns = if patterns.is_empty() {
+            default_read_pair_patterns()
+        } else {
+            patterns.to_vec()
+        };
 
-        // Map of file_name -> input_id
         let candidates: Vec<(String, String)> = self
             .inputs
             .iter()
             .filter(|r| r.kind == InputKind::Fastq && !r.missing)
             .filter(|r| !already_linked.contains(&r.id))
             .map(|r| {
-                (
-                    r.path
-                        .file_name()
-                        .and_then(|n| n.to_str())
-                        .unwrap_or("")
-                        .to_string(),
-                    r.id.clone(),
-                )
+                let file_name = r
+                    .path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| r.display_name.clone());
+                (file_name, r.id.clone())
             })
             .collect();
 
-        let names: Vec<String> = candidates.iter().map(|(n, _)| n.clone()).collect();
-        let groups = pair_fastq_names(&names);
+        let mut by_stem: std::collections::BTreeMap<
+            (usize, String),
+            (String, ReadPairPattern, [Option<String>; 2]),
+        > = std::collections::BTreeMap::new();
+        let mut singletons: Vec<SamplePairPreview> = Vec::new();
 
-        let mut created = Vec::new();
-        for (stem, members) in groups {
-            let mut input_ids: Vec<String> = Vec::new();
-            for name in &members {
-                if let Some((_, id)) = candidates.iter().find(|(n, _)| n == name) {
-                    input_ids.push(id.clone());
+        for (file_name, input_id) in candidates {
+            if let Some(hit) = classify_read_pair_name(&file_name, &patterns) {
+                let entry = by_stem
+                    .entry((hit.pattern_index, hit.sample_name.clone()))
+                    .or_insert_with(|| {
+                        (hit.sample_name.clone(), hit.pattern.clone(), [None, None])
+                    });
+                if entry.2[hit.read_index].is_none() {
+                    entry.2[hit.read_index] = Some(input_id);
+                } else {
+                    singletons.push(SamplePairPreview {
+                        name: strip_fastq_ext(&file_name),
+                        inputs: vec![input_id],
+                        paired: false,
+                        pattern: None,
+                    });
                 }
+            } else {
+                singletons.push(SamplePairPreview {
+                    name: strip_fastq_ext(&file_name),
+                    inputs: vec![input_id],
+                    paired: false,
+                    pattern: None,
+                });
             }
-            if input_ids.is_empty() {
+        }
+
+        let mut out = Vec::new();
+        for (_, (name, pattern, reads)) in by_stem {
+            match reads {
+                [Some(r1), Some(r2)] => out.push(SamplePairPreview {
+                    name,
+                    inputs: vec![r1, r2],
+                    paired: true,
+                    pattern: Some(pattern),
+                }),
+                [Some(only), None] | [None, Some(only)] => {
+                    out.push(SamplePairPreview {
+                        name: self
+                            .inputs
+                            .iter()
+                            .find(|r| r.id == only)
+                            .map(|r| {
+                                r.path
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .map(str::to_string)
+                                    .unwrap_or_else(|| r.display_name.clone())
+                            })
+                            .map(|name| strip_fastq_ext(&name))
+                            .unwrap_or_else(|| only.clone()),
+                        inputs: vec![only],
+                        paired: false,
+                        pattern: Some(pattern),
+                    });
+                }
+                [None, None] => unreachable!(),
+            }
+        }
+        out.extend(singletons);
+        out
+    }
+
+    /// Build samples by auto-pairing registered FASTQ inputs. Skips inputs
+    /// that are already part of a sample. Returns the newly created samples.
+    pub fn auto_pair_samples_with_patterns(
+        &mut self,
+        patterns: &[ReadPairPattern],
+    ) -> io::Result<Vec<SampleRecord>> {
+        let previews = self.preview_auto_pair_samples(patterns);
+        let mut created = Vec::new();
+        for preview in previews {
+            if preview.inputs.is_empty() {
                 continue;
             }
             let rec = SampleRecord {
                 id: new_sample_id(),
-                name: stem,
+                name: preview.name,
                 group: None,
                 condition: None,
-                paired: input_ids.len() >= 2,
-                inputs: input_ids,
+                paired: preview.inputs.len() >= 2,
+                inputs: preview.inputs,
                 notes: None,
             };
             self.samples.push(rec.clone());
@@ -503,6 +577,10 @@ impl Project {
             self.save()?;
         }
         Ok(created)
+    }
+
+    pub fn auto_pair_samples(&mut self) -> io::Result<Vec<SampleRecord>> {
+        self.auto_pair_samples_with_patterns(&default_read_pair_patterns())
     }
 
     /// Import samples from a TSV/CSV sample sheet. Expected columns
@@ -1034,6 +1112,30 @@ mod sample_registry_tests {
         let created = p.auto_pair_samples().unwrap();
         assert_eq!(created.len(), 1, "expected one paired sample");
         assert_eq!(created[0].name, "sampleA");
+        assert!(created[0].paired);
+    }
+
+    #[test]
+    fn auto_pair_handles_prefix_r1_r2_shared_suffix() {
+        let tmp = tempdir().unwrap();
+        let mut p = Project::create("t", tmp.path()).unwrap();
+        let r1 = tmp.path().join("R1.raw.fastq.gz");
+        let r2 = tmp.path().join("R2.raw.fastq.gz");
+        std::fs::write(&r1, b"data").unwrap();
+        std::fs::write(&r2, b"data").unwrap();
+        let i1 = p.register_input(&r1, None, None).unwrap().id;
+        let i2 = p.register_input(&r2, None, None).unwrap().id;
+
+        let preview = p.preview_auto_pair_samples(&[]);
+        assert_eq!(preview.len(), 1);
+        assert_eq!(preview[0].name, "raw");
+        assert_eq!(preview[0].inputs, vec![i1.clone(), i2.clone()]);
+        assert!(preview[0].paired);
+
+        let created = p.auto_pair_samples().unwrap();
+        assert_eq!(created.len(), 1);
+        assert_eq!(created[0].name, "raw");
+        assert_eq!(created[0].inputs, vec![i1, i2]);
         assert!(created[0].paired);
     }
 
