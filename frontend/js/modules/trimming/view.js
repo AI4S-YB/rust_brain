@@ -2,7 +2,7 @@ import { state } from '../../core/state.js';
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
 import { renderModuleHeader } from '../module-header.js';
-import { attachSamplesPicker } from '../../ui/registry-picker.js';
+import { attachInputPicker, attachSamplesPicker } from '../../ui/registry-picker.js';
 import { renderFileList } from '../../ui/file-drop.js';
 import { inputsApi } from '../../api/inputs.js';
 
@@ -27,6 +27,27 @@ export function renderTrimmingView(container) {
       if (list) renderFileList(list, 'trimming');
     });
   }
+  const fastqHost = container.querySelector('.registry-picker[data-kind="input"][data-input-kind="Fastq"]');
+  if (fastqHost) {
+    attachInputPicker(fastqHost, (input) => {
+      if (!input) return;
+      if (!state.files.trimming) state.files.trimming = [];
+      if (!state.files.trimming.some(f => f.path === input.path)) {
+        state.files.trimming.push({
+          name: input.display_name,
+          path: input.path,
+          size: input.size_bytes || 0,
+          inputId: input.id,
+        });
+      }
+      fastqHost.dataset.selectedInputIds = state.files.trimming
+        .map(f => f.inputId)
+        .filter(Boolean)
+        .join(',');
+      const list = document.getElementById('trimming-file-list');
+      if (list) renderFileList(list, 'trimming');
+    });
+  }
   if (window.lucide) window.lucide.createIcons();
 }
 
@@ -39,6 +60,11 @@ function renderTrimmingBody() {
           <div class="panel-body">
             <div class="registry-picker registry-picker-samples"
                  data-kind="sample"
+                 data-lineage-key="input"
+                 style="margin-bottom:12px"></div>
+            <div class="registry-picker"
+                 data-kind="input"
+                 data-input-kind="Fastq"
                  data-lineage-key="input"
                  style="margin-bottom:12px"></div>
             <div class="file-drop-zone" data-module="trimming" data-param="input_files" data-accept=".fastq,.fq,.fastq.gz,.fq.gz">

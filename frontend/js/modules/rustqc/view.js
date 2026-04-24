@@ -35,6 +35,8 @@ export function renderRustqcView(container) {
     state.files['rustqc-gtf'] = rec
       ? [{ name: rec.display_name, path: rec.path, size: rec.size_bytes || 0 }]
       : [];
+    const list = document.getElementById('rustqc-gtf-file-list');
+    if (list) renderFileList(list, 'rustqc-gtf');
   };
   if (gtfInputHost) attachInputPicker(gtfInputHost, setGtf);
   if (gtfAssetHost) attachAssetPicker(gtfAssetHost, setGtf);
@@ -79,6 +81,7 @@ function renderRustqcBody() {
               <div class="file-drop-icon"><i data-lucide="file-text"></i></div>
               <div class="file-drop-text">${t('rustqc.drop_gtf')}</div>
               <div class="file-drop-hint">${t('rustqc.drop_gtf_hint')}</div>
+              <div id="rustqc-gtf-file-list" class="file-list" style="margin-top:10px"></div>
             </div>
           </div>
         </div>

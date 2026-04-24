@@ -1,6 +1,6 @@
 import { t } from '../../core/i18n-helpers.js';
 import { renderLogPanel } from '../../ui/log-panel.js';
-import { attachAssetPicker, attachSamplesPicker } from '../../ui/registry-picker.js';
+import { attachAssetPicker, attachInputPicker, attachSamplesPicker } from '../../ui/registry-picker.js';
 
 export function renderStarAlignView(container) {
   container.innerHTML = `
@@ -46,6 +46,12 @@ export function renderStarAlignView(container) {
             </div>
             <div class="form-group">
               <label class="form-label">${t('star_align.reads_1')}</label>
+              <div class="registry-picker"
+                   data-kind="input"
+                   data-input-kind="Fastq"
+                   data-target-name="reads_1"
+                   data-lineage-key="input"
+                   style="margin-bottom:8px"></div>
               <div class="input-with-browse">
                 <input type="text" class="form-input" name="reads_1" required placeholder="/path/to/S1_R1.fq.gz /path/to/S2_R1.fq.gz" />
                 <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_1" data-pick-mode="multi">
@@ -55,6 +61,12 @@ export function renderStarAlignView(container) {
             </div>
             <div class="form-group">
               <label class="form-label">${t('star_align.reads_2')}</label>
+              <div class="registry-picker"
+                   data-kind="input"
+                   data-input-kind="Fastq"
+                   data-target-name="reads_2"
+                   data-lineage-key="input"
+                   style="margin-bottom:8px"></div>
               <div class="input-with-browse">
                 <input type="text" class="form-input" name="reads_2" placeholder="/path/to/S1_R2.fq.gz /path/to/S2_R2.fq.gz" />
                 <button type="button" class="btn btn-secondary btn-sm" data-pick-for="reads_2" data-pick-mode="multi">
@@ -114,6 +126,9 @@ export function renderStarAlignView(container) {
   const form = container.querySelector('#form-star-align');
   const assetHost = form?.querySelector('.registry-picker[data-kind="asset"]');
   if (assetHost) attachAssetPicker(assetHost);
+
+  form?.querySelectorAll('.registry-picker[data-kind="input"][data-input-kind="Fastq"]')
+    .forEach(host => attachInputPicker(host));
 
   const samplesHost = form?.querySelector('.registry-picker-samples');
   if (samplesHost) {
