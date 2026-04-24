@@ -68,22 +68,22 @@ export function setupEvents() {
   });
   document.addEventListener('click', e => {
     const z = e.target.closest('.file-drop-zone');
-    if (z && !e.target.closest('.file-item-remove')) {
-      api.invoke('select_files', { accept: z.dataset.accept || '*' })
-        .then(files => {
-          if (files && Array.isArray(files) && files.length > 0) {
-            handleFileDrop(z, files.map(f => ({ name: f.split(/[\\/]/).pop(), size: 0, path: f })));
-          } else {
-            throw new Error('no files');
-          }
-        })
-        .catch(() => {
-          const inp = document.createElement('input');
-          inp.type = 'file'; inp.multiple = true; inp.accept = z.dataset.accept || '*';
-          inp.onchange = () => handleFileDrop(z, inp.files);
-          inp.click();
-        });
-    }
+    if (!z || e.target.closest('.file-item-remove')) return;
+    api.invoke('select_files', { accept: z.dataset.accept || '*' })
+      .then(files => {
+        // Empty array = user cancelled the native dialog; do nothing.
+        if (Array.isArray(files) && files.length > 0) {
+          handleFileDrop(z, files.map(f => ({ name: f.split(/[\\/]/).pop(), size: 0, path: f })));
+        }
+      })
+      .catch(() => {
+        // Genuine invocation failure (no Tauri, no shim) — fall back to a
+        // hidden HTML file input so the feature still works in pure browser mode.
+        const inp = document.createElement('input');
+        inp.type = 'file'; inp.multiple = true; inp.accept = z.dataset.accept || '*';
+        inp.onchange = () => handleFileDrop(z, inp.files);
+        inp.click();
+      });
   });
 
   window.addEventListener('hashchange', () => {
