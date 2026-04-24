@@ -164,7 +164,7 @@ jobs:
       - name: Download bundled STAR_rs binary
         shell: bash
         env:
-          STAR_VERSION: v0.2.2
+          STAR_VERSION: v0.3.1
         run: |
           mkdir -p crates/rb-app/binaries
           case "${{ runner.os }}" in

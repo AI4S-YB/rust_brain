@@ -224,7 +224,7 @@ Happy path tests run unconditionally; the integration smoke test is silent-skip 
 ## Version & release
 
 First release with this module: **v0.4.0** (new user-visible module → minor bump).
-Both bundled binaries pinned: STAR_rs v0.2.2, gffread_rs v0.1.0. Future bumps of either tracked by a single-line CI diff.
+Both bundled binaries pinned: STAR_rs v0.3.1, gffread_rs v0.1.0. Future bumps of either tracked by a single-line CI diff.
 
 ## Open questions — none
 

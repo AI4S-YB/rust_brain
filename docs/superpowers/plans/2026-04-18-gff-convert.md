@@ -1038,7 +1038,7 @@ In `.github/workflows/ci.yml`, locate the existing `Download bundled STAR_rs bin
           ls -la crates/rb-app/binaries/
 ```
 
-The tarball/zip layout assumption (flat, single binary at root) matches STAR_rs v0.2.2 and the structure used by cargo-dist. Before merging, verify by running locally:
+The tarball/zip layout assumption (flat, single binary at root) matches STAR_rs v0.3.1 and the structure used by cargo-dist. Before merging, verify by running locally:
 
 ```bash
 curl -sL https://github.com/AI4S-YB/gffread_rs/releases/download/v0.1.0/gffread-rs-v0.1.0-x86_64-unknown-linux-gnu.tar.gz | tar tz

@@ -164,7 +164,7 @@ override set in the Settings view). Install STAR_rs one of two ways:
 - Grab a prebuilt binary from
   https://github.com/AI4S-YB/STAR_rs/releases and drop it on `$PATH`, e.g.:
 
-        curl -sL https://github.com/AI4S-YB/STAR_rs/releases/download/v0.2.2/star-v0.2.2-x86_64-unknown-linux-gnu.tar.gz \
+        curl -sL https://github.com/AI4S-YB/STAR_rs/releases/download/v0.3.1/star-v0.3.1-x86_64-unknown-linux-gnu.tar.gz \
           | tar xz -C ~/.local/bin
 
 - Or build from source:
