@@ -42,11 +42,10 @@ fn genome_viewer_end_to_end() {
 fn fastq_viewer_end_to_end() {
     use rb_fastq_viewer::session::FastqSession;
 
-    let cache = tempfile::tempdir().unwrap();
-    let (session, _) = FastqSession::open(&fq_fixture("tiny.fastq"), cache.path()).unwrap();
-    assert_eq!(session.index.total_records, 100);
-    let recs = session.read_records(0, 5).unwrap();
-    assert_eq!(recs.len(), 5);
-    let hits = session.search_id("0042", 0, 1).unwrap();
-    assert_eq!(hits.len(), 1);
+    let session = FastqSession::open(&fq_fixture("tiny.fastq")).unwrap();
+    let r = session.read(0, 5).unwrap();
+    assert_eq!(r.records.len(), 5);
+    let hits = session.search_id("0042", 0, 1, 10_000).unwrap();
+    assert_eq!(hits.hits.len(), 1);
+    assert_eq!(hits.hits[0].record_n, 42);
 }

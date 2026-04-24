@@ -61,11 +61,13 @@
         },
         fastq_viewer: {
           open_file: 'Open File',
+          load_more: 'Load More',
           record: 'Record',
           search_placeholder: 'Search read ID...',
           find_next: 'Find Next',
           no_file_open: 'No file open',
           records: 'records',
+          loaded: 'loaded',
         },
         bam_tools: {
           subtitle: 'Index and extract regions from BAM files',
@@ -653,6 +655,9 @@
         counts_matrix_ph: '/path/to/counts_matrix.tsv',
         drop_counts: 'Drop counts matrix file',
         drop_counts_hint: 'Genes in rows, samples in columns (TSV)',
+        matrix_preview: 'Counts matrix preview (first 50 × 10)',
+        preview_empty: 'Select a counts matrix to preview.',
+        preview_failed: 'Preview failed',
         sample_info: 'Sample Information (TSV)',
         drop_coldata: 'Drop coldata / sample info',
         drop_coldata_hint: 'Sample names, conditions, covariates',

@@ -36,6 +36,10 @@ export function handleFileDrop(zone, fileList) {
   const list = document.getElementById(`${mid}-file-list`);
   if (list) renderFileList(list, mid);
   refreshFileBadges(mid);
+  zone.dispatchEvent(new CustomEvent('files-changed', {
+    bubbles: true,
+    detail: { module: mid },
+  }));
   maybeAutoRegister(incoming);
 }
 
@@ -76,6 +80,10 @@ export function renderFileList(el, mid) {
       state.files[m].splice(parseInt(btn.dataset.index), 1);
       renderFileList(el, m);
       refreshFileBadges(m);
+      el.dispatchEvent(new CustomEvent('files-changed', {
+        bubbles: true,
+        detail: { module: m },
+      }));
     });
   });
 }

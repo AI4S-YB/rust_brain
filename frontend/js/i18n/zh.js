@@ -61,11 +61,13 @@
         },
         fastq_viewer: {
           open_file: '打开文件',
+          load_more: '加载更多',
           record: '记录',
           search_placeholder: '搜索 read ID...',
           find_next: '查找下一个',
           no_file_open: '未打开文件',
           records: '条记录',
+          loaded: '条已加载',
         },
         bam_tools: {
           subtitle: 'BAM 建索引与按区域提取',
@@ -653,6 +655,9 @@
         counts_matrix_ph: '/path/to/counts_matrix.tsv',
         drop_counts: '拖入计数矩阵文件',
         drop_counts_hint: '基因为行，样本为列 (TSV)',
+        matrix_preview: '计数矩阵预览（前 50 × 10）',
+        preview_empty: '选择计数矩阵后显示预览。',
+        preview_failed: '预览失败',
         sample_info: '样本信息 (TSV)',
         drop_coldata: '拖入 coldata / 样本信息',
         drop_coldata_hint: '样本名、条件、协变量',

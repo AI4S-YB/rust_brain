@@ -82,9 +82,27 @@
   flex: 0 0 auto;
 }
 
-.fastq-count {
+.fastq-count,
+.fastq-loaded {
   font-weight: 700;
   color: var(--mod-teal);
+}
+
+.fastq-bytes {
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.fastq-eof {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(45, 134, 89, 0.14);
+  color: #2d8659;
+  font-weight: 600;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
 }
 
 .fastq-controls {

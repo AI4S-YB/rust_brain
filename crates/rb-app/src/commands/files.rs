@@ -6,8 +6,9 @@ pub struct TablePreview {
     pub rows: Vec<Vec<String>>,
 }
 
-fn split_tsv_row(line: &str, col_limit: usize) -> Vec<String> {
-    line.split('\t')
+fn split_table_row(line: &str, col_limit: usize) -> Vec<String> {
+    let delimiter = if line.contains('\t') { '\t' } else { ',' };
+    line.split(delimiter)
         .take(col_limit)
         .map(|s| s.to_string())
         .collect()
@@ -49,7 +50,7 @@ pub async fn read_table_preview(
     let headers = if has_header.unwrap_or(true) {
         lines
             .next()
-            .map(|line| split_tsv_row(line, col_limit))
+            .map(|line| split_table_row(line, col_limit))
             .unwrap_or_default()
     } else {
         Vec::new()
@@ -57,7 +58,7 @@ pub async fn read_table_preview(
 
     let rows: Vec<Vec<String>> = lines
         .take(row_limit)
-        .map(|line| split_tsv_row(line, col_limit))
+        .map(|line| split_table_row(line, col_limit))
         .collect();
 
     Ok(TablePreview { headers, rows })

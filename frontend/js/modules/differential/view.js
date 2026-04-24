@@ -4,6 +4,10 @@ import { renderLogPanel } from '../../ui/log-panel.js';
 import { renderModuleHeader } from '../module-header.js';
 import { attachAssetPicker, attachInputPicker } from '../../ui/registry-picker.js';
 import { renderFileList } from '../../ui/file-drop.js';
+import { filesApi } from '../../api/files.js';
+import { escapeHtml } from '../../ui/escape.js';
+
+let countsPreviewRequest = 0;
 
 export function renderDifferentialView(container) {
   const mod = { id: 'differential', icon: 'flame', color: 'coral', tool: 'DESeq2_rs', status: 'ready' };
@@ -27,7 +31,11 @@ export function renderDifferentialView(container) {
     }
     const list = document.getElementById('differential-file-list');
     if (list) renderFileList(list, 'differential');
+    renderCountsMatrixPreview(rec?.path || '');
   };
+  container.addEventListener('files-changed', (event) => {
+    if (event.detail?.module === 'differential') renderCountsMatrixPreview();
+  });
   if (host) {
     attachAssetPicker(host, (asset) => {
       if (asset && inputHost) {
@@ -60,7 +68,55 @@ export function renderDifferentialView(container) {
       if (list) renderFileList(list, 'differential-coldata');
     });
   }
+  const countsInput = container.querySelector('#deseq-counts-matrix');
+  if (countsInput) {
+    countsInput.addEventListener('input', () => renderCountsMatrixPreview(countsInput.value));
+  }
+  renderCountsMatrixPreview(countsInput?.value || '');
   if (window.lucide) window.lucide.createIcons();
+}
+
+function currentCountsMatrixPath(explicitPath = '') {
+  if (explicitPath) return explicitPath;
+  const input = document.getElementById('deseq-counts-matrix');
+  if (input?.value) return input.value;
+  return state.files.differential?.[0]?.path || '';
+}
+
+function renderCountsMatrixPreview(explicitPath = '') {
+  const el = document.getElementById('differential-counts-preview');
+  if (!el) return;
+  const path = currentCountsMatrixPath(explicitPath);
+  const requestId = ++countsPreviewRequest;
+  if (!path) {
+    el.innerHTML = `<p><em>${escapeHtml(t('differential.preview_empty'))}</em></p>`;
+    return;
+  }
+  el.innerHTML = `<p><em>${escapeHtml(t('common.loading'))}</em></p>`;
+  filesApi.readTablePreview(path, { maxRows: 50, maxCols: 10, hasHeader: true })
+    .then(preview => {
+      if (requestId !== countsPreviewRequest) return;
+      el.innerHTML = renderTablePreview(preview);
+    })
+    .catch(err => {
+      if (requestId !== countsPreviewRequest) return;
+      el.innerHTML = `<p><em>${escapeHtml(t('differential.preview_failed'))}: ${escapeHtml(String(err))}</em></p>`;
+    });
+}
+
+function renderTablePreview(preview) {
+  const headers = Array.isArray(preview?.headers) ? preview.headers : [];
+  const rows = Array.isArray(preview?.rows) ? preview.rows : [];
+  if (headers.length === 0 && rows.length === 0) {
+    return `<p><em>${escapeHtml(t('differential.preview_empty'))}</em></p>`;
+  }
+  const head = headers.length
+    ? `<thead><tr>${headers.map(c => `<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>`
+    : '';
+  const body = rows
+    .map(r => '<tr>' + r.map(c => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>')
+    .join('');
+  return `<table class="data-table">${head}<tbody>${body}</tbody></table>`;
 }
 
 function renderDifferentialBody() {
@@ -91,6 +147,10 @@ function renderDifferentialBody() {
                 <div class="file-drop-hint">${t('differential.drop_counts_hint')}</div>
                 <div id="differential-file-list" class="file-list" style="margin-top:10px"></div>
               </div>`}
+              <div class="counts-preview" style="margin-top:12px">
+                <h3 style="margin:0 0 8px">${t('differential.matrix_preview')}</h3>
+                <div id="differential-counts-preview"></div>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">${t('differential.sample_info')}</label>

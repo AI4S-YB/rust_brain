@@ -9,12 +9,8 @@ pub enum ViewerError {
     Parse(String),
     #[error("file not found: {0}")]
     NotFound(PathBuf),
-    #[error("out of range: requested record {requested}, total {total}")]
-    OutOfRange { requested: usize, total: usize },
-    #[error("index corrupt: {0}")]
-    IndexCorrupt(String),
-    #[error("bincode error: {0}")]
-    Bincode(#[from] bincode::Error),
+    #[error("no file open")]
+    NoSession,
 }
 
 #[derive(Debug, Serialize)]
@@ -30,9 +26,7 @@ impl ViewerError {
             Self::Io(_) => "io",
             Self::Parse(_) => "parse",
             Self::NotFound(_) => "not_found",
-            Self::OutOfRange { .. } => "out_of_range",
-            Self::IndexCorrupt(_) => "index_corrupt",
-            Self::Bincode(_) => "index_corrupt",
+            Self::NoSession => "no_session",
         }
     }
 }
