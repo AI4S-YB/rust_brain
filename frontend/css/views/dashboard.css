@@ -27,6 +27,11 @@
   font-size: 1rem;
   color: var(--text-secondary);
   line-height: 1.5;
+  max-width: min(100%, 1080px);
+  line-break: strict;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 
@@ -447,4 +452,3 @@
   color: var(--text-secondary);
   flex: 1;
 }
-

@@ -136,7 +136,8 @@ impl BinaryResolver {
     /// memory — not written to settings.json. Used as a fallback between the
     /// user-configured override and the PATH lookup.
     pub fn register_bundled(&mut self, name: &str, path: PathBuf) {
-        self.bundled.insert(name.to_string(), path);
+        self.bundled
+            .insert(name.to_string(), prefer_displayable_executable_path(path));
     }
 
     /// Register a binary at runtime (e.g. from a plugin manifest). Built-in
@@ -174,7 +175,7 @@ impl BinaryResolver {
         // Configured override takes precedence.
         if let Some(Some(p)) = self.settings.binary_paths.get(name) {
             if is_executable(p) {
-                return Ok(p.clone());
+                return Ok(prefer_displayable_executable_path(p.clone()));
             }
             return Err(BinaryError::NotExecutable(p.clone()));
         }
@@ -183,7 +184,7 @@ impl BinaryResolver {
         // Bundled sidecar shipped with the app.
         if let Some(p) = self.bundled.get(name) {
             if is_executable(p) {
-                return Ok(p.clone());
+                return Ok(prefer_displayable_executable_path(p.clone()));
             }
             searched.push(format!(
                 "bundled sidecar: {} (exists: {}, is_file: {})",
@@ -217,9 +218,10 @@ impl BinaryResolver {
         if !is_executable(&path) {
             return Err(BinaryError::NotExecutable(path));
         }
-        self.settings
-            .binary_paths
-            .insert(name.to_string(), Some(path));
+        self.settings.binary_paths.insert(
+            name.to_string(),
+            Some(prefer_displayable_executable_path(path)),
+        );
         self.save()
     }
 
@@ -246,13 +248,39 @@ impl BinaryResolver {
                 BinaryStatus {
                     id: id.to_string(),
                     display_name: display_name.to_string(),
-                    configured_path: configured,
-                    bundled_path: bundled,
-                    detected_on_path: detected,
+                    configured_path: configured.map(normalize_windows_extended_path),
+                    bundled_path: bundled.map(normalize_windows_extended_path),
+                    detected_on_path: detected.map(normalize_windows_extended_path),
                     install_hint: install_hint.to_string(),
                 }
             })
             .collect()
+    }
+}
+
+/// Convert Windows extended-length paths like `\\?\C:\...` into normal display
+/// paths. Tauri may hand resource paths back with this prefix; Rust can execute
+/// them, but surfacing the prefix in Settings is confusing.
+pub fn normalize_windows_extended_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    {
+        let s = path.to_string_lossy();
+        if let Some(stripped) = s.strip_prefix(r"\\?\UNC\") {
+            return PathBuf::from(format!(r"\\{stripped}"));
+        }
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            return PathBuf::from(stripped);
+        }
+    }
+    path
+}
+
+fn prefer_displayable_executable_path(path: PathBuf) -> PathBuf {
+    let normalized = normalize_windows_extended_path(path.clone());
+    if normalized != path && is_executable(&normalized) {
+        normalized
+    } else {
+        path
     }
 }
 

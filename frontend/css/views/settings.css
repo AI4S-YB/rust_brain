@@ -8,6 +8,11 @@
   color: var(--text-secondary);
   margin: 0 0 16px;
   line-height: 1.5;
+  max-width: min(100%, 1080px);
+  line-break: strict;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 .settings-intro strong {
   color: var(--text-primary);

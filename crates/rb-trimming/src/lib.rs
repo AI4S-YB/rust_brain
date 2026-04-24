@@ -1,4 +1,4 @@
-use rb_core::binary::BinaryResolver;
+use rb_core::binary::{normalize_windows_extended_path, BinaryResolver};
 use rb_core::cancel::CancellationToken;
 use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
 use rb_core::run_event::{LogStream, RunEvent};
@@ -142,13 +142,22 @@ impl Module for TrimmingModule {
                 })
                 .await;
 
-            let input_str = input_path.to_string_lossy().to_string();
+            let normalized_input = normalize_windows_extended_path(input_path.clone());
+            let input_arg = if normalized_input.exists() {
+                normalized_input.clone()
+            } else {
+                input_path.clone()
+            };
+            let input_str = input_arg.to_string_lossy().to_string();
+            let input_display = normalized_input.to_string_lossy().to_string();
             let file_name = input_path
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| format!("output_{}.fastq.gz", idx));
             let output_path = output_dir.join(&file_name);
-            let output_str = output_path.to_string_lossy().to_string();
+            let output_str = normalize_windows_extended_path(output_path.clone())
+                .to_string_lossy()
+                .to_string();
 
             let mut cmd = Command::new(&bin);
             cmd.arg("-o").arg(&output_str);
@@ -204,27 +213,27 @@ impl Module for TrimmingModule {
                                     output_files.push(output_path.clone());
                                 }
                                 file_summaries.push(serde_json::json!({
-                                    "file": input_str,
+                                    "file": input_display,
                                     "output": output_str,
                                     "status": "ok",
                                 }));
-                                log_lines.push(format!("OK: {} -> {}", input_str, output_str));
+                                log_lines.push(format!("OK: {} -> {}", input_display, output_str));
                             } else {
                                 file_summaries.push(serde_json::json!({
-                                    "file": input_str,
+                                    "file": input_display,
                                     "status": "error",
                                     "exit_code": status.code(),
                                 }));
                                 log_lines.push(format!(
                                     "ERROR: {} exit={}",
-                                    input_str,
+                                    input_display,
                                     status.code().unwrap_or(-1)
                                 ));
                             }
                         }
                         Ok(Err(e)) => {
                             file_summaries.push(serde_json::json!({
-                                "file": input_str, "status": "error", "error": e.to_string(),
+                                "file": input_display, "status": "error", "error": e.to_string(),
                             }));
                             log_lines.push(format!("ERROR waiting for child: {}", e));
                         }
@@ -232,7 +241,7 @@ impl Module for TrimmingModule {
                 }
                 Err(e) => {
                     file_summaries.push(serde_json::json!({
-                        "file": input_str, "status": "error", "error": e.to_string(),
+                        "file": input_display, "status": "error", "error": e.to_string(),
                     }));
                     log_lines.push(format!("ERROR spawning: {}", e));
                 }
@@ -253,7 +262,7 @@ impl Module for TrimmingModule {
         let summary = serde_json::json!({
             "total_files": total,
             "trimmed_ok": ok_count,
-            "output_directory": output_dir.display().to_string(),
+            "output_directory": normalize_windows_extended_path(output_dir).display().to_string(),
             "adapter": adapter,
             "quality_cutoff": quality_cutoff,
             "min_length": min_length,

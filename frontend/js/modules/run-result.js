@@ -2,6 +2,7 @@ import { t } from '../core/i18n-helpers.js';
 import { modulesApi } from '../api/modules.js';
 import { escapeHtml } from '../ui/escape.js';
 import { MODULES } from '../core/constants.js';
+import { state } from '../core/state.js';
 import { renderGffConvertResult } from './gff-convert/result.js';
 import { renderQcResult } from './qc/result.js';
 import { renderStarAlignResult } from './star-align/result.js';
@@ -51,12 +52,28 @@ function renderDeleteButton(runId, status) {
     </button>`;
 }
 
+function isTerminalStatus(status) {
+  return status === 'Done' || status === 'Failed' || status === 'Cancelled';
+}
+
+async function reconcileRunUiState(runs) {
+  const terminalRuns = (runs || []).filter(run => run?.id && isTerminalStatus(run.status));
+  if (!terminalRuns.length) return;
+
+  const { applyTerminalRunRecord } = await import('../core/runtime.js');
+  for (const run of terminalRuns) {
+    if (!Object.values(state.activeRunByModule).includes(run.id)) continue;
+    applyTerminalRunRecord(run, { refresh: false });
+  }
+}
+
 export async function loadRunsForView(moduleId, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
   container.dataset.runsModuleId = moduleId;
   try {
     const runs = await modulesApi.listRuns(moduleId);
+    await reconcileRunUiState(runs);
     if (!runs || runs.length === 0) {
       container.innerHTML = `<p><em>${t('status.no_runs')}</em></p>`;
       return;

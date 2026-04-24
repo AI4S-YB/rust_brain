@@ -9,6 +9,15 @@ function getTaskConfig(moduleId) {
   return RUN_TASKS[moduleId] || null;
 }
 
+const runStatusMonitors = new Map();
+const TERMINAL_STATUSES = new Set(['Done', 'Failed', 'Cancelled']);
+
+function backendIdForModule(moduleId) {
+  return getTaskConfig(moduleId)?.backend
+    || MODULES.find(m => m.id === moduleId || m.view_id === moduleId)?.backend
+    || moduleId;
+}
+
 function getBusyModuleIds() {
   const ids = new Set();
   Object.entries(state.pendingRunByModule).forEach(([moduleId, pending]) => {
@@ -48,11 +57,44 @@ function updateJobStatusText() {
 }
 
 function refreshRunsForModule(moduleId) {
-  const backendId = getTaskConfig(moduleId)?.backend || MODULES.find(m => m.id === moduleId)?.backend;
+  const backendId = backendIdForModule(moduleId);
   const containerId = `${moduleId}-runs`;
   if (backendId && document.getElementById(containerId)) {
     loadRunsForView(backendId, containerId);
   }
+}
+
+function stopRunStatusMonitor(runId) {
+  const interval = runStatusMonitors.get(runId);
+  if (!interval) return;
+  clearInterval(interval);
+  runStatusMonitors.delete(runId);
+}
+
+function startRunStatusMonitor(moduleId, runId) {
+  stopRunStatusMonitor(runId);
+  const backendId = backendIdForModule(moduleId);
+  if (!backendId) return;
+
+  const check = async () => {
+    if (state.activeRunByModule[moduleId] !== runId) {
+      stopRunStatusMonitor(runId);
+      return;
+    }
+    try {
+      const runs = await modulesApi.listRuns(backendId);
+      const run = (runs || []).find(r => r.id === runId);
+      if (!run || !TERMINAL_STATUSES.has(run.status)) return;
+      stopRunStatusMonitor(runId);
+      const { applyTerminalRunRecord } = await import('./runtime.js');
+      applyTerminalRunRecord(run);
+    } catch (err) {
+      console.warn(`[run-monitor] failed to refresh ${runId}:`, err);
+    }
+  };
+
+  runStatusMonitors.set(runId, setInterval(check, 2000));
+  setTimeout(check, 500);
 }
 
 export function canStartModuleRun(moduleId) {
@@ -123,6 +165,8 @@ export function markModuleRunPending(moduleId) {
 }
 
 export function clearModuleRunState(moduleId) {
+  const runId = state.activeRunByModule[moduleId];
+  if (runId) stopRunStatusMonitor(runId);
   delete state.pendingRunByModule[moduleId];
   delete state.activeRunByModule[moduleId];
   delete state.cancelRequestedByModule[moduleId];
@@ -148,6 +192,7 @@ export function clearModuleRunStateByRunId(runId) {
   if (!moduleId) return null;
   const activeRunId = state.activeRunByModule[moduleId];
   if (!activeRunId || activeRunId === runId) {
+    stopRunStatusMonitor(runId);
     delete state.activeRunByModule[moduleId];
     delete state.pendingRunByModule[moduleId];
     delete state.cancelRequestedByModule[moduleId];
@@ -161,6 +206,7 @@ export async function registerStartedRun(moduleId, runId) {
   delete state.pendingRunByModule[moduleId];
   state.activeRunByModule[moduleId] = runId;
   syncRunButtons();
+  startRunStatusMonitor(moduleId, runId);
 
   // If a terminal event (run-completed/run-failed) arrived before we could
   // register the runId, replay it now so the button doesn't get stuck.

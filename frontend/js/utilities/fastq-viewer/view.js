@@ -10,18 +10,29 @@ const api = _tauri
 export function renderFastqViewerView(content) {
   content.innerHTML = `
     <div class="module-view fastq-viewer">
-      <header class="utility-header">
-        <h1>${t('nav.fastq_viewer')}</h1>
-        <div class="utility-controls">
-          <button class="btn" data-act="fastq-open">${t('utility.fastq_viewer.open_file')}</button>
-          <label>${t('utility.fastq_viewer.record')} <input type="number" class="fastq-jump" min="0" value="0" style="width:100px"></label>
-          <label>% <input type="range" class="fastq-pct" min="0" max="100" value="0" style="width:120px"></label>
-          <input type="text" class="fastq-search" placeholder="${t('utility.fastq_viewer.search_placeholder')}" style="width:200px">
-          <button class="btn" data-act="fastq-search-next">${t('utility.fastq_viewer.find_next')}</button>
+      <header class="fastq-toolbar">
+        <div class="fastq-title">
+          <div class="fastq-title-icon"><i data-lucide="file-search"></i></div>
+          <div>
+            <h1>${t('nav.fastq_viewer')}</h1>
+            <div class="fastq-meta">
+              <span class="fastq-path" title="${t('utility.fastq_viewer.no_file_open')}">${t('utility.fastq_viewer.no_file_open')}</span>
+              <span class="fastq-count-wrap"><span class="fastq-count">—</span> ${t('utility.fastq_viewer.records')}</span>
+            </div>
+          </div>
         </div>
-        <div class="utility-meta"><span class="fastq-path">${t('utility.fastq_viewer.no_file_open')}</span> · <span class="fastq-count">—</span> ${t('utility.fastq_viewer.records')}</div>
+        <div class="fastq-controls">
+          <button class="btn btn-primary fastq-open" data-act="fastq-open"><i data-lucide="folder-open"></i> ${t('utility.fastq_viewer.open_file')}</button>
+          <label class="fastq-field">${t('utility.fastq_viewer.record')} <input type="number" class="fastq-jump" min="0" value="0"></label>
+          <label class="fastq-field fastq-range">% <input type="range" class="fastq-pct" min="0" max="100" value="0"></label>
+          <div class="fastq-search-group">
+            <i data-lucide="search" class="fastq-search-icon"></i>
+            <input type="text" class="fastq-search" placeholder="${t('utility.fastq_viewer.search_placeholder')}">
+            <button class="btn btn-secondary" data-act="fastq-search-next"><i data-lucide="skip-forward"></i> ${t('utility.fastq_viewer.find_next')}</button>
+          </div>
+        </div>
       </header>
-      <div class="fastq-list" style="height:70vh;border:1px solid #e7e5e4;border-radius:6px;background:#faf8f4"></div>
+      <div class="fastq-list"></div>
     </div>
   `;
 
@@ -36,7 +47,7 @@ export function renderFastqViewerView(content) {
 
   const list = new VirtualList({
     host,
-    recordHeight: 88,  // 4 text lines × ~22 px
+    recordHeight: 112,
     overscan: 10,
     fetchBatch: (start, count) => api('fastq_viewer_read_records', { startRecord: start, count }),
     renderRecord: (rec, i) => renderRecordEl(rec, i),
@@ -46,6 +57,7 @@ export function renderFastqViewerView(content) {
     const path = await api('select_files', { multiple: false });
     if (!path || !path[0]) return;
     pathEl.textContent = path[0];
+    pathEl.title = path[0];
     const res = await api('fastq_viewer_open', { path: path[0] });
     state.total = res.total_records;
     countEl.textContent = res.total_records.toLocaleString();
@@ -81,15 +93,23 @@ export function renderFastqViewerView(content) {
 function renderRecordEl(rec, i) {
   const el = document.createElement('div');
   el.className = 'fastq-record';
-  el.style.padding = '4px 8px';
-  el.style.fontFamily = 'monospace';
-  el.style.fontSize = '13px';
-  el.style.borderBottom = '1px solid #f1ede7';
   el.innerHTML = `
-    <div style="color:#5c7080">#${i} ${escapeHtml(rec.id)}</div>
-    <div class="seq">${colorSeq(rec.seq)}</div>
-    <div style="color:#a8a29e">${escapeHtml(rec.plus)}</div>
-    <div class="qual">${colorQual(rec.qual)}</div>
+    <div class="fastq-record-line fastq-record-idline">
+      <span class="fastq-record-label">ID</span>
+      <span><span class="fastq-record-index">#${i}</span> <span class="fastq-record-id">${escapeHtml(rec.id)}</span></span>
+    </div>
+    <div class="fastq-record-line">
+      <span class="fastq-record-label">SEQ</span>
+      <span class="fastq-record-seq seq">${colorSeq(rec.seq)}</span>
+    </div>
+    <div class="fastq-record-line fastq-record-plus">
+      <span class="fastq-record-label">+</span>
+      <span>${escapeHtml(rec.plus)}</span>
+    </div>
+    <div class="fastq-record-line">
+      <span class="fastq-record-label">QUAL</span>
+      <span class="fastq-record-qual qual">${colorQual(rec.qual)}</span>
+    </div>
   `;
   return el;
 }

@@ -38,7 +38,7 @@ function refreshRunsForRun(runId) {
   return viewId;
 }
 
-export function applyRunCompleted(runId) {
+export function applyRunCompleted(runId, { refresh = true } = {}) {
   const st = document.getElementById('statusText');
   clearModuleRunStateByRunId(runId);
   if (st) {
@@ -46,14 +46,14 @@ export function applyRunCompleted(runId) {
       ? `${t('status.running_prefix')}…`
       : t('status.ready');
   }
-  const viewId = refreshRunsForRun(runId);
+  const viewId = refresh ? refreshRunsForRun(runId) : state.runIdToModule[runId];
   if (viewId) {
     const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
     if (badge) { badge.className = 'nav-badge done'; badge.textContent = t('badge.done'); }
   }
 }
 
-export function applyRunFailed(runId, error) {
+export function applyRunFailed(runId, error, { refresh = true } = {}) {
   const err = error || t('status.run_failed');
   const st = document.getElementById('statusText');
   clearModuleRunStateByRunId(runId);
@@ -64,10 +64,36 @@ export function applyRunFailed(runId, error) {
     message: err,
     duration: 6000,
   });
-  const viewId = refreshRunsForRun(runId);
+  const viewId = refresh ? refreshRunsForRun(runId) : state.runIdToModule[runId];
   if (viewId) {
     const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
     if (badge) { badge.className = 'nav-badge'; badge.textContent = ''; }
+  }
+}
+
+export function applyRunCancelled(runId, { refresh = true } = {}) {
+  const st = document.getElementById('statusText');
+  clearModuleRunStateByRunId(runId);
+  if (st) {
+    st.textContent = getBusyTaskCount() > 0
+      ? `${t('status.running_prefix')}…`
+      : t('status.ready');
+  }
+  const viewId = refresh ? refreshRunsForRun(runId) : state.runIdToModule[runId];
+  if (viewId) {
+    const badge = document.querySelector(`.nav-item[data-view="${viewId}"] .nav-badge`);
+    if (badge) { badge.className = 'nav-badge'; badge.textContent = ''; }
+  }
+}
+
+export function applyTerminalRunRecord(run, options = {}) {
+  if (!run?.id) return;
+  if (run.status === 'Done') {
+    applyRunCompleted(run.id, options);
+  } else if (run.status === 'Failed') {
+    applyRunFailed(run.id, run.error, options);
+  } else if (run.status === 'Cancelled') {
+    applyRunCancelled(run.id, options);
   }
 }
 

@@ -283,7 +283,11 @@
   font-size: 0.9rem;
   line-height: 1.55;
   margin: -14px 0 22px;
-  max-width: 68ch;
+  max-width: min(100%, 1080px);
+  line-break: strict;
+  overflow-wrap: break-word;
+  text-wrap: pretty;
+  word-break: keep-all;
 }
 
 .form-checkbox {

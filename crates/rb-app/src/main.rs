@@ -5,6 +5,7 @@ mod commands;
 mod state;
 
 use state::{AppState, ModuleRegistry};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::{path::BaseDirectory, Manager};
 
@@ -283,17 +284,55 @@ fn register_bundled(app: &tauri::App, binary_id: &str, filename_stem: &str) {
     } else {
         filename_stem.to_string()
     };
-    let path = match app
+    let resolved_path = match app
         .path()
         .resolve(format!("binaries/{exe}"), BaseDirectory::Resource)
     {
         Ok(p) if p.exists() => p,
         _ => return,
     };
+    let normalized_path = rb_core::binary::normalize_windows_extended_path(resolved_path.clone());
+    let path = if normalized_path.exists() {
+        normalized_path
+    } else {
+        resolved_path
+    };
+    if let Some(parent) = path.parent() {
+        prepend_to_process_path(parent);
+    }
     let state = app.state::<AppState>();
     let resolver = state.binary_resolver.clone();
     let id = binary_id.to_string();
     tauri::async_runtime::block_on(async move {
         resolver.lock().await.register_bundled(&id, path);
     });
+}
+
+fn prepend_to_process_path(dir: &Path) {
+    if dir.as_os_str().is_empty() {
+        return;
+    }
+    let current = std::env::var_os("PATH").unwrap_or_default();
+    let mut paths: Vec<PathBuf> = std::env::split_paths(&current).collect();
+    if paths.iter().any(|p| same_path(p, dir)) {
+        return;
+    }
+    paths.insert(0, dir.to_path_buf());
+    if let Ok(joined) = std::env::join_paths(paths) {
+        std::env::set_var("PATH", joined);
+    }
+}
+
+fn same_path(a: &Path, b: &Path) -> bool {
+    let a = rb_core::binary::normalize_windows_extended_path(a.to_path_buf());
+    let b = rb_core::binary::normalize_windows_extended_path(b.to_path_buf());
+    #[cfg(windows)]
+    {
+        a.to_string_lossy()
+            .eq_ignore_ascii_case(b.to_string_lossy().as_ref())
+    }
+    #[cfg(not(windows))]
+    {
+        a == b
+    }
 }
