@@ -250,10 +250,7 @@ fn main() {
                     // is only needed to confirm a runner exists — the count
                     // itself never blocks.
                     let active = match runner_mutex.try_lock() {
-                        Ok(guard) => guard
-                            .as_ref()
-                            .map(|r| r.active_run_count())
-                            .unwrap_or(0),
+                        Ok(guard) => guard.as_ref().map(|r| r.active_run_count()).unwrap_or(0),
                         // If the runner lock is momentarily held, err on the
                         // side of asking — a spurious prompt is better than
                         // silently killing a run.
@@ -261,10 +258,8 @@ fn main() {
                     };
                     if active > 0 {
                         api.prevent_close();
-                        let _ = window.emit(
-                            "close-requested",
-                            serde_json::json!({ "active": active }),
-                        );
+                        let _ =
+                            window.emit("close-requested", serde_json::json!({ "active": active }));
                     }
                 }
             }
