@@ -12,6 +12,12 @@ export const MODULES = [
   { id: 'enrichment',   view_id: 'enrichment',   name: 'Enrichment',                     icon: 'target',     color: 'slate',  tool: 'TBD',         status: 'soon',                                                source: 'builtin', has_native_view: true,  category: 'other' },
 ];
 
+// Frontend-only "coming soon" placeholders. They have a sidebar entry and a
+// view but no backend Module impl yet, so `list_modules` won't return them.
+// Preserved across bootstrap so navigating to them still renders a Coming Soon
+// page instead of "Module not found".
+const COMING_SOON_MODULES = MODULES.filter(m => m.status === 'soon').map(m => ({ ...m }));
+
 // Built-in utility set — used as the initial fallback before future bootstrap
 // calls. Utilities are presentation-only tools with no Module semantics.
 export const UTILITIES = [
@@ -44,6 +50,11 @@ export function setBootstrapModules(descriptors) {
       status: 'ready',
       color: d.source === 'builtin' ? colorForBuiltin(d.id) : 'plug',
     });
+  }
+  for (const m of COMING_SOON_MODULES) {
+    if (!MODULES.some(x => x.id === m.id || x.view_id === m.view_id)) {
+      MODULES.push({ ...m });
+    }
   }
   rebuildKnownViews();
 }
