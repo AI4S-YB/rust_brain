@@ -293,6 +293,7 @@ fn main() {
             commands::inputs::update_input,
             commands::inputs::delete_input,
             commands::inputs::scan_inputs,
+            commands::inputs::write_sample_sheet,
             commands::samples::list_samples,
             commands::samples::create_sample,
             commands::samples::update_sample,

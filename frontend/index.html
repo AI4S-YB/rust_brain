@@ -637,6 +637,21 @@
                 ? { headers: [], rows }
                 : { headers: rows[0], rows: rows.slice(1) });
             }
+            if (cmd === 'write_sample_sheet') {
+              const name = (args?.filename && args.filename.trim()) ||
+                `coldata_${new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15)}.tsv`;
+              const rec = {
+                id: 'in_mock_' + Math.random().toString(16).slice(2, 10),
+                path: `/mock/project/input/${name}`,
+                display_name: name,
+                kind: 'SampleSheet',
+                size_bytes: 0,
+                registered_at: new Date().toISOString(),
+                missing: false,
+              };
+              _mockInputs.set(rec.id, rec);
+              return Promise.resolve(rec);
+            }
 
             // --- chat session CRUD ---
             if (cmd === 'chat_list_sessions') {

@@ -23,4 +23,11 @@ export const inputsApi = {
   scan() {
     return api.invoke('scan_inputs');
   },
+  writeSampleSheet({ filename, headers, rows }) {
+    return api.invoke('write_sample_sheet', {
+      filename: filename || null,
+      headers,
+      rows,
+    });
+  },
 };

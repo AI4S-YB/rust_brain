@@ -1,6 +1,7 @@
+use chrono::Utc;
 use rb_core::input::{InputKind, InputPatch, InputRecord, InputScanReport};
 use serde::Serialize;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use tauri::State;
 
 use crate::state::AppState;
@@ -91,4 +92,81 @@ pub async fn delete_input(id: String, state: State<'_, AppState>) -> Result<(), 
 #[tauri::command]
 pub async fn scan_inputs(state: State<'_, AppState>) -> Result<InputScanReport, String> {
     with_project(&state, |p| p.scan_inputs().map_err(|e| e.to_string())).await
+}
+
+fn sanitize_cell(s: &str) -> String {
+    s.replace(['\t', '\r', '\n'], " ")
+}
+
+fn validate_simple_filename(name: &str) -> Result<(), String> {
+    if name.is_empty() {
+        return Err("filename must not be empty".into());
+    }
+    let comps: Vec<Component> = Path::new(name).components().collect();
+    if comps.len() != 1 || !matches!(comps[0], Component::Normal(_)) {
+        return Err("filename must be a simple file name (no path separators or '..')".into());
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn write_sample_sheet(
+    filename: Option<String>,
+    headers: Vec<String>,
+    rows: Vec<Vec<String>>,
+    state: State<'_, AppState>,
+) -> Result<InputRecord, String> {
+    if headers.is_empty() {
+        return Err("headers must not be empty".into());
+    }
+    if rows.is_empty() {
+        return Err("at least one row is required".into());
+    }
+    for (i, r) in rows.iter().enumerate() {
+        if r.len() != headers.len() {
+            return Err(format!(
+                "row {} has {} cells, expected {}",
+                i,
+                r.len(),
+                headers.len()
+            ));
+        }
+    }
+
+    let resolved_name = filename
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| format!("coldata_{}.tsv", Utc::now().format("%Y%m%d_%H%M%S")));
+    validate_simple_filename(&resolved_name)?;
+
+    let mut tsv = String::new();
+    tsv.push_str(
+        &headers
+            .iter()
+            .map(|h| sanitize_cell(h))
+            .collect::<Vec<_>>()
+            .join("\t"),
+    );
+    tsv.push('\n');
+    for row in &rows {
+        tsv.push_str(
+            &row.iter()
+                .map(|c| sanitize_cell(c))
+                .collect::<Vec<_>>()
+                .join("\t"),
+        );
+        tsv.push('\n');
+    }
+
+    with_project(&state, move |p| {
+        let input_dir = p.root_dir.join("input");
+        std::fs::create_dir_all(&input_dir).map_err(|e| format!("create input dir: {}", e))?;
+        let target = input_dir.join(&resolved_name);
+        std::fs::write(&target, &tsv).map_err(|e| format!("write {}: {}", target.display(), e))?;
+        p.register_input(&target, Some(InputKind::SampleSheet), None)
+            .map_err(|e| e.to_string())
+    })
+    .await
 }

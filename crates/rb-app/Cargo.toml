@@ -9,6 +9,7 @@ serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 rb-core = { path = "../rb-core" }
+chrono.workspace = true
 rb-ai = { path = "../rb-ai" }
 rb-deseq2 = { path = "../rb-deseq2" }
 rb-fastq-viewer = { path = "../rb-fastq-viewer" }
