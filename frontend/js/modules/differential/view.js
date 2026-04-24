@@ -421,7 +421,7 @@ function renderDifferentialBody() {
           <div class="panel-body">
             <div class="form-group">
               <label class="form-label">${t('differential.design_var')}</label>
-              <input type="text" class="form-input" id="deseq-design" data-param="design" value="~condition" placeholder="${t('differential.design_var_ph')}">
+              <input type="text" class="form-input" id="deseq-design" data-param="design" value="condition" placeholder="${t('differential.design_var_ph')}">
               <span class="form-hint">${t('differential.design_var_hint')}</span>
             </div>
             <div class="form-group">

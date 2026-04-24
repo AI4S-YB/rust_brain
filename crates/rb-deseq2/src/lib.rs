@@ -6,6 +6,16 @@ use tokio::sync::mpsc;
 
 pub struct DeseqModule;
 
+/// Normalize a user-supplied design string.
+/// Accepts both bare column names ("condition") and R-style single-factor
+/// formulas ("~condition", "~ condition"). Multi-factor operators are kept
+/// in place so callers can detect and reject them in validate().
+fn normalize_design(raw: &str) -> String {
+    let s = raw.trim();
+    let s = s.strip_prefix('~').unwrap_or(s);
+    s.trim().to_string()
+}
+
 #[async_trait::async_trait]
 impl Module for DeseqModule {
     fn id(&self) -> &str {
@@ -30,7 +40,7 @@ impl Module for DeseqModule {
                 },
                 "design": {
                     "type": "string",
-                    "description": "R-style design formula referencing columns in coldata (e.g. '~condition')."
+                    "description": "Name of a single factor column in coldata (e.g. 'condition'). A leading '~' is tolerated for R compatibility, but multi-factor formulas like '~batch+condition' are not yet supported."
                 },
                 "reference": {
                     "type": "string",
@@ -44,8 +54,8 @@ impl Module for DeseqModule {
 
     fn ai_hint(&self, lang: &str) -> String {
         match lang {
-            "zh" => "用 run_deseq2 做差异表达分析。counts_path 通常是 run_counts_merge 产出的 counts_matrix.tsv;coldata_path 是用户在项目里提供的样本分组表;design 形如 '~condition',reference 指定该因子的基线水平。".into(),
-            _ => "Use run_deseq2 for differential expression analysis. counts_path is typically the counts_matrix.tsv produced by run_counts_merge; coldata_path is a user-provided sample metadata table; design is an R-style formula like '~condition' and reference sets the baseline level of that factor.".into(),
+            "zh" => "用 run_deseq2 做差异表达分析。counts_path 通常是 run_counts_merge 产出的 counts_matrix.tsv;coldata_path 是用户在项目里提供的样本分组表;design 是 coldata 里的**单个因子列名**(例如 'condition'),当前不支持 ~batch+condition 这类多因子公式;reference 指定该因子的基线水平。".into(),
+            _ => "Use run_deseq2 for differential expression analysis. counts_path is typically the counts_matrix.tsv produced by run_counts_merge; coldata_path is a user-provided sample metadata table; design is the name of a SINGLE factor column in coldata (e.g. 'condition') — multi-factor formulas like '~batch+condition' are not supported yet; reference sets the baseline level of that factor.".into(),
         }
     }
 
@@ -61,6 +71,25 @@ impl Module for DeseqModule {
                     });
                 }
                 _ => {}
+            }
+        }
+
+        if let Some(raw) = params.get("design").and_then(|v| v.as_str()) {
+            let normalized = normalize_design(raw);
+            if normalized.is_empty() {
+                errors.push(ValidationError {
+                    field: "design".into(),
+                    message: "design must name a factor column in coldata (e.g. 'condition')"
+                        .into(),
+                });
+            } else if normalized.contains(['+', '*', ':']) {
+                errors.push(ValidationError {
+                    field: "design".into(),
+                    message: format!(
+                        "multi-factor formula '{}' is not supported yet; provide a single column name",
+                        raw
+                    ),
+                });
             }
         }
 
@@ -81,7 +110,7 @@ impl Module for DeseqModule {
 
         let counts_path = params["counts_path"].as_str().unwrap().to_string();
         let coldata_path = params["coldata_path"].as_str().unwrap().to_string();
-        let design = params["design"].as_str().unwrap().to_string();
+        let design = normalize_design(params["design"].as_str().unwrap());
         let reference = params["reference"].as_str().unwrap().to_string();
         let output_dir = project_dir.to_path_buf();
 
@@ -224,5 +253,46 @@ mod ai_schema_tests {
     fn deseq2_hint_nonempty_both_languages() {
         assert!(!DeseqModule.ai_hint("en").is_empty());
         assert!(!DeseqModule.ai_hint("zh").is_empty());
+    }
+
+    #[test]
+    fn normalize_design_strips_tilde_and_whitespace() {
+        assert_eq!(normalize_design("condition"), "condition");
+        assert_eq!(normalize_design("~condition"), "condition");
+        assert_eq!(normalize_design("  ~ condition "), "condition");
+        assert_eq!(normalize_design("~"), "");
+    }
+
+    #[test]
+    fn validate_rejects_multi_factor_design() {
+        let params = serde_json::json!({
+            "counts_path": "counts.tsv",
+            "coldata_path": "coldata.tsv",
+            "design": "~batch+condition",
+            "reference": "ctrl",
+        });
+        let errs = DeseqModule.validate(&params);
+        assert!(
+            errs.iter()
+                .any(|e| e.field == "design" && e.message.contains("not supported")),
+            "expected multi-factor rejection, got {:?}",
+            errs
+        );
+    }
+
+    #[test]
+    fn validate_accepts_tilde_prefixed_single_factor() {
+        let params = serde_json::json!({
+            "counts_path": "counts.tsv",
+            "coldata_path": "coldata.tsv",
+            "design": "~condition",
+            "reference": "ctrl",
+        });
+        let errs = DeseqModule.validate(&params);
+        assert!(
+            errs.iter().all(|e| e.field != "design"),
+            "expected tilde-prefixed design to pass, got {:?}",
+            errs
+        );
     }
 }
