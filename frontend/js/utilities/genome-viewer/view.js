@@ -1,6 +1,7 @@
 import igv from '/vendor/igv/igv.esm.min.js';
 import { TauriReferenceReader, TauriFeatureReader } from './igv-adapter.js';
 import { renderControls, renderTrackList } from './controls.js';
+import { t } from '../../core/i18n-helpers.js';
 
 const api = (typeof window !== 'undefined' && window.__TAURI__?.core?.invoke)
   ? (cmd, args) => window.__TAURI__.core.invoke(cmd, args)
@@ -62,21 +63,18 @@ export async function renderGenomeViewerView(content) {
           });
         }
         if (tm.suggest_bgzip) {
-          const ok = confirm(
-            `${p.split(/[\\/]/).pop()} is large (>200 MB). Build bgzip + tabix index for faster future opens?\n` +
-            `This will create a .gz file next to the original (the original is preserved).`
-          );
+          const ok = confirm(t('utility.genome_viewer.large_file_confirm', { file: filename(p) }));
           if (ok) {
             try {
               const res = await api('genome_viewer_bgzip_and_tabix', { path: p });
               console.log(`bgzipped: ${res.new_path}`);
             } catch (err) {
-              alert(`bgzip failed: ${err?.message || err}`);
+              alert(t('utility.genome_viewer.bgzip_failed', { error: err?.message || err }));
             }
           }
         }
       } catch (err) {
-        alert(`Failed to load ${p}: ${err?.message || err}`);
+        alert(t('utility.genome_viewer.load_failed', { path: p, error: err?.message || err }));
       }
     }
     refreshTrackList(trackListHost);
@@ -137,6 +135,10 @@ export async function renderGenomeViewerView(content) {
       } catch (err) { console.warn('session save failed', err); }
     }, 1000);
   }
+}
+
+function filename(p) {
+  return String(p).split(/[\\/]/).pop();
 }
 
 async function createBrowser(host, meta) {

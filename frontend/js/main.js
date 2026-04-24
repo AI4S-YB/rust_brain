@@ -16,6 +16,7 @@ async function init() {
 
   try {
     const descriptors = await modulesApi.listModules();
+    if (!Array.isArray(descriptors)) throw new TypeError('list_modules did not return an array');
     setBootstrapModules(descriptors);
     injectPluginSidebarEntries(descriptors);
   } catch (e) {

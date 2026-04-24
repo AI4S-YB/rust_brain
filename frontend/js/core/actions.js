@@ -52,7 +52,7 @@ export function collectModuleParams() {
 }
 
 export async function runModule(id) {
-  const mod = MODULES.find(m => m.id === id);
+  const mod = MODULES.find(m => m.id === id || m.view_id === id);
   if (!mod || !mod.backend) {
     console.warn(`[runModule] module '${id}' has no backend — skipped`);
     return;

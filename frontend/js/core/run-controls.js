@@ -129,14 +129,29 @@ export function clearModuleRunState(moduleId) {
   syncRunButtons();
 }
 
-export function clearModuleRunStateByRunId(runId) {
-  const moduleId = state.runIdToModule[runId];
-  if (!moduleId) return null;
-  if (state.activeRunByModule[moduleId] === runId) {
-    delete state.activeRunByModule[moduleId];
+export function moduleIdForRunId(runId) {
+  if (!runId) return null;
+  if (state.runIdToModule[runId]) return state.runIdToModule[runId];
+  for (const [moduleId, activeRunId] of Object.entries(state.activeRunByModule)) {
+    if (activeRunId === runId) return moduleId;
   }
-  delete state.pendingRunByModule[moduleId];
-  delete state.cancelRequestedByModule[moduleId];
+  return null;
+}
+
+export function onlyActiveRunId() {
+  const active = Object.values(state.activeRunByModule).filter(Boolean);
+  return active.length === 1 ? active[0] : null;
+}
+
+export function clearModuleRunStateByRunId(runId) {
+  const moduleId = moduleIdForRunId(runId);
+  if (!moduleId) return null;
+  const activeRunId = state.activeRunByModule[moduleId];
+  if (!activeRunId || activeRunId === runId) {
+    delete state.activeRunByModule[moduleId];
+    delete state.pendingRunByModule[moduleId];
+    delete state.cancelRequestedByModule[moduleId];
+  }
   syncRunButtons();
   return moduleId;
 }

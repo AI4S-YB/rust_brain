@@ -1,5 +1,6 @@
 import { VirtualList } from './virtual-list.js';
 import { colorSeq, colorQual } from './coloring.js';
+import { t } from '../../core/i18n-helpers.js';
 
 const _tauri = typeof window !== 'undefined' ? window.__TAURI__?.core?.invoke : undefined;
 const api = _tauri
@@ -10,15 +11,15 @@ export function renderFastqViewerView(content) {
   content.innerHTML = `
     <div class="module-view fastq-viewer">
       <header class="utility-header">
-        <h1>FASTQ Viewer</h1>
+        <h1>${t('nav.fastq_viewer')}</h1>
         <div class="utility-controls">
-          <button class="btn" data-act="fastq-open">Open File</button>
-          <label>Record <input type="number" class="fastq-jump" min="0" value="0" style="width:100px"></label>
+          <button class="btn" data-act="fastq-open">${t('utility.fastq_viewer.open_file')}</button>
+          <label>${t('utility.fastq_viewer.record')} <input type="number" class="fastq-jump" min="0" value="0" style="width:100px"></label>
           <label>% <input type="range" class="fastq-pct" min="0" max="100" value="0" style="width:120px"></label>
-          <input type="text" class="fastq-search" placeholder="Search read ID..." style="width:200px">
-          <button class="btn" data-act="fastq-search-next">Find Next</button>
+          <input type="text" class="fastq-search" placeholder="${t('utility.fastq_viewer.search_placeholder')}" style="width:200px">
+          <button class="btn" data-act="fastq-search-next">${t('utility.fastq_viewer.find_next')}</button>
         </div>
-        <div class="utility-meta"><span class="fastq-path">No file open</span> · <span class="fastq-count">—</span> records</div>
+        <div class="utility-meta"><span class="fastq-path">${t('utility.fastq_viewer.no_file_open')}</span> · <span class="fastq-count">—</span> ${t('utility.fastq_viewer.records')}</div>
       </header>
       <div class="fastq-list" style="height:70vh;border:1px solid #e7e5e4;border-radius:6px;background:#faf8f4"></div>
     </div>

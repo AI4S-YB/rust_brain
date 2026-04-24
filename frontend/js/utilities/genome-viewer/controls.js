@@ -1,10 +1,12 @@
+import { t } from '../../core/i18n-helpers.js';
+
 export function renderControls(container) {
   container.innerHTML = `
     <div class="gv-controls" style="display:flex;gap:8px;align-items:center;padding:8px;background:#f5f1eb;border-bottom:1px solid #e7e5e4">
-      <button class="btn" data-act="gv-load-reference">Load Reference FASTA</button>
-      <button class="btn" data-act="gv-add-track">Add Track</button>
-      <input type="text" class="gv-search" placeholder="chr1:10-50  or  gene name" style="flex:1;padding:4px 8px;font-family:monospace">
-      <button class="btn" data-act="gv-search-go">Go</button>
+      <button class="btn" data-act="gv-load-reference">${t('utility.genome_viewer.load_reference')}</button>
+      <button class="btn" data-act="gv-add-track">${t('utility.genome_viewer.add_track')}</button>
+      <input type="text" class="gv-search" placeholder="${t('utility.genome_viewer.search_placeholder')}" style="flex:1;padding:4px 8px;font-family:monospace">
+      <button class="btn" data-act="gv-search-go">${t('utility.genome_viewer.go')}</button>
     </div>
     <div class="gv-track-list" style="padding:6px 8px;background:#faf8f4;border-bottom:1px solid #f1ede7;font-size:13px"></div>
     <div class="gv-browser" style="height:calc(100vh - 240px);background:#fff"></div>
@@ -13,7 +15,7 @@ export function renderControls(container) {
 
 export function renderTrackList(host, tracks, onRemove, onToggle) {
   if (!tracks.length) {
-    host.innerHTML = '<span style="color:#a8a29e">No tracks loaded</span>';
+    host.innerHTML = `<span style="color:#a8a29e">${t('utility.genome_viewer.no_tracks')}</span>`;
     return;
   }
   host.innerHTML = tracks.map(t => `

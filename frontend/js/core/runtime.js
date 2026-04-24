@@ -1,18 +1,36 @@
 import { api } from './tauri.js';
 import { t } from './i18n-helpers.js';
 import { state } from './state.js';
-import { MODULES } from './constants.js';
+import { MODULES, RUN_TASKS } from './constants.js';
 import { appendRunLog } from '../ui/log-panel.js';
 import { loadRunsForView } from '../modules/run-result.js';
-import { clearModuleRunStateByRunId, getBusyTaskCount } from './run-controls.js';
+import {
+  clearModuleRunStateByRunId,
+  getBusyTaskCount,
+  moduleIdForRunId,
+  onlyActiveRunId,
+} from './run-controls.js';
 import { showToast } from '../ui/modal.js';
+
+function runIdFromPayload(payload) {
+  return payload?.runId
+    || payload?.run_id
+    || payload?.id
+    || payload?.result?.runId
+    || payload?.result?.run_id
+    || null;
+}
+
+function runIdFromTerminalEvent(event) {
+  return runIdFromPayload(event?.payload) || onlyActiveRunId();
+}
 
 function refreshRunsForRun(runId) {
   if (!runId) return;
   const viewId = state.runIdToModule[runId];
   if (!viewId) return;
-  const mod = MODULES.find(m => m.id === viewId);
-  const backendId = mod?.backend || viewId;
+  const mod = MODULES.find(m => m.id === viewId || m.view_id === viewId);
+  const backendId = mod?.backend || RUN_TASKS[viewId]?.backend || viewId;
   const containerId = `${viewId}-runs`;
   if (document.getElementById(containerId)) {
     loadRunsForView(backendId, containerId);
@@ -60,12 +78,12 @@ export function installRuntimeListeners() {
   });
 
   api.listen('run-completed', event => {
-    const runId = event.payload?.runId;
+    const runId = runIdFromTerminalEvent(event);
     // Race: backend may emit the terminal before the frontend has had a chance
     // to register the runId in state.runIdToModule (happens when validation
     // fails synchronously inside module.run). Buffer and let registerStartedRun
     // replay it.
-    if (runId && !state.runIdToModule[runId]) {
+    if (runId && !moduleIdForRunId(runId)) {
       state.pendingTerminalByRunId[runId] = { kind: 'completed' };
       return;
     }
@@ -73,9 +91,9 @@ export function installRuntimeListeners() {
   });
 
   api.listen('run-failed', event => {
-    const runId = event.payload?.runId;
-    const err = event.payload?.error;
-    if (runId && !state.runIdToModule[runId]) {
+    const runId = runIdFromTerminalEvent(event);
+    const err = event.payload?.error || event.payload?.message;
+    if (runId && !moduleIdForRunId(runId)) {
       state.pendingTerminalByRunId[runId] = { kind: 'failed', error: err };
       return;
     }
@@ -84,7 +102,8 @@ export function installRuntimeListeners() {
 
   if (window.__TAURI__?.event) {
     window.__TAURI__.event.listen('run-log', (e) => {
-      const { runId, line, stream } = e.payload || {};
+      const runId = runIdFromPayload(e.payload);
+      const { line, stream } = e.payload || {};
       if (runId) appendRunLog(runId, line, stream);
     });
   }
