@@ -1,10 +1,13 @@
-import { state } from '../../core/state.js';
+import { state, resetProjectState } from '../../core/state.js';
 import { projectApi } from '../../api/project.js';
 import { filesApi } from '../../api/files.js';
 import { projectNewModal } from '../../ui/project-new-modal.js';
 import { alertModal } from '../../ui/modal.js';
+import { invalidatePickerCache } from '../../ui/registry-picker.js';
 
 function setProjectUI(name) {
+  resetProjectState();
+  invalidatePickerCache();
   state.projectOpen = true;
   state.projectName = name;
   const headerEl = document.getElementById('projectName');

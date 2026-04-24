@@ -6,6 +6,7 @@ import { state } from '../core/state.js';
 import { renderGffConvertResult } from './gff-convert/result.js';
 import { renderQcResult } from './qc/result.js';
 import { renderStarAlignResult } from './star-align/result.js';
+import { renderTrimmingResult } from './trimming/result.js';
 import { renderPluginResult } from './plugin/result.js';
 import { confirmModal, alertModal } from '../ui/modal.js';
 
@@ -19,10 +20,10 @@ export function renderRunResultHtml(moduleId, result, runId) {
   let html = '';
   switch (moduleId) {
     case 'qc': html = renderQcResult(result, runId); break;
+    case 'trimming': html = renderTrimmingResult(result, runId); break;
     case 'gff_convert': html = renderGffConvertResult(result, runId); break;
     case 'star_align': html = renderStarAlignResult(result, runId); break;
-    case 'star_index': html = `<pre>${escapeHtml(JSON.stringify(result.summary, null, 2))}</pre>`; break;
-    default: html = `<pre>${escapeHtml(JSON.stringify(result, null, 2))}</pre>`; break;
+    default: html = renderGenericResult(result); break;
   }
   return html;
 }
@@ -56,6 +57,87 @@ function isTerminalStatus(status) {
   return status === 'Done' || status === 'Failed' || status === 'Cancelled';
 }
 
+function statusLabel(status) {
+  const key = `tasks.status_${String(status || 'unknown').toLowerCase()}`;
+  const label = t(key);
+  return label === key ? (status || 'unknown') : label;
+}
+
+function formatRunTimestamp(ts) {
+  if (!ts) return '';
+  const normalized = String(ts).replace(/(\.\d{3})\d+(Z|[+-]\d\d:\d\d)?$/, '$1$2');
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return ts;
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    }).format(date);
+  } catch {
+    return ts;
+  }
+}
+
+function isPrimitive(value) {
+  return value == null || ['string', 'number', 'boolean'].includes(typeof value);
+}
+
+function humanizeKey(key) {
+  return String(key)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function genericValueHtml(key, value) {
+  if (value == null || value === '') return '-';
+  if (typeof value === 'boolean') return value ? t('common.yes') : t('common.no');
+  if (typeof value === 'number' && /bytes|size/i.test(key)) return formatBytes(value);
+  return escapeHtml(String(value));
+}
+
+function renderGenericResult(result) {
+  const summary = result?.summary && typeof result.summary === 'object' ? result.summary : {};
+  const outputFiles = Array.isArray(result?.output_files) ? result.output_files : [];
+  const primitiveRows = Object.entries(summary).filter(([, value]) => isPrimitive(value));
+  const detailRows = Object.entries(summary).filter(([, value]) => !isPrimitive(value));
+  const summaryHtml = primitiveRows.length ? `
+    <dl class="result-kv">
+      ${primitiveRows.map(([key, value]) => `
+        <dt>${escapeHtml(humanizeKey(key))}</dt>
+        <dd class="${/path|dir|file/i.test(key) ? 'path' : ''}" title="${escapeHtml(String(value ?? ''))}">
+          ${genericValueHtml(key, value)}
+        </dd>`).join('')}
+    </dl>` : '';
+  const outputsHtml = outputFiles.length ? `
+    <h3>${escapeHtml(t('common.output_files'))}</h3>
+    <ul class="run-result-list">
+      ${outputFiles.map(path => `<li class="path" title="${escapeHtml(path)}">${escapeHtml(path)}</li>`).join('')}
+    </ul>` : '';
+  const detailsHtml = detailRows.map(([key, value]) => `
+    <details class="result-json-details">
+      <summary>${escapeHtml(humanizeKey(key))}</summary>
+      <pre>${escapeHtml(JSON.stringify(value, null, 2))}</pre>
+    </details>`).join('');
+  const logHtml = result?.log ? `
+    <details class="log-panel">
+      <summary>${escapeHtml(t('common.log_panel'))}</summary>
+      <pre>${escapeHtml(result.log)}</pre>
+    </details>` : '';
+
+  return `
+    <div class="run-result-card generic-result-card">
+      <h3>${escapeHtml(t('common.summary'))}</h3>
+      ${summaryHtml || `<p><em>${escapeHtml(t('common.no_summary'))}</em></p>`}
+      ${outputsHtml}
+      ${detailsHtml}
+      ${logHtml}
+    </div>`;
+}
+
 async function reconcileRunUiState(runs) {
   const terminalRuns = (runs || []).filter(run => run?.id && isTerminalStatus(run.status));
   if (!terminalRuns.length) return;
@@ -85,8 +167,11 @@ export async function loadRunsForView(moduleId, containerId) {
     container.innerHTML = runs.map(run => {
       const status = run.status || 'unknown';
       const ts = run.finished_at || run.started_at || '';
+      const tsLabel = formatRunTimestamp(ts);
       const size = sizes[run.id];
-      const sizeLabel = size != null ? ` — ${formatBytes(size)}` : '';
+      const sizeLabel = size != null
+        ? `<span class="run-entry-size">${escapeHtml(formatBytes(size))}</span>`
+        : '';
       let bodyHtml;
       if (status === 'Done' && run.result) {
         bodyHtml = renderRunResultHtml(moduleId, run.result, run.id);
@@ -103,8 +188,9 @@ export async function loadRunsForView(moduleId, containerId) {
         <details open class="run-entry" data-run-id="${escapeHtml(run.id)}">
           <summary>
             <span class="run-entry-summary-text">
-              ${t('status.run_label')} ${escapeHtml(run.id)} &mdash; ${escapeHtml(status)}
-              ${ts ? ' (' + escapeHtml(ts) + ')' : ''}${sizeLabel}
+              ${escapeHtml(t('status.run_label'))} <code>${escapeHtml(run.id)}</code>
+              <span class="status-pill status-${escapeHtml(status.toLowerCase())}">${escapeHtml(statusLabel(status))}</span>
+              ${tsLabel ? '<span class="run-entry-time">' + escapeHtml(tsLabel) + '</span>' : ''}${sizeLabel}
             </span>
             ${deleteBtn}
           </summary>

@@ -12,6 +12,26 @@ function getTaskConfig(moduleId) {
 const runStatusMonitors = new Map();
 const TERMINAL_STATUSES = new Set(['Done', 'Failed', 'Cancelled']);
 
+// FIFO cap on state.runIdToModule so long sessions don't grow it unbounded.
+// log-panel / deleteRunWithConfirm look entries up by runId, so we keep a
+// generous window instead of deleting on run completion.
+const RUN_ID_HISTORY_CAP = 256;
+
+function recordRunIdMapping(runId, moduleId) {
+  if (state.runIdToModule[runId]) {
+    state.runIdToModule[runId] = moduleId;
+    return;
+  }
+  state.runIdToModule[runId] = moduleId;
+  state.runIdHistory.push(runId);
+  while (state.runIdHistory.length > RUN_ID_HISTORY_CAP) {
+    const oldest = state.runIdHistory.shift();
+    if (oldest && !Object.values(state.activeRunByModule).includes(oldest)) {
+      delete state.runIdToModule[oldest];
+    }
+  }
+}
+
 function backendIdForModule(moduleId) {
   return getTaskConfig(moduleId)?.backend
     || MODULES.find(m => m.id === moduleId || m.view_id === moduleId)?.backend
@@ -202,7 +222,7 @@ export function clearModuleRunStateByRunId(runId) {
 }
 
 export async function registerStartedRun(moduleId, runId) {
-  state.runIdToModule[runId] = moduleId;
+  recordRunIdMapping(runId, moduleId);
   delete state.pendingRunByModule[moduleId];
   state.activeRunByModule[moduleId] = runId;
   syncRunButtons();

@@ -599,6 +599,7 @@ async function handleUnlinkInput(sampleId, inputId) {
   }
 }
 
+const fieldEditTokens = new Map(); // key=`${sampleId}:${field}` → latest token
 async function handleFieldEdit(sampleId, field, value) {
   const patch = {};
   const v = (value || '').trim();
@@ -612,11 +613,16 @@ async function handleFieldEdit(sampleId, field, value) {
   } else {
     return;
   }
+  const tokenKey = `${sampleId}:${field}`;
+  const token = (fieldEditTokens.get(tokenKey) || 0) + 1;
+  fieldEditTokens.set(tokenKey, token);
   try {
     await samplesApi.update(sampleId, patch);
+    if (fieldEditTokens.get(tokenKey) !== token) return; // stale response
     const rec = viewState.samples.find(s => s.id === sampleId);
     if (rec) Object.assign(rec, patch);
   } catch (err) {
+    if (fieldEditTokens.get(tokenKey) !== token) return;
     alertModal({ title: t('status.error_prefix'), message: String(err) });
     await loadAll();
   }

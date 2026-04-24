@@ -226,11 +226,16 @@ function openSamplesModal(samples, inputMap, onOk) {
   document.body.appendChild(backdrop);
 
   let settled = false;
+  const onKey = (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); close(); }
+  };
   const close = () => {
     if (settled) return;
     settled = true;
+    document.removeEventListener('keydown', onKey, true);
     backdrop.remove();
   };
+  document.addEventListener('keydown', onKey, true);
   backdrop.querySelector('[data-role=cancel]').addEventListener('click', close);
   backdrop.addEventListener('click', e => { if (e.target === backdrop) close(); });
   backdrop.querySelector('[data-role=ok]').addEventListener('click', () => {

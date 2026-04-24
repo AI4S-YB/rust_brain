@@ -158,7 +158,28 @@
 
 /* Per-run delete button shown inline in run-result panels */
 .run-entry-summary-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   flex: 1;
+  gap: 8px;
+  min-width: 0;
+}
+
+.run-entry-summary-text code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.run-entry-time {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.run-entry-size {
+  color: var(--text-muted);
+  font-size: 0.82rem;
 }
 
 details.run-entry > summary {
