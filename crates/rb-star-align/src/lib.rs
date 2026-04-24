@@ -678,7 +678,7 @@ impl Module for CountsMergeModule {
         };
         vec![DeclaredAsset {
             kind: AssetKind::CountsMatrix,
-            relative_path: PathBuf::from(file_name),
+            relative_path: PathBuf::from(file_name.to_os_string()),
             display_name: "Counts matrix".into(),
             schema: Some("gene_id x samples count matrix (TSV)".into()),
         }]
