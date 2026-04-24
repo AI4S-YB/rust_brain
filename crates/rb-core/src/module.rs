@@ -5,8 +5,6 @@ use tokio::sync::mpsc;
 use crate::cancel::CancellationToken;
 use crate::run_event::RunEvent;
 
-// Retained for backwards-compat of RunRecord/ModuleResult consumers;
-// Progress is now a shape carried inside RunEvent::Progress.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Progress {
     pub fraction: f64,

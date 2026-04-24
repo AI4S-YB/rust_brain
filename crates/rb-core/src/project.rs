@@ -31,18 +31,13 @@ pub struct RunRecord {
     pub started_at: Option<DateTime<Utc>>,
     pub finished_at: Option<DateTime<Utc>>,
     pub result: Option<ModuleResult>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    /// Registered InputRecord ids consumed by this run (populated by the
-    /// caller via `params.inputs_used`, or left empty if not yet wired).
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Registered InputRecord ids consumed by this run.
     pub inputs_used: Vec<String>,
     /// AssetRecord ids consumed by this run (e.g. a STAR index reused from
-    /// an earlier run). Empty when the run did not draw from the registry.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// an earlier run).
     pub assets_used: Vec<String>,
     /// AssetRecord ids auto-registered by the Runner from `Module::produced_assets()`.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub assets_produced: Vec<String>,
 }
 
@@ -53,18 +48,10 @@ pub struct Project {
     #[serde(skip)]
     pub root_dir: PathBuf,
     pub runs: Vec<RunRecord>,
-    #[serde(default = "default_view_manual")]
     pub default_view: Option<String>,
-    #[serde(default)]
     pub inputs: Vec<InputRecord>,
-    #[serde(default)]
     pub samples: Vec<SampleRecord>,
-    #[serde(default)]
     pub assets: Vec<AssetRecord>,
-}
-
-fn default_view_manual() -> Option<String> {
-    Some("manual".to_string())
 }
 
 impl Project {
@@ -786,20 +773,6 @@ mod project_default_view_tests {
     use tempfile::tempdir;
 
     #[test]
-    fn legacy_project_json_without_default_view_loads_as_manual() {
-        let tmp = tempdir().unwrap();
-        std::fs::create_dir_all(tmp.path().join("runs")).unwrap();
-        let legacy = r#"{
-            "name": "legacy",
-            "created_at": "2026-01-01T00:00:00Z",
-            "runs": []
-        }"#;
-        std::fs::write(tmp.path().join("project.json"), legacy).unwrap();
-        let proj = Project::load(tmp.path()).unwrap();
-        assert_eq!(proj.default_view.as_deref(), Some("manual"));
-    }
-
-    #[test]
     fn newly_created_project_persists_default_view() {
         let tmp = tempdir().unwrap();
         let mut p = Project::create("t", tmp.path()).unwrap();
@@ -856,22 +829,6 @@ mod delete_run_tests {
         let mut p = Project::create("t", tmp.path()).unwrap();
         let err = p.delete_run("does_not_exist").unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::NotFound);
-    }
-
-    #[test]
-    fn project_serializes_without_legacy_inputs_field() {
-        // Old projects created before P1 have no `inputs` key in project.json;
-        // they must load as an empty inputs[] via #[serde(default)].
-        let tmp = tempdir().unwrap();
-        std::fs::create_dir_all(tmp.path().join("runs")).unwrap();
-        let legacy = r#"{
-            "name": "legacy",
-            "created_at": "2026-01-01T00:00:00Z",
-            "runs": []
-        }"#;
-        std::fs::write(tmp.path().join("project.json"), legacy).unwrap();
-        let proj = Project::load(tmp.path()).unwrap();
-        assert!(proj.inputs.is_empty());
     }
 
     #[test]
@@ -1209,19 +1166,5 @@ mod sample_registry_tests {
         let (created, _errs) = p.import_samples_from_tsv(&sheet).unwrap();
         assert_eq!(created.len(), 1);
         assert_eq!(created[0].name, "s1");
-    }
-
-    #[test]
-    fn legacy_project_without_samples_field_loads_as_empty() {
-        let tmp = tempdir().unwrap();
-        std::fs::create_dir_all(tmp.path().join("runs")).unwrap();
-        let legacy = r#"{
-            "name": "legacy",
-            "created_at": "2026-01-01T00:00:00Z",
-            "runs": []
-        }"#;
-        std::fs::write(tmp.path().join("project.json"), legacy).unwrap();
-        let p = Project::load(tmp.path()).unwrap();
-        assert!(p.samples.is_empty());
     }
 }

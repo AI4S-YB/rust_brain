@@ -4,7 +4,7 @@ export const modulesApi = {
   validate(moduleId, params) {
     return api.invoke('validate_params', { moduleId, params });
   },
-  run(moduleId, params, { inputsUsed = null, assetsUsed = null } = {}) {
+  run(moduleId, params, { inputsUsed = [], assetsUsed = [] } = {}) {
     return api.invoke('run_module', {
       moduleId,
       params,

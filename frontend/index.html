@@ -346,8 +346,14 @@
       }
 
       function _storeMockRun(run) {
-        _mockRuns.set(run.id, run);
-        return run;
+        const stored = {
+          inputs_used: [],
+          assets_used: [],
+          assets_produced: [],
+          ...run,
+        };
+        _mockRuns.set(stored.id, stored);
+        return stored;
       }
 
       (function _seedMockQcRun() {

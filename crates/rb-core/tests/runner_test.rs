@@ -85,7 +85,7 @@ async fn runner_executes_mock_module() {
     let module = Arc::new(MockModule);
     let params = serde_json::json!({});
     let run_id = runner
-        .spawn(module, params)
+        .spawn(module, params, Vec::new(), Vec::new())
         .await
         .expect("spawn should succeed");
 

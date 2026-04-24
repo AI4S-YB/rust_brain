@@ -54,7 +54,7 @@ impl ToolExecutor for ModuleRunExec {
         }
         let run_id = ctx
             .runner
-            .spawn(self.module.clone(), args.clone())
+            .spawn(self.module.clone(), args.clone(), Vec::new(), Vec::new())
             .await
             .map_err(ToolError::Execution)?;
         Ok(ToolOutput::Value(serde_json::json!({

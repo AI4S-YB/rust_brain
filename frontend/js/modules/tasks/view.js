@@ -41,9 +41,9 @@ function totalSize(runs) {
 }
 
 function lineageCellHtml(run) {
-  const usesIn = (run.inputs_used || []).length;
-  const usesAs = (run.assets_used || []).length;
-  const produces = (run.assets_produced || []).length;
+  const usesIn = run.inputs_used.length;
+  const usesAs = run.assets_used.length;
+  const produces = run.assets_produced.length;
   if (!usesIn && !usesAs && !produces) return '<span class="tasks-lineage-empty">—</span>';
   const chips = [];
   if (usesIn) chips.push(`<span class="tasks-lineage-chip tasks-lineage-in" title="${escapeHtml(t('tasks.uses_inputs'))}">↓ ${usesIn}</span>`);

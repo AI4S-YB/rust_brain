@@ -25,8 +25,8 @@ pub async fn validate_params(
 pub async fn run_module(
     module_id: String,
     params: Value,
-    inputs_used: Option<Vec<String>>,
-    assets_used: Option<Vec<String>>,
+    inputs_used: Vec<String>,
+    assets_used: Vec<String>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let module = {
@@ -44,14 +44,7 @@ pub async fn run_module(
             .clone()
     };
 
-    runner
-        .spawn_with_lineage(
-            module,
-            params,
-            inputs_used.unwrap_or_default(),
-            assets_used.unwrap_or_default(),
-        )
-        .await
+    runner.spawn(module, params, inputs_used, assets_used).await
 }
 
 #[tauri::command]

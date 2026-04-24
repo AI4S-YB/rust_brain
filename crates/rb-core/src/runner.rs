@@ -57,16 +57,10 @@ impl Runner {
         &self.project
     }
 
-    pub async fn spawn(&self, module: Arc<dyn Module>, params: Value) -> Result<String, String> {
-        self.spawn_with_lineage(module, params, Vec::new(), Vec::new())
-            .await
-    }
-
-    /// Like `spawn`, but also records which registered InputRecord ids and
-    /// AssetRecord ids this run consumes. Used by the frontend when the user
-    /// picks from the Inputs / Assets registry in a module form so the
-    /// Tasks / Assets views can show lineage.
-    pub async fn spawn_with_lineage(
+    /// Spawn a module run, recording which registered InputRecord ids and
+    /// AssetRecord ids this run consumes for lineage tracking in the
+    /// Tasks / Assets views.
+    pub async fn spawn(
         &self,
         module: Arc<dyn Module>,
         params: Value,
@@ -285,7 +279,12 @@ mod runner_tests {
                 log_for_cb.lock().unwrap().push(line);
             }));
         let id = runner
-            .spawn(Arc::new(EmitsLogModule), serde_json::json!({}))
+            .spawn(
+                Arc::new(EmitsLogModule),
+                serde_json::json!({}),
+                Vec::new(),
+                Vec::new(),
+            )
             .await
             .unwrap();
         // Poll until the run finishes (status leaves Running)
@@ -336,7 +335,12 @@ mod runner_tests {
         let project = Project::create("t", tmp.path()).unwrap();
         let runner = Runner::new(Arc::new(Mutex::new(project)));
         let id = runner
-            .spawn(Arc::new(FailingModule), serde_json::json!({}))
+            .spawn(
+                Arc::new(FailingModule),
+                serde_json::json!({}),
+                Vec::new(),
+                Vec::new(),
+            )
             .await
             .unwrap();
 
