@@ -23,6 +23,8 @@ const PROJECT_REQUIRED_VIEWS = new Set([
   'differential',
   'network',
   'gff-convert',
+  'gene-length',
+  'expr-norm',
 ]);
 
 export async function navigate(view) {
@@ -59,6 +61,12 @@ export async function navigate(view) {
   } else if (view === 'gff-convert') {
     const m = await import('../modules/gff-convert/view.js');
     if (state.currentView === view) m.renderGffConvertView(content);
+  } else if (view === 'gene-length') {
+    const m = await import('../modules/gene-length/view.js');
+    if (state.currentView === view) m.renderGeneLengthView(content);
+  } else if (view === 'expr-norm') {
+    const m = await import('../modules/expr-norm/view.js');
+    if (state.currentView === view) m.renderExprNormView(content);
   } else if (view === 'star-index') {
     const m = await import('../modules/star-index/view.js');
     if (state.currentView === view) m.renderStarIndexView(content);
@@ -229,6 +237,8 @@ async function initChartsForView(view) {
     case 'star-align':   loadRunsForView('star_align', 'star-align-runs'); break;
     case 'counts-merge': loadRunsForView('counts_merge', 'counts-merge-runs'); break;
     case 'star-index':   loadRunsForView('star_index', 'star-index-runs'); break;
+    case 'gene-length':  loadRunsForView('gene_length', 'gene-length-runs'); break;
+    case 'expr-norm':    loadRunsForView('expr_norm', 'expr-norm-runs'); break;
   }
 }
 

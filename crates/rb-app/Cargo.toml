@@ -12,8 +12,10 @@ rb-core = { path = "../rb-core" }
 chrono.workspace = true
 rb-ai = { path = "../rb-ai" }
 rb-deseq2 = { path = "../rb-deseq2" }
+rb-expr-norm = { path = "../rb-expr-norm" }
 rb-fastq-viewer = { path = "../rb-fastq-viewer" }
 rb-bam-tools = { path = "../rb-bam-tools" }
+rb-gene-length = { path = "../rb-gene-length" }
 rb-genome-viewer = { path = "../rb-genome-viewer" }
 rb-gff-convert = { path = "../rb-gff-convert" }
 rb-qc = { path = "../rb-qc" }

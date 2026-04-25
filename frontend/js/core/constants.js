@@ -8,6 +8,8 @@ export const MODULES = [
   { id: 'counts-merge', view_id: 'counts-merge', name: 'Counts Matrix Merge',            icon: 'table',      color: 'green',  tool: 'STAR ReadsPerGene', status: 'ready', backend: 'counts_merge', source: 'builtin', has_native_view: true, category: 'quantification' },
   { id: 'rustqc',       view_id: 'rustqc',       name: 'RNA-Seq Post-Align QC',          icon: 'shield-check', color: 'teal', tool: 'RustQC',      status: 'ready', backend: 'rustqc',      source: 'builtin', has_native_view: true,  category: 'qc' },
   { id: 'differential', view_id: 'differential', name: 'Differential Expr.',             icon: 'flame',      color: 'coral',  tool: 'DESeq2_rs',   status: 'ready', backend: 'deseq2',      source: 'builtin', has_native_view: true,  category: 'differential' },
+  { id: 'gene-length',  view_id: 'gene-length',  name: 'Gene Length',                    icon: 'ruler',      color: 'gold',   tool: 'GTF Parser',  status: 'ready', backend: 'gene_length', source: 'builtin', has_native_view: true,  category: 'utility' },
+  { id: 'expr-norm',    view_id: 'expr-norm',    name: 'Expression Normalize',           icon: 'sigma',      color: 'green',  tool: 'TPM / FPKM',  status: 'ready', backend: 'expr_norm',   source: 'builtin', has_native_view: true,  category: 'utility' },
   { id: 'network',      view_id: 'network',      name: 'Network Analysis',               icon: 'share-2',    color: 'green',  tool: 'WGCNA_rs',    status: 'soon',  utility: true,                                source: 'builtin', has_native_view: true,  category: 'other' },
   { id: 'enrichment',   view_id: 'enrichment',   name: 'Enrichment',                     icon: 'target',     color: 'slate',  tool: 'TBD',         status: 'soon',                                                source: 'builtin', has_native_view: true,  category: 'other' },
 ];
@@ -69,6 +71,8 @@ function colorForBuiltin(id) {
     deseq2: 'coral',
     star_index: 'purple',
     gff_convert: 'gold',
+    gene_length: 'gold',
+    expr_norm: 'green',
   })[id] || 'slate';
 }
 
@@ -86,7 +90,7 @@ export const COLOR_MAP = {
 export const KNOWN_VIEWS = new Set();
 function rebuildKnownViews() {
   KNOWN_VIEWS.clear();
-  ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'counts-merge', 'chat', 'plots', 'tasks', 'inputs', 'samples', 'assets']
+  ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'counts-merge', 'chat', 'plots', 'tasks', 'inputs', 'samples', 'assets', 'gene-length', 'expr-norm']
     .forEach(v => KNOWN_VIEWS.add(v));
   MODULES.forEach(m => KNOWN_VIEWS.add(m.view_id || m.id));
   UTILITIES.forEach(u => KNOWN_VIEWS.add(u.view_id || u.id));
@@ -119,4 +123,6 @@ export const RUN_TASKS = {
   'star-align': { backend: 'star_align',  computeCost: 7 },
   'counts-merge': { backend: 'counts_merge', computeCost: 1 },
   'gff-convert': { backend: 'gff_convert', computeCost: 1 },
+  'gene-length': { backend: 'gene_length', computeCost: 1 },
+  'expr-norm':   { backend: 'expr_norm',   computeCost: 1 },
 };

@@ -60,6 +60,8 @@ fn main() {
     registry.register(Arc::new(rb_star_align::StarAlignModule));
     registry.register(Arc::new(rb_star_align::CountsMergeModule));
     registry.register(Arc::new(rb_rustqc::RustqcModule));
+    registry.register(Arc::new(rb_gene_length::GeneLengthModule));
+    registry.register(Arc::new(rb_expr_norm::ExprNormModule));
 
     // 2. Build the binary resolver up-front so plugin modules can share it.
     let binary_resolver_inner = rb_core::binary::BinaryResolver::load().unwrap_or_else(|e| {
@@ -136,6 +138,8 @@ fn main() {
         Arc::new(rb_star_align::StarAlignModule),
         Arc::new(rb_star_align::CountsMergeModule),
         Arc::new(rb_rustqc::RustqcModule),
+        Arc::new(rb_gene_length::GeneLengthModule),
+        Arc::new(rb_expr_norm::ExprNormModule),
     ];
     modules_for_ai.extend(plugin_modules.iter().cloned());
 
