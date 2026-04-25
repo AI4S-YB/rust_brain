@@ -1,8 +1,58 @@
 use tauri::State;
 
 use rb_ai::config::{AiConfig, ProviderConfig};
+use rb_ai::provider::ThinkingConfig;
 
 use crate::state::AppState;
+
+pub(crate) fn effective_thinking(config: &ProviderConfig) -> ThinkingConfig {
+    ThinkingConfig {
+        enabled: config.effective_thinking_enabled(),
+        reasoning_effort: config.effective_reasoning_effort(),
+    }
+}
+
+fn env_api_key_for(provider_id: &str, base_url: &str) -> Option<String> {
+    let base_url = base_url.trim().to_ascii_lowercase();
+    let candidates: &[&str] = if base_url.contains("api.deepseek.com") {
+        &["DEEPSEEK_API_KEY"]
+    } else if provider_id == "openai-compat" {
+        &["OPENAI_API_KEY"]
+    } else {
+        &[]
+    };
+    candidates.iter().find_map(|name| {
+        std::env::var(name)
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+    })
+}
+
+pub(crate) fn resolve_api_key(
+    state: &AppState,
+    provider_id: &str,
+    base_url: &str,
+) -> Result<String, String> {
+    state
+        .ai
+        .keystore
+        .get(provider_id)
+        .map_err(|e| e.to_string())?
+        .or_else(|| env_api_key_for(provider_id, base_url))
+        .ok_or_else(|| {
+            if base_url
+                .trim()
+                .to_ascii_lowercase()
+                .contains("api.deepseek.com")
+            {
+                "API key not set for provider; set it in Settings or export DEEPSEEK_API_KEY"
+                    .to_string()
+            } else {
+                "API key not set for provider".to_string()
+            }
+        })
+}
 
 #[tauri::command]
 pub async fn ai_get_config(state: State<'_, AppState>) -> Result<AiConfig, String> {
@@ -96,6 +146,8 @@ pub async fn ai_test_connection(
     base_url: String,
     model: String,
     temperature: Option<f32>,
+    thinking_enabled: Option<bool>,
+    reasoning_effort: Option<String>,
     api_key: Option<String>,
 ) -> Result<String, String> {
     use rb_ai::provider::{
@@ -115,14 +167,16 @@ pub async fn ai_test_connection(
 
     let key = match api_key.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
         Some(k) => k.to_string(),
-        None => state
-            .ai
-            .keystore
-            .get(&provider_id)
-            .map_err(|e| e.to_string())?
-            .ok_or_else(|| "no API key configured".to_string())?,
+        None => resolve_api_key(&state, &provider_id, &base_url)?,
     };
 
+    let provider_config = ProviderConfig {
+        base_url: base_url.clone(),
+        model: model.clone(),
+        temperature: temperature.unwrap_or(0.2),
+        thinking_enabled,
+        reasoning_effort,
+    };
     let provider = OpenAiCompatProvider::new(base_url, key);
     let req = ChatRequest {
         model,
@@ -131,7 +185,8 @@ pub async fn ai_test_connection(
             content: "Say hi to me in one short sentence.".into(),
         }],
         tools: vec![],
-        temperature: temperature.unwrap_or(0.2),
+        temperature: provider_config.temperature,
+        thinking: effective_thinking(&provider_config),
     };
 
     let (tx, mut rx) = tokio::sync::mpsc::channel::<ProviderEvent>(32);

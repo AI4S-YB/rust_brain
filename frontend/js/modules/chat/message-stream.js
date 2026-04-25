@@ -10,9 +10,11 @@ import { createRunCard } from './run-card.js';
  * cards to render typed forms. Phase 1 may leave this empty; schema-form
  * falls back to a raw JSON textarea.
  */
-export async function attachStream({ container, sessionId, toolSchemasByName }) {
+export async function attachStream({ container, sessionId, toolSchemasByName, onDone, onError }) {
   let currentAssistant = null;
+  let currentReasoning = null;
   let rafToken = null;
+  const pendingRenders = new Set();
 
   const append = (el) => {
     container.appendChild(el);
@@ -28,11 +30,30 @@ export async function attachStream({ container, sessionId, toolSchemasByName }) 
     return currentAssistant;
   };
 
+  const ensureReasoningBlock = () => {
+    if (!currentReasoning) {
+      const details = document.createElement('details');
+      details.className = 'chat-reasoning';
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = 'Thinking';
+      const body = document.createElement('pre');
+      details.append(summary, body);
+      append(details);
+      currentReasoning = body;
+    }
+    return currentReasoning;
+  };
+
   const scheduleRender = (bubble, delta) => {
     bubble.dataset.raw = (bubble.dataset.raw || '') + delta;
+    pendingRenders.add(bubble);
     if (rafToken) return;
     rafToken = requestAnimationFrame(() => {
-      bubble.textContent = bubble.dataset.raw;
+      pendingRenders.forEach(el => {
+        el.textContent = el.dataset.raw || '';
+      });
+      pendingRenders.clear();
       rafToken = null;
     });
   };
@@ -41,8 +62,11 @@ export async function attachStream({ container, sessionId, toolSchemasByName }) 
     if (ev.session_id !== sessionId) return;
     if (ev.kind === 'Text') {
       scheduleRender(ensureAssistantBubble(), ev.delta);
+    } else if (ev.kind === 'Reasoning') {
+      scheduleRender(ensureReasoningBlock(), ev.delta);
     } else if (ev.kind === 'ToolCall') {
       currentAssistant = null; // assistant bubble is finished before the card
+      currentReasoning = null;
       if (ev.risk === 'read') {
         // Read-risk tools execute automatically — render a compact one-liner.
         const row = document.createElement('div');
@@ -86,12 +110,16 @@ export async function attachStream({ container, sessionId, toolSchemasByName }) 
       }
     } else if (ev.kind === 'Done') {
       currentAssistant = null;
+      currentReasoning = null;
+      if (typeof onDone === 'function') onDone();
     } else if (ev.kind === 'Error') {
       const err = document.createElement('div');
       err.className = 'chat-msg chat-msg-error';
       err.textContent = `Error: ${ev.message}`;
       append(err);
       currentAssistant = null;
+      currentReasoning = null;
+      if (typeof onError === 'function') onError(ev.message);
     }
   });
 }

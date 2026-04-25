@@ -18,6 +18,16 @@
 .chat-msg-user { align-self: flex-end; background: #e8f0ff; }
 .chat-msg-assistant { align-self: flex-start; background: #f6f4ee; }
 .chat-msg-error { align-self: center; color: #b00020; background: #fef0f0; }
+.chat-reasoning {
+  align-self: flex-start; max-width: min(80ch, 90%);
+  color: #4e5f64; background: #eef6f4; border: 1px solid #cfe5df;
+  border-radius: 8px; padding: 6px 10px; font-size: 0.9em;
+}
+.chat-reasoning summary { cursor: pointer; font-weight: 600; }
+.chat-reasoning pre {
+  margin: 6px 0 0; white-space: pre-wrap; font-family: inherit;
+  line-height: 1.45;
+}
 .tool-auto {
   align-self: flex-start; color: #666; font-size: 0.9em;
   font-family: 'Fira Code', monospace;

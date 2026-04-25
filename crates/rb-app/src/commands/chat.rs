@@ -14,6 +14,8 @@ use tokio::sync::Mutex;
 
 use crate::state::AppState;
 
+use super::ai_provider::{effective_thinking, resolve_api_key};
+
 /// Locate the SessionStore for the currently-open project.
 /// Returns an error if no project is open yet.
 async fn session_store_for(state: &AppState) -> Result<SessionStore, String> {
@@ -95,7 +97,15 @@ pub async fn chat_rename_session(
 /// ChatRequest without re-reading config each turn.
 async fn acquire_provider(
     state: &AppState,
-) -> Result<(Arc<dyn ChatProvider>, String, f32), String> {
+) -> Result<
+    (
+        Arc<dyn ChatProvider>,
+        String,
+        f32,
+        rb_ai::provider::ThinkingConfig,
+    ),
+    String,
+> {
     let cfg = state.ai.config.lock().await.clone();
     let provider_id = cfg
         .default_provider
@@ -106,14 +116,11 @@ async fn acquire_provider(
         .get(&provider_id)
         .ok_or_else(|| format!("provider {provider_id} not found in config"))?
         .clone();
-    let key = state
-        .ai
-        .keystore
-        .get(&provider_id)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "API key not set for provider".to_string())?;
-    let provider: Arc<dyn ChatProvider> = Arc::new(OpenAiCompatProvider::new(pc.base_url, key));
-    Ok((provider, pc.model, pc.temperature))
+    let key = resolve_api_key(state, &provider_id, &pc.base_url)?;
+    let thinking = effective_thinking(&pc);
+    let provider: Arc<dyn ChatProvider> =
+        Arc::new(OpenAiCompatProvider::new(pc.base_url.clone(), key));
+    Ok((provider, pc.model, pc.temperature, thinking))
 }
 
 /// Pick the language for this turn. Phase 1 reads RUSTBRAIN_LANG env var;
@@ -148,7 +155,7 @@ pub async fn chat_send_message(
         .map_err(|e| e.to_string())?;
     let session = Arc::new(Mutex::new(session));
 
-    let (provider, model, temperature) = acquire_provider(&state).await?;
+    let (provider, model, temperature, thinking) = acquire_provider(&state).await?;
 
     let runner: Arc<Runner> = {
         let guard = state.runner.lock().await;
@@ -175,6 +182,7 @@ pub async fn chat_send_message(
         provider,
         model,
         temperature,
+        thinking,
         plans: state.ai.plans.clone(),
         lang,
     };

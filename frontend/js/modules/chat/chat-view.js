@@ -12,6 +12,17 @@ function bubbleForRole(role) {
   return el;
 }
 
+function reasoningBlock(text) {
+  const details = document.createElement('details');
+  details.className = 'chat-reasoning';
+  const summary = document.createElement('summary');
+  summary.textContent = 'Thinking';
+  const body = document.createElement('pre');
+  body.textContent = text || '';
+  details.append(summary, body);
+  return details;
+}
+
 export async function renderChatView(container, sessionId) {
   let session;
   try {
@@ -44,11 +55,21 @@ export async function renderChatView(container, sessionId) {
   // Render existing messages.
   (session.messages || []).forEach(m => {
     if (m.role === 'tool') return;
+    if (m.reasoning_content) {
+      messagesEl.appendChild(reasoningBlock(m.reasoning_content));
+    }
     const el = bubbleForRole(m.role);
     el.textContent = m.content || '';
     messagesEl.appendChild(el);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
+
+  const sendBtn = container.querySelector('.btn-send');
+  const stopBtn = container.querySelector('.btn-stop');
+  const setSending = (sending) => {
+    sendBtn.disabled = sending;
+    stopBtn.hidden = !sending;
+  };
 
   // Attach the full streaming dispatcher.
   const unlisten = await attachStream({
@@ -56,6 +77,8 @@ export async function renderChatView(container, sessionId) {
     sessionId,
     // toolSchemasByName — left empty for Phase 1; Plan Card falls back to raw-JSON form.
     toolSchemasByName: {},
+    onDone: () => setSending(false),
+    onError: () => setSending(false),
   });
 
   // Clean up the listener when navigating away.
@@ -67,10 +90,11 @@ export async function renderChatView(container, sessionId) {
   };
   window.addEventListener('hashchange', hashHandler);
 
-  container.querySelector('.btn-send').addEventListener('click', async () => {
+  sendBtn.addEventListener('click', async () => {
     const ta = container.querySelector('.chat-input');
     const text = ta.value.trim();
     if (!text) return;
+    setSending(true);
     const userEl = bubbleForRole('user');
     userEl.textContent = text;
     messagesEl.appendChild(userEl);
@@ -79,13 +103,14 @@ export async function renderChatView(container, sessionId) {
     try {
       await chatApi.sendMessage(sessionId, text);
     } catch (e) {
+      setSending(false);
       const err = bubbleForRole('error');
       err.textContent = 'Send failed: ' + e;
       messagesEl.appendChild(err);
     }
   });
 
-  container.querySelector('.btn-stop').addEventListener('click', () => {
+  stopBtn.addEventListener('click', () => {
     chatApi.cancelTurn(sessionId).catch(() => {});
   });
 }
