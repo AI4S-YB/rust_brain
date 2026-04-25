@@ -155,9 +155,10 @@ fn main() {
 
     // Load persisted AI config.
     let config_path = rb_ai::config::AiConfig::default_path();
-    let ai_config =
+    let mut ai_config =
         tauri::async_runtime::block_on(rb_ai::config::AiConfig::load_or_default(&config_path))
             .unwrap_or_default();
+    ai_config.apply_env_defaults();
 
     // Pick KeyStore: prefer OS keyring; fall back to encrypted file if the
     // keyring probe fails (e.g., headless Linux without libsecret).

@@ -58,6 +58,33 @@ impl AiConfig {
         Ok(serde_json::from_str(&text)?)
     }
 
+    /// Provide a usable default provider from environment variables without
+    /// persisting secrets or config. This keeps fresh dev environments usable
+    /// when the user exports DEEPSEEK_API_KEY but has not opened Settings yet.
+    pub fn apply_env_defaults(&mut self) {
+        if self.default_provider.is_some() {
+            return;
+        }
+        let has_deepseek_key = std::env::var("DEEPSEEK_API_KEY")
+            .ok()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+        if !has_deepseek_key {
+            return;
+        }
+        self.providers.insert(
+            "openai-compat".into(),
+            ProviderConfig {
+                base_url: "https://api.deepseek.com/v1".into(),
+                model: "deepseek-v4-flash".into(),
+                temperature: 0.2,
+                thinking_enabled: Some(true),
+                reasoning_effort: Some("high".into()),
+            },
+        );
+        self.default_provider = Some("openai-compat".into());
+    }
+
     pub async fn save(&self, path: &Path) -> Result<(), AiError> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).await?;
@@ -126,6 +153,20 @@ mod tests {
             .unwrap();
         assert!(cfg.default_provider.is_none());
         assert!(cfg.providers.is_empty());
+    }
+
+    #[test]
+    fn env_defaults_configure_deepseek_when_key_exists() {
+        std::env::set_var("DEEPSEEK_API_KEY", "test-key");
+        let mut cfg = AiConfig::default();
+        cfg.apply_env_defaults();
+        std::env::remove_var("DEEPSEEK_API_KEY");
+
+        assert_eq!(cfg.default_provider.as_deref(), Some("openai-compat"));
+        let pc = &cfg.providers["openai-compat"];
+        assert_eq!(pc.base_url, "https://api.deepseek.com/v1");
+        assert_eq!(pc.model, "deepseek-v4-flash");
+        assert_eq!(pc.thinking_enabled, Some(true));
     }
 
     #[tokio::test]

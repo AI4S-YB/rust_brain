@@ -36,11 +36,14 @@ pub struct RunRecord {
     pub result: Option<ModuleResult>,
     pub error: Option<String>,
     /// Registered InputRecord ids consumed by this run.
+    #[serde(default)]
     pub inputs_used: Vec<String>,
     /// AssetRecord ids consumed by this run (e.g. a STAR index reused from
     /// an earlier run).
+    #[serde(default)]
     pub assets_used: Vec<String>,
     /// AssetRecord ids auto-registered by the Runner from `Module::produced_assets()`.
+    #[serde(default)]
     pub assets_produced: Vec<String>,
 }
 
@@ -50,10 +53,15 @@ pub struct Project {
     pub created_at: DateTime<Utc>,
     #[serde(skip)]
     pub root_dir: PathBuf,
+    #[serde(default)]
     pub runs: Vec<RunRecord>,
+    #[serde(default)]
     pub default_view: Option<String>,
+    #[serde(default)]
     pub inputs: Vec<InputRecord>,
+    #[serde(default)]
     pub samples: Vec<SampleRecord>,
+    #[serde(default)]
     pub assets: Vec<AssetRecord>,
 }
 

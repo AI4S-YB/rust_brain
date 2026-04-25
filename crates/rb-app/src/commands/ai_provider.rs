@@ -120,12 +120,23 @@ pub async fn ai_has_api_key(
     state: State<'_, AppState>,
     provider_id: String,
 ) -> Result<bool, String> {
-    Ok(state
+    let stored = state
         .ai
         .keystore
         .get(&provider_id)
         .map_err(|e| e.to_string())?
-        .is_some())
+        .is_some();
+    if stored {
+        return Ok(true);
+    }
+    let base_url = {
+        let cfg = state.ai.config.lock().await;
+        cfg.providers
+            .get(&provider_id)
+            .map(|p| p.base_url.clone())
+            .unwrap_or_default()
+    };
+    Ok(env_api_key_for(&provider_id, &base_url).is_some())
 }
 
 #[tauri::command]

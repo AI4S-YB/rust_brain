@@ -29,18 +29,6 @@ pub fn register_all(registry: &mut ToolRegistry) {
         }),
     ));
     registry.register(entry(
-        "summarize_run",
-        "Return an LLM-friendly summary of a run's key metrics. \
-         Not implemented in Phase 1.",
-        RiskLevel::Read,
-        json!({
-            "type": "object",
-            "properties": { "run_id": { "type": "string" } },
-            "required": ["run_id"],
-            "additionalProperties": false
-        }),
-    ));
-    registry.register(entry(
         "generate_plot",
         "Produce an ECharts JSON spec for a custom visualization. \
          Not implemented in Phase 1.",
@@ -92,10 +80,10 @@ mod tests {
     use crate::tools::ToolRegistry;
 
     #[test]
-    fn register_all_adds_three_stubs_with_valid_schema() {
+    fn register_all_adds_reserved_stubs_with_valid_schema() {
         let mut r = ToolRegistry::new();
         register_all(&mut r);
-        for n in ["read_results_table", "summarize_run", "generate_plot"] {
+        for n in ["read_results_table", "generate_plot"] {
             let t = r.get(n).unwrap_or_else(|| panic!("missing {n}"));
             t.def.validate_schema().unwrap();
         }
