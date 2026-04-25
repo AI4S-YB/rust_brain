@@ -23,10 +23,11 @@ function reasoningBlock(text) {
   return details;
 }
 
-export async function renderChatView(container, sessionId) {
+export async function renderChatView(container, sessionId, options = {}) {
+  const scope = options.scope === 'direct' ? 'direct' : 'project';
   let session;
   try {
-    session = await chatApi.getSession(sessionId);
+    session = await chatApi.getSession(sessionId, scope);
   } catch (e) {
     container.innerHTML = `<div class="module-view"><p>Could not load session: ${escapeHtml(e)}</p></div>`;
     return;
@@ -39,9 +40,9 @@ export async function renderChatView(container, sessionId) {
   container.innerHTML = `
     <div class="module-view chat-shell">
       <header class="chat-header">
-        <a class="chat-back" href="#chat">←</a>
+        <a class="chat-back" href="#chat/${scope}">←</a>
         <h2 class="chat-title">${escapeHtml(session.title)}</h2>
-        <span class="chat-provider">${escapeHtml(session.provider_snapshot?.model ?? '')}</span>
+        <span class="chat-provider">${scope === 'direct' ? 'Direct AI' : 'Project AI'} ${escapeHtml(session.provider_snapshot?.model ?? '')}</span>
       </header>
       <div class="chat-messages"></div>
       <footer class="chat-input-bar">
@@ -83,7 +84,7 @@ export async function renderChatView(container, sessionId) {
 
   // Clean up the listener when navigating away.
   const hashHandler = () => {
-    if (!location.hash.startsWith(`#chat/${sessionId}`)) {
+    if (location.hash !== `#chat/${scope}/${sessionId}` && location.hash !== `#chat/${sessionId}`) {
       if (typeof unlisten === 'function') unlisten();
       window.removeEventListener('hashchange', hashHandler);
     }
@@ -101,7 +102,7 @@ export async function renderChatView(container, sessionId) {
     ta.value = '';
     messagesEl.scrollTop = messagesEl.scrollHeight;
     try {
-      await chatApi.sendMessage(sessionId, text);
+      await chatApi.sendMessage(sessionId, text, scope);
     } catch (e) {
       setSending(false);
       const err = bubbleForRole('error');
@@ -111,6 +112,6 @@ export async function renderChatView(container, sessionId) {
   });
 
   stopBtn.addEventListener('click', () => {
-    chatApi.cancelTurn(sessionId).catch(() => {});
+    chatApi.cancelTurn(sessionId, scope).catch(() => {});
   });
 }

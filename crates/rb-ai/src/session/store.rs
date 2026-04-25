@@ -29,6 +29,10 @@ impl SessionStore {
         }
     }
 
+    pub fn at(root: PathBuf) -> Self {
+        Self { root }
+    }
+
     pub async fn ensure_dir(&self) -> Result<(), AiError> {
         fs::create_dir_all(&self.root).await?;
         Ok(())

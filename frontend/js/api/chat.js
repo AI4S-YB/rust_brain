@@ -5,15 +5,15 @@ const invoke = (cmd, args) => window.__TAURI__.core.invoke(cmd, args);
 const listen = (event, cb) => window.__TAURI__.event.listen(event, cb);
 
 export const chatApi = {
-  listSessions:     ()                       => invoke('chat_list_sessions'),
-  createSession:    (title)                  => invoke('chat_create_session', { title }),
-  getSession:       (sessionId)              => invoke('chat_get_session', { sessionId }),
-  deleteSession:    (sessionId)              => invoke('chat_delete_session', { sessionId }),
-  renameSession:    (sessionId, title)       => invoke('chat_rename_session', { sessionId, title }),
-  sendMessage:      (sessionId, text)        => invoke('chat_send_message', { sessionId, text }),
+  listSessions:     (scope = 'project')      => invoke('chat_list_sessions', { scope }),
+  createSession:    (title, scope = 'project') => invoke('chat_create_session', { title, scope }),
+  getSession:       (sessionId, scope = 'project') => invoke('chat_get_session', { sessionId, scope }),
+  deleteSession:    (sessionId, scope = 'project') => invoke('chat_delete_session', { sessionId, scope }),
+  renameSession:    (sessionId, title, scope = 'project') => invoke('chat_rename_session', { sessionId, title, scope }),
+  sendMessage:      (sessionId, text, scope = 'project') => invoke('chat_send_message', { sessionId, text, scope }),
   approveTool:      (callId, editedArgs)     => invoke('chat_approve_tool', { callId, editedArgs }),
   rejectTool:       (callId, reason)         => invoke('chat_reject_tool', { callId, reason }),
-  cancelTurn:       (sessionId)              => invoke('chat_cancel_turn', { sessionId }),
+  cancelTurn:       (sessionId, scope = 'project') => invoke('chat_cancel_turn', { sessionId, scope }),
   cancelRun:        (runId)                  => invoke('chat_cancel_run', { runId }),
   subscribeStream:  (cb)                     => listen('chat-stream', (e) => cb(e.payload)),
   subscribeUpdated: (cb)                     => listen('chat-session-updated', (e) => cb(e.payload)),

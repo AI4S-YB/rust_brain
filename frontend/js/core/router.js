@@ -9,7 +9,6 @@ import { syncRunButtons } from './run-controls.js';
 import { escapeHtml } from '../ui/escape.js';
 
 const PROJECT_REQUIRED_VIEWS = new Set([
-  'chat',
   'tasks',
   'inputs',
   'samples',
@@ -49,6 +48,8 @@ export async function navigate(view) {
   const content = document.getElementById('content');
   if (!content) return;
   content.scrollTop = 0;
+
+  const chatRoute = parseChatRoute(view);
 
   if (!state.projectOpen && viewRequiresProject(view)) {
     renderProjectRequiredView(content, view, label);
@@ -98,15 +99,16 @@ export async function navigate(view) {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
     const m = await import('../modules/assets/view.js');
     if (state.currentView === view) m.renderAssetsView(content);
-  } else if (view === 'chat' || view.startsWith('chat/')) {
+  } else if (chatRoute) {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
-    const sessionId = view.startsWith('chat/') ? view.slice('chat/'.length) : null;
-    if (sessionId) {
+    if (chatRoute.scope === 'project' && chatRoute.sessionId && !state.projectOpen) {
+      renderProjectRequiredView(content, view, label);
+    } else if (chatRoute.sessionId) {
       const m = await import('../modules/chat/chat-view.js');
-      if (state.currentView === view) m.renderChatView(content, sessionId);
+      if (state.currentView === view) m.renderChatView(content, chatRoute.sessionId, { scope: chatRoute.scope || 'project' });
     } else {
       const m = await import('../modules/chat/session-list.js');
-      if (state.currentView === view) m.renderSessionListPage(content);
+      if (state.currentView === view) m.renderSessionListPage(content, { scope: chatRoute.scope });
     }
   } else if (view === 'genome-viewer') {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
@@ -130,10 +132,27 @@ export async function navigate(view) {
 }
 
 function viewRequiresProject(view) {
+  if (parseChatRoute(view)) return false;
   const baseView = view.startsWith('chat/') ? 'chat' : view;
   if (PROJECT_REQUIRED_VIEWS.has(baseView)) return true;
   const mod = MODULES.find(m => m.id === baseView || m.view_id === baseView);
   return Boolean(mod?.backend);
+}
+
+function parseChatRoute(view) {
+  if (view === 'chat') return { scope: null, sessionId: null };
+  if (!view.startsWith('chat/')) return null;
+  const parts = view.split('/');
+  if (parts[1] === 'direct' || parts[1] === 'project') {
+    return {
+      scope: parts[1],
+      sessionId: parts.slice(2).join('/') || null,
+    };
+  }
+  return {
+    scope: 'project',
+    sessionId: parts.slice(1).join('/') || null,
+  };
 }
 
 function renderProjectRequiredView(content, requestedView, viewLabel) {

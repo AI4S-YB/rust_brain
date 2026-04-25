@@ -117,3 +117,14 @@
 .session-list .empty { padding: 16px; color: #888; text-align: center; }
 
 .chat-toolbar { margin: 8px 0 4px; }
+
+.chat-mode-tabs {
+  display: inline-flex; gap: 4px; padding: 4px; border: 1px solid #ddd8cf;
+  border-radius: 8px; background: #f7f5ef; margin: 8px 0;
+}
+.chat-mode-tab {
+  border: none; background: transparent; padding: 6px 12px; border-radius: 6px;
+  cursor: pointer; color: #555;
+}
+.chat-mode-tab.active { background: #0d7377; color: #fff; }
+.chat-mode-note { max-width: 72ch; color: #6f6a61; margin: 4px 0 10px; }
