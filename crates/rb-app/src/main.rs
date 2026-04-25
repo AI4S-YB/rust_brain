@@ -2,6 +2,7 @@
 
 mod ai_state;
 mod commands;
+mod rnaseq_pipeline;
 mod state;
 
 use state::{AppState, ModuleRegistry};

@@ -38,6 +38,7 @@ pub fn build_tool_registry(modules: &[Arc<dyn Module>], lang: &str) -> ToolRegis
     let mut reg = ToolRegistry::new();
     rb_ai::tools::builtin::register_all(&mut reg);
     rb_ai::tools::module_derived::register_for_modules(&mut reg, modules, lang);
+    crate::rnaseq_pipeline::register_all(&mut reg, modules, lang);
     rb_ai::tools::stubs::register_all(&mut reg);
     reg
 }

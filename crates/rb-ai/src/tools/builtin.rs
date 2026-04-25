@@ -2,6 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use rb_core::project::RunStatus;
 use serde_json::{json, Value};
 
 use super::schema::{RiskLevel, ToolDef, ToolError};
@@ -16,6 +17,7 @@ pub fn register_all(registry: &mut ToolRegistry) {
     registry.register(read_table_preview_entry());
     registry.register(get_project_info_entry());
     registry.register(get_run_status_entry());
+    registry.register(wait_for_run_entry());
     registry.register(summarize_run_entry());
     registry.register(list_known_binaries_entry());
 }
@@ -609,6 +611,110 @@ impl ToolExecutor for GetRunStatus {
     }
 }
 
+// ----- wait_for_run -----
+
+fn wait_for_run_entry() -> ToolEntry {
+    ToolEntry {
+        def: ToolDef {
+            name: "wait_for_run".into(),
+            description: "Wait until a run reaches a terminal status (Done, Failed, or Cancelled), then return the final run status and result. Use this to chain long-running pipeline steps without tight polling.".into(),
+            risk: RiskLevel::Read,
+            params: json!({
+                "type": "object",
+                "properties": {
+                    "run_id": { "type": "string" },
+                    "timeout_seconds": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 86400,
+                        "default": 3600,
+                        "description": "Maximum time to wait before returning timeout."
+                    },
+                    "poll_interval_seconds": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 60,
+                        "default": 5,
+                        "description": "How often to check run status while waiting."
+                    }
+                },
+                "required": ["run_id"],
+                "additionalProperties": false
+            }),
+        },
+        executor: Arc::new(WaitForRun),
+    }
+}
+
+struct WaitForRun;
+
+#[async_trait]
+impl ToolExecutor for WaitForRun {
+    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+        let id = args
+            .get("run_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ToolError::InvalidArgs("run_id required".into()))?
+            .to_string();
+        let timeout = args
+            .get("timeout_seconds")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(3600)
+            .clamp(1, 86_400);
+        let poll_interval = args
+            .get("poll_interval_seconds")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(5)
+            .clamp(1, 60);
+
+        let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(timeout);
+        loop {
+            let status = run_status_snapshot(&id, ctx.project).await?;
+            if status
+                .get("terminal")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+            {
+                return Ok(ToolOutput::Value(status));
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Ok(ToolOutput::Value(json!({
+                    "run_id": id,
+                    "wait_status": "timeout",
+                    "last_observed": status,
+                })));
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(poll_interval)).await;
+        }
+    }
+}
+
+async fn run_status_snapshot(
+    id: &str,
+    project: &Arc<tokio::sync::Mutex<rb_core::project::Project>>,
+) -> Result<Value, ToolError> {
+    let proj = project.lock().await;
+    let r = proj
+        .runs
+        .iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| ToolError::Execution(format!("run {id} not found")))?;
+    let terminal = matches!(
+        r.status,
+        RunStatus::Done | RunStatus::Failed | RunStatus::Cancelled
+    );
+    Ok(json!({
+        "run_id": r.id,
+        "module_id": r.module_id,
+        "status": format!("{:?}", r.status),
+        "terminal": terminal,
+        "started_at": r.started_at,
+        "finished_at": r.finished_at,
+        "error": r.error,
+        "result": r.result,
+    }))
+}
+
 // ----- summarize_run -----
 
 fn summarize_run_entry() -> ToolEntry {
@@ -914,5 +1020,39 @@ mod tests {
         assert_eq!(v["result"]["summary"]["pass"], 3);
         assert_eq!(v["result"]["log_preview"], "line1\nline2");
         assert!(v.get("params").is_none());
+    }
+
+    #[tokio::test]
+    async fn wait_for_run_returns_completed_run_immediately() {
+        let (project, runner, resolver, _tmp) = make_ctx_fixture();
+        let run_id = {
+            let mut proj = project.lock().await;
+            let rec = proj.create_run("qc", json!({"input":"a.tsv"}));
+            let run = proj.runs.iter_mut().find(|r| r.id == rec.id).unwrap();
+            run.status = RunStatus::Done;
+            run.finished_at = Some(chrono::Utc::now());
+            run.result = Some(ModuleResult {
+                output_files: vec![PathBuf::from("qc_report.json")],
+                summary: json!({"pass": 3}),
+                log: String::new(),
+            });
+            rec.id
+        };
+
+        let out = WaitForRun
+            .execute(
+                &json!({"run_id": run_id, "timeout_seconds": 1, "poll_interval_seconds": 1}),
+                ToolContext {
+                    project: &project,
+                    runner: &runner,
+                    binary_resolver: &resolver,
+                },
+            )
+            .await
+            .unwrap();
+        let ToolOutput::Value(v) = out;
+        assert_eq!(v["status"], "Done");
+        assert_eq!(v["terminal"], true);
+        assert_eq!(v["result"]["summary"]["pass"], 3);
     }
 }
