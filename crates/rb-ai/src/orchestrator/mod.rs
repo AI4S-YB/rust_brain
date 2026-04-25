@@ -14,6 +14,7 @@ use rb_core::runner::Runner;
 use crate::error::AiError;
 use crate::provider::{
     ChatProvider, ChatRequest, FinishReason, ProviderEvent, ProviderMessage, ProviderToolCall,
+    ThinkingConfig,
 };
 use crate::session::{ChatSession, Message, ToolCall};
 use crate::tools::{RiskLevel, ToolContext, ToolOutput, ToolRegistry};
@@ -25,6 +26,10 @@ pub use plan_card::{PlanCardRegistry, PlanDecision};
 #[serde(tag = "kind")]
 pub enum ChatStreamEvent {
     Text {
+        session_id: String,
+        delta: String,
+    },
+    Reasoning {
         session_id: String,
         delta: String,
     },
@@ -58,6 +63,7 @@ pub struct OrchestratorCtx {
     pub provider: Arc<dyn ChatProvider>,
     pub model: String,
     pub temperature: f32,
+    pub thinking: ThinkingConfig,
     pub plans: PlanCardRegistry,
     pub lang: String,
 }
@@ -115,6 +121,7 @@ pub async fn run_turn(
             messages: provider_msgs,
             tools: ctx.tools.all_for_ai(),
             temperature: ctx.temperature,
+            thinking: ctx.thinking.clone(),
         };
 
         // 3. Drive the provider and collect streamed events.
@@ -128,6 +135,7 @@ pub async fn run_turn(
             tokio::spawn(async move { provider.send(req, p_tx, cancel_for_prov).await });
 
         let mut text_buf = String::new();
+        let mut reasoning_buf = String::new();
         let mut tool_calls: Vec<ProviderToolCall> = vec![];
         let mut finish: Option<FinishReason> = None;
 
@@ -137,6 +145,15 @@ pub async fn run_turn(
                     text_buf.push_str(&s);
                     let _ = sink_for_text
                         .send(ChatStreamEvent::Text {
+                            session_id: sid_for_text.clone(),
+                            delta: s,
+                        })
+                        .await;
+                }
+                ProviderEvent::ReasoningDelta(s) => {
+                    reasoning_buf.push_str(&s);
+                    let _ = sink_for_text
+                        .send(ChatStreamEvent::Reasoning {
                             session_id: sid_for_text.clone(),
                             delta: s,
                         })
@@ -187,6 +204,11 @@ pub async fn run_turn(
             let mut s = session.lock().await;
             s.messages.push(Message::Assistant {
                 content: text_buf.clone(),
+                reasoning_content: if reasoning_buf.is_empty() {
+                    None
+                } else {
+                    Some(reasoning_buf.clone())
+                },
                 tool_calls: call_list.clone(),
                 interrupted,
             });
@@ -406,10 +428,12 @@ fn to_provider_messages(messages: &[Message]) -> Vec<ProviderMessage> {
             },
             Message::Assistant {
                 content,
+                reasoning_content,
                 tool_calls,
                 ..
             } => ProviderMessage::Assistant {
                 content: content.clone(),
+                reasoning_content: reasoning_content.clone(),
                 tool_calls: tool_calls
                     .iter()
                     .map(|tc| ProviderToolCall {

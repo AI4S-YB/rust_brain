@@ -16,6 +16,7 @@ pub struct OpenAiCompatProvider {
     base_url: String,
     api_key: String,
     client: reqwest::Client,
+    direct_client: reqwest::Client,
 }
 
 impl OpenAiCompatProvider {
@@ -24,11 +25,24 @@ impl OpenAiCompatProvider {
             .timeout(Duration::from_secs(120))
             .build()
             .expect("reqwest client");
+        let direct_client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .no_proxy()
+            .build()
+            .expect("reqwest direct client");
         Self {
             base_url,
             api_key,
             client,
+            direct_client,
         }
+    }
+
+    fn is_deepseek_endpoint(&self) -> bool {
+        self.base_url
+            .trim()
+            .to_ascii_lowercase()
+            .contains("api.deepseek.com")
     }
 }
 
@@ -41,9 +55,13 @@ fn messages_to_openai(messages: &[ProviderMessage]) -> Vec<Value> {
             }
             ProviderMessage::Assistant {
                 content,
+                reasoning_content,
                 tool_calls,
             } => {
                 let mut obj = serde_json::json!({ "role": "assistant", "content": content });
+                if let Some(reasoning) = reasoning_content.as_deref().filter(|s| !s.is_empty()) {
+                    obj["reasoning_content"] = Value::String(reasoning.to_string());
+                }
                 if !tool_calls.is_empty() {
                     obj["tool_calls"] = Value::Array(
                         tool_calls
@@ -111,15 +129,32 @@ impl ChatProvider for OpenAiCompatProvider {
         let mut body = serde_json::json!({
             "model": req.model,
             "messages": messages,
-            "temperature": req.temperature,
             "stream": true,
         });
+        if req.thinking.enabled {
+            body["thinking"] = serde_json::json!({ "type": "enabled" });
+            if let Some(effort) = req
+                .thinking
+                .reasoning_effort
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+            {
+                body["reasoning_effort"] = Value::String(effort.to_string());
+            }
+        } else {
+            body["temperature"] = serde_json::json!(req.temperature);
+        }
         if !req.tools.is_empty() {
             body["tools"] = Value::Array(tools_to_openai(&req.tools));
         }
 
-        let resp = self
-            .client
+        let client = if self.is_deepseek_endpoint() {
+            &self.direct_client
+        } else {
+            &self.client
+        };
+        let resp = client
             .post(&url)
             .bearer_auth(&self.api_key)
             .json(&body)
@@ -169,6 +204,13 @@ impl ChatProvider for OpenAiCompatProvider {
             if let Some(s) = delta.get("content").and_then(|c| c.as_str()) {
                 if !s.is_empty() {
                     let _ = sink.send(ProviderEvent::TextDelta(s.to_string())).await;
+                }
+            }
+            if let Some(s) = delta.get("reasoning_content").and_then(|c| c.as_str()) {
+                if !s.is_empty() {
+                    let _ = sink
+                        .send(ProviderEvent::ReasoningDelta(s.to_string()))
+                        .await;
                 }
             }
             if let Some(tcs) = delta.get("tool_calls").and_then(|t| t.as_array()) {

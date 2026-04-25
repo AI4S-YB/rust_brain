@@ -1,5 +1,8 @@
 use rb_ai::provider::openai_compat::OpenAiCompatProvider;
-use rb_ai::provider::{ChatProvider, ChatRequest, FinishReason, ProviderEvent, ProviderMessage};
+use rb_ai::provider::{
+    ChatProvider, ChatRequest, FinishReason, ProviderEvent, ProviderMessage, ProviderToolCall,
+    ThinkingConfig,
+};
 use rb_core::cancel::CancellationToken;
 use tokio::sync::mpsc;
 use wiremock::matchers::{header, method, path};
@@ -20,6 +23,7 @@ fn basic_req(model: &str) -> ChatRequest {
         }],
         tools: vec![],
         temperature: 0.0,
+        thinking: ThinkingConfig::default(),
     }
 }
 
@@ -94,6 +98,85 @@ data: [DONE]\n\n";
     assert_eq!(name, "list_project_files");
     assert_eq!(args["subdir"], "data");
     assert!(matches!(finish, Some(FinishReason::ToolCalls)));
+}
+
+#[tokio::test]
+async fn openai_compat_streams_reasoning_content() {
+    let server = MockServer::start().await;
+    let body = "\
+data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"think \"}}]}\n\n\
+data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"step\"}}]}\n\n\
+data: {\"choices\":[{\"delta\":{\"content\":\"final\"}}]}\n\n\
+data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n\
+data: [DONE]\n\n";
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(sse(body))
+        .mount(&server)
+        .await;
+
+    let p = OpenAiCompatProvider::new(server.uri(), "k".into());
+    let (tx, mut rx) = mpsc::channel(16);
+    let mut req = basic_req("m");
+    req.thinking = ThinkingConfig {
+        enabled: true,
+        reasoning_effort: Some("high".into()),
+    };
+    p.send(req, tx, CancellationToken::new()).await.unwrap();
+
+    let mut reasoning = String::new();
+    let mut text = String::new();
+    while let Some(ev) = rx.recv().await {
+        match ev {
+            ProviderEvent::ReasoningDelta(s) => reasoning.push_str(&s),
+            ProviderEvent::TextDelta(s) => text.push_str(&s),
+            _ => {}
+        }
+    }
+    assert_eq!(reasoning, "think step");
+    assert_eq!(text, "final");
+}
+
+#[tokio::test]
+async fn openai_compat_sends_thinking_fields_and_reasoning_history() {
+    let server = MockServer::start().await;
+    let body = "\
+data: {\"choices\":[{\"delta\":{\"content\":\"ok\"}}]}\n\n\
+data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n\n\
+data: [DONE]\n\n";
+    Mock::given(method("POST"))
+        .and(path("/chat/completions"))
+        .respond_with(sse(body))
+        .mount(&server)
+        .await;
+
+    let p = OpenAiCompatProvider::new(server.uri(), "k".into());
+    let (tx, _rx) = mpsc::channel(16);
+    let mut req = basic_req("deepseek-v4-pro");
+    req.thinking = ThinkingConfig {
+        enabled: true,
+        reasoning_effort: Some("high".into()),
+    };
+    req.messages.push(ProviderMessage::Assistant {
+        content: "".into(),
+        reasoning_content: Some("previous reasoning".into()),
+        tool_calls: vec![ProviderToolCall {
+            id: "tc_1".into(),
+            name: "get_project_info".into(),
+            args: serde_json::json!({}),
+        }],
+    });
+    p.send(req, tx, CancellationToken::new()).await.unwrap();
+
+    let requests = server.received_requests().await.unwrap();
+    let sent: serde_json::Value = serde_json::from_slice(&requests[0].body).unwrap();
+    assert_eq!(sent["thinking"]["type"], "enabled");
+    assert_eq!(sent["reasoning_effort"], "high");
+    assert!(sent.get("temperature").is_none());
+    assert_eq!(
+        sent["messages"][2]["reasoning_content"],
+        "previous reasoning"
+    );
 }
 
 #[tokio::test]

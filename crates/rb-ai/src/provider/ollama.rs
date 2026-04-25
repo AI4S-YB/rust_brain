@@ -47,6 +47,7 @@ mod tests {
                     messages: vec![],
                     tools: vec![],
                     temperature: 0.0,
+                    thinking: Default::default(),
                 },
                 tx,
                 CancellationToken::new(),

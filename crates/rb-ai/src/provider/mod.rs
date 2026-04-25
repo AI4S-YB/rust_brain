@@ -22,6 +22,14 @@ pub struct ChatRequest {
     pub messages: Vec<ProviderMessage>,
     pub tools: Vec<ToolDef>,
     pub temperature: f32,
+    pub thinking: ThinkingConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ThinkingConfig {
+    pub enabled: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
 }
 
 /// Neutral message shape handed to provider adapters. Distinct from the
@@ -35,6 +43,8 @@ pub enum ProviderMessage {
     },
     Assistant {
         content: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reasoning_content: Option<String>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         tool_calls: Vec<ProviderToolCall>,
     },
@@ -57,6 +67,7 @@ pub struct ProviderToolCall {
 #[derive(Debug, Clone)]
 pub enum ProviderEvent {
     TextDelta(String),
+    ReasoningDelta(String),
     ToolCall {
         id: String,
         name: String,
@@ -106,6 +117,7 @@ mod tests {
     fn provider_message_roundtrips_via_serde() {
         let m = ProviderMessage::Assistant {
             content: "hi".into(),
+            reasoning_content: None,
             tool_calls: vec![ProviderToolCall {
                 id: "tc1".into(),
                 name: "ls".into(),
@@ -124,6 +136,7 @@ mod tests {
     fn assistant_with_empty_tool_calls_skips_field() {
         let m = ProviderMessage::Assistant {
             content: "hi".into(),
+            reasoning_content: None,
             tool_calls: vec![],
         };
         let s = serde_json::to_string(&m).unwrap();

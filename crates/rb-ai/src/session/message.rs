@@ -8,6 +8,8 @@ pub enum Message {
     },
     Assistant {
         content: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        reasoning_content: Option<String>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         tool_calls: Vec<ToolCall>,
         #[serde(default, skip_serializing_if = "std::ops::Not::not")]
@@ -35,6 +37,7 @@ mod tests {
     fn assistant_without_tool_calls_does_not_serialize_field() {
         let m = Message::Assistant {
             content: "hi".into(),
+            reasoning_content: None,
             tool_calls: vec![],
             interrupted: false,
         };
@@ -57,6 +60,7 @@ mod tests {
             m,
             Message::Assistant {
                 content: "old".into(),
+                reasoning_content: None,
                 tool_calls: vec![],
                 interrupted: false
             }

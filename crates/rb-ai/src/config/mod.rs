@@ -21,6 +21,10 @@ pub struct ProviderConfig {
     pub model: String,
     #[serde(default = "default_temperature")]
     pub temperature: f32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thinking_enabled: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
 }
 
 fn default_temperature() -> f32 {
@@ -36,6 +40,8 @@ impl AiConfig {
                 base_url: "https://api.openai.com/v1".into(),
                 model: "gpt-4o-mini".into(),
                 temperature: 0.2,
+                thinking_enabled: None,
+                reasoning_effort: None,
             },
         );
         Self {
@@ -66,6 +72,33 @@ impl AiConfig {
         dirs::config_dir()
             .map(|p| p.join("rustbrain").join("ai.json"))
             .unwrap_or_else(|| PathBuf::from("./rustbrain-ai.json"))
+    }
+}
+
+impl ProviderConfig {
+    pub fn is_deepseek_endpoint(&self) -> bool {
+        self.base_url
+            .trim()
+            .to_ascii_lowercase()
+            .contains("api.deepseek.com")
+    }
+
+    pub fn effective_thinking_enabled(&self) -> bool {
+        self.thinking_enabled.unwrap_or_else(|| {
+            self.is_deepseek_endpoint() && self.model.trim().starts_with("deepseek")
+        })
+    }
+
+    pub fn effective_reasoning_effort(&self) -> Option<String> {
+        if !self.effective_thinking_enabled() {
+            return None;
+        }
+        self.reasoning_effort
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToOwned::to_owned)
+            .or_else(|| Some("high".into()))
     }
 }
 

@@ -2,7 +2,9 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use async_trait::async_trait;
 use rb_ai::orchestrator::{run_turn, ChatStreamEvent, OrchestratorCtx, PlanCardRegistry};
-use rb_ai::provider::{ChatProvider, ChatRequest, FinishReason, ProviderError, ProviderEvent};
+use rb_ai::provider::{
+    ChatProvider, ChatRequest, FinishReason, ProviderError, ProviderEvent, ThinkingConfig,
+};
 use rb_ai::session::{ChatSession, Message};
 use rb_ai::tools::{builtin, ToolRegistry};
 use rb_core::binary::BinaryResolver;
@@ -79,6 +81,7 @@ async fn turn_without_tool_calls_emits_text_then_done() {
         provider,
         model: "m".into(),
         temperature: 0.0,
+        thinking: ThinkingConfig::default(),
         plans: PlanCardRegistry::new(),
         lang: "en".into(),
     };
@@ -152,6 +155,7 @@ async fn read_risk_tool_call_feeds_result_back_to_provider() {
         provider,
         model: "m".into(),
         temperature: 0.0,
+        thinking: ThinkingConfig::default(),
         plans: PlanCardRegistry::new(),
         lang: "en".into(),
     };
