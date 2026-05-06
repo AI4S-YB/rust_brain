@@ -145,6 +145,43 @@ impl MemoryStore {
         }
         Ok(serde_json::from_slice(&bytes)?)
     }
+
+    pub async fn write_checkpoint(
+        &self,
+        project_root: &Path,
+        cp: &crate::memory::layers::WorkingCheckpoint,
+    ) -> Result<(), AiError> {
+        let path = Self::project_root(project_root)
+            .join("checkpoints")
+            .join("current.json");
+        let bytes = serde_json::to_vec_pretty(cp)?;
+        let _g = self.inner.lock().await;
+        write_atomic(&path, &bytes)
+    }
+
+    pub fn read_checkpoint(
+        &self,
+        project_root: &Path,
+    ) -> Result<Option<crate::memory::layers::WorkingCheckpoint>, AiError> {
+        let path = Self::project_root(project_root)
+            .join("checkpoints")
+            .join("current.json");
+        if !path.exists() {
+            return Ok(None);
+        }
+        let bytes = std::fs::read(&path)?;
+        Ok(Some(serde_json::from_slice(&bytes)?))
+    }
+
+    pub fn clear_checkpoint(&self, project_root: &Path) -> Result<(), AiError> {
+        let path = Self::project_root(project_root)
+            .join("checkpoints")
+            .join("current.json");
+        if path.exists() {
+            std::fs::remove_file(path)?;
+        }
+        Ok(())
+    }
 }
 
 fn ensure_file(path: &Path, default: &str) -> Result<(), AiError> {
@@ -365,5 +402,40 @@ mod tests {
         std::fs::write(&main, pad).unwrap();
         let part = s.append_l4_archive(&project, &a1).await.unwrap();
         assert!(part.file_name().unwrap().to_string_lossy().contains("part2"));
+    }
+
+    #[tokio::test]
+    async fn checkpoint_round_trips_atomically() {
+        use crate::memory::layers::{TodoEntry, WorkingCheckpoint};
+        let tmp = tempdir().unwrap();
+        let s = store(tmp.path());
+        let project = tmp.path().join("proj");
+        s.ensure_project(&project).unwrap();
+
+        let cp = WorkingCheckpoint {
+            session_id: "sess1".into(),
+            project_root: project.display().to_string(),
+            started_at: Utc::now(),
+            last_step_at: Utc::now(),
+            todo: vec![TodoEntry {
+                text: "qc".into(),
+                done: false,
+            }],
+            message_count: 3,
+            perceive_snapshot_hash: "abc".into(),
+        };
+        s.write_checkpoint(&project, &cp).await.unwrap();
+        let loaded = s.read_checkpoint(&project).unwrap().unwrap();
+        assert_eq!(loaded.session_id, "sess1");
+        assert_eq!(loaded.todo.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn checkpoint_returns_none_when_missing() {
+        let tmp = tempdir().unwrap();
+        let s = store(tmp.path());
+        let project = tmp.path().join("proj");
+        s.ensure_project(&project).unwrap();
+        assert!(s.read_checkpoint(&project).unwrap().is_none());
     }
 }
