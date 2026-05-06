@@ -181,3 +181,158 @@ async fn agent_runs_scripted_session_to_task_done() {
         "checkpoint should be cleared after task_done"
     );
 }
+
+#[tokio::test]
+async fn agent_aborts_after_consecutive_failures() {
+    let tmp = tempdir().unwrap();
+    let project_root = tmp.path().join("proj");
+    std::fs::create_dir_all(&project_root).unwrap();
+    let project = Arc::new(Mutex::new(
+        rb_core::project::Project::create("demo", &project_root).unwrap(),
+    ));
+    let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
+    let binres = Arc::new(Mutex::new(
+        rb_core::binary::BinaryResolver::with_defaults_at(project_root.join("binaries.json")),
+    ));
+    let memory = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
+    memory.ensure_project(&project_root).unwrap();
+    let policy = Arc::new(SandboxPolicy::new(project_root.clone(), "sandbox"));
+    let registry = {
+        let mut r = ToolRegistry::new();
+        builtin::register_all(&mut r);
+        Arc::new(r)
+    };
+
+    // file_read on a non-existent path always errors.
+    let bad = "/definitely/does/not/exist/here.txt".to_string();
+    let mut steps: Vec<Vec<ProviderEvent>> = vec![];
+    for i in 0..10 {
+        steps.push(vec![
+            ProviderEvent::ToolCall {
+                id: format!("c{i}"),
+                name: "file_read".into(),
+                args: serde_json::json!({"path": bad}),
+            },
+            ProviderEvent::Finish(FinishReason::ToolCalls),
+        ]);
+    }
+    let provider = Arc::new(ScriptedProvider {
+        steps: Arc::new(StdMutex::new(steps)),
+    });
+
+    let net_log = Arc::new(NetLogger::new(&project_root, "sess2", false).unwrap());
+    let recaller: Arc<dyn rb_ai::memory::Recaller> = Arc::new(Bm25Recaller::new(3));
+    let session: SharedSession = Arc::new(Mutex::new(AgentSession::new(
+        project_root.display().to_string(),
+    )));
+    let (event_tx, _event_rx) = mpsc::channel::<AgentEvent>(64);
+    let (ask_tx, _ask_rx) = mpsc::channel(4);
+    let (_appr_tx, appr_rx) = mpsc::channel::<(String, ApprovalVerdict)>(4);
+    let appr_rx = Arc::new(Mutex::new(appr_rx));
+    let cancel = rb_core::cancel::CancellationToken::new();
+
+    let mut cfg = RunConfig::default();
+    cfg.max_consecutive_failures = 3;
+
+    let ctx = RunSessionCtx {
+        project,
+        runner,
+        binary_resolver: binres,
+        registry,
+        policy,
+        memory: memory.clone(),
+        recaller,
+        provider,
+        net_log,
+        project_root: project_root.clone(),
+        config: cfg,
+    };
+    let r = run_session(
+        ctx,
+        "read a missing file repeatedly".into(),
+        session.clone(),
+        event_tx,
+        ask_tx,
+        appr_rx,
+        cancel,
+    )
+    .await;
+    assert!(matches!(r, Err(rb_ai::AiError::Tool(_))));
+    let id = session.lock().await.id.clone();
+    let archive_body = std::fs::read_to_string(
+        project_root
+            .join("agent/L4_archives")
+            .join(format!("{id}.json")),
+    )
+    .unwrap();
+    assert!(archive_body.contains("\"outcome\": \"failed\""));
+}
+
+#[tokio::test]
+async fn agent_cancel_writes_cancelled_archive() {
+    let tmp = tempdir().unwrap();
+    let project_root = tmp.path().join("proj");
+    std::fs::create_dir_all(&project_root).unwrap();
+    let project = Arc::new(Mutex::new(
+        rb_core::project::Project::create("demo", &project_root).unwrap(),
+    ));
+    let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
+    let binres = Arc::new(Mutex::new(
+        rb_core::binary::BinaryResolver::with_defaults_at(project_root.join("binaries.json")),
+    ));
+    let memory = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
+    memory.ensure_project(&project_root).unwrap();
+    let policy = Arc::new(SandboxPolicy::new(project_root.clone(), "sandbox"));
+    let registry = {
+        let mut r = ToolRegistry::new();
+        builtin::register_all(&mut r);
+        Arc::new(r)
+    };
+    let provider = Arc::new(ScriptedProvider {
+        steps: Arc::new(StdMutex::new(vec![])),
+    });
+    let net_log = Arc::new(NetLogger::new(&project_root, "sess3", false).unwrap());
+    let recaller: Arc<dyn rb_ai::memory::Recaller> = Arc::new(Bm25Recaller::new(3));
+    let session: SharedSession = Arc::new(Mutex::new(AgentSession::new(
+        project_root.display().to_string(),
+    )));
+    let (event_tx, _event_rx) = mpsc::channel::<AgentEvent>(64);
+    let (ask_tx, _ask_rx) = mpsc::channel(4);
+    let (_appr_tx, appr_rx) = mpsc::channel::<(String, ApprovalVerdict)>(4);
+    let appr_rx = Arc::new(Mutex::new(appr_rx));
+    let cancel = rb_core::cancel::CancellationToken::new();
+    cancel.cancel();
+
+    let ctx = RunSessionCtx {
+        project,
+        runner,
+        binary_resolver: binres,
+        registry,
+        policy,
+        memory: memory.clone(),
+        recaller,
+        provider,
+        net_log,
+        project_root: project_root.clone(),
+        config: RunConfig::default(),
+    };
+    let r = run_session(
+        ctx,
+        "anything".into(),
+        session.clone(),
+        event_tx,
+        ask_tx,
+        appr_rx,
+        cancel,
+    )
+    .await;
+    assert!(matches!(r, Err(rb_ai::AiError::Cancelled)));
+    let id = session.lock().await.id.clone();
+    let archive_body = std::fs::read_to_string(
+        project_root
+            .join("agent/L4_archives")
+            .join(format!("{id}.json")),
+    )
+    .unwrap();
+    assert!(archive_body.contains("\"outcome\": \"cancelled\""));
+}
