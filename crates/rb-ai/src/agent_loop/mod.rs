@@ -3,7 +3,9 @@
 pub mod execute;
 pub mod perceive;
 pub mod reason;
+pub mod record;
 pub mod types;
 
 pub use execute::{execute_call, ApprovalVerdict, ExecCtx};
+pub use record::{finalize, fsync_checkpoint};
 pub use types::{AgentEvent, AgentSession, SharedSession};
