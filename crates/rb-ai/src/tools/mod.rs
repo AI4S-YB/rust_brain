@@ -1,6 +1,7 @@
 pub mod builtin;
 pub mod module_derived;
 pub mod schema;
+pub mod skill;
 
 pub use schema::{RiskLevel, ToolDef, ToolError};
 
