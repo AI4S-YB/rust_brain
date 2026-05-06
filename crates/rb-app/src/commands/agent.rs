@@ -391,3 +391,152 @@ pub async fn agent_set_full_permission(
     handle.policy.set_full_permission(args.enabled);
     Ok(())
 }
+
+#[derive(Debug, Serialize)]
+pub struct ArchiveListEntry {
+    pub id: String,
+    pub started_at: String,
+    pub ended_at: Option<String>,
+    pub summary: String,
+    pub outcome: String,
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListArchivesArgs {
+    pub project_root: String,
+}
+
+#[tauri::command]
+pub async fn agent_list_archives(
+    args: ListArchivesArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<Vec<ArchiveListEntry>, String> {
+    let path = rb_ai::memory::MemoryStore::project_root(&PathBuf::from(&args.project_root))
+        .join("L4_archives/_index.json");
+    let entries = runtime.memory.read_index(&path).map_err(|e| e.to_string())?;
+    let mut out = vec![];
+    for e in entries {
+        if let rb_ai::memory::IndexEntry::Archive {
+            id,
+            started_at,
+            ended_at,
+            summary,
+            outcome,
+            tags,
+        } = e
+        {
+            out.push(ArchiveListEntry {
+                id,
+                started_at: started_at.to_rfc3339(),
+                ended_at: ended_at.map(|d| d.to_rfc3339()),
+                summary,
+                outcome: format!("{outcome:?}").to_lowercase(),
+                tags,
+            });
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoadArchiveArgs {
+    pub project_root: String,
+    pub archive_id: String,
+}
+
+#[tauri::command]
+pub async fn agent_load_archive(
+    args: LoadArchiveArgs,
+    _runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<rb_ai::memory::Archive, String> {
+    let path = rb_ai::memory::MemoryStore::project_root(&PathBuf::from(&args.project_root))
+        .join("L4_archives")
+        .join(format!("{}.json", args.archive_id));
+    let bytes = std::fs::read(&path).map_err(|e| format!("read archive: {e}"))?;
+    serde_json::from_slice(&bytes).map_err(|e| format!("parse archive: {e}"))
+}
+
+#[derive(Debug, Serialize)]
+pub struct SkillsList {
+    pub global: Vec<SkillSummary>,
+    pub project: Vec<SkillSummary>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct SkillSummary {
+    pub name: String,
+    pub path: String,
+    pub triggers: Vec<String>,
+    pub hits: u64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ListSkillsArgs {
+    pub project_root: String,
+}
+
+#[tauri::command]
+pub async fn agent_list_skills(
+    args: ListSkillsArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<SkillsList, String> {
+    let global_idx = runtime
+        .memory
+        .read_index(&runtime.memory.global_root.join("L3_skills/_index.json"))
+        .map_err(|e| e.to_string())?;
+    let project_idx = runtime
+        .memory
+        .read_index(
+            &rb_ai::memory::MemoryStore::project_root(&PathBuf::from(&args.project_root))
+                .join("L3_local/_index.json"),
+        )
+        .map_err(|e| e.to_string())?;
+    fn to_summary(entries: Vec<rb_ai::memory::IndexEntry>) -> Vec<SkillSummary> {
+        entries
+            .into_iter()
+            .filter_map(|e| match e {
+                rb_ai::memory::IndexEntry::Skill {
+                    name,
+                    path,
+                    triggers,
+                    hits,
+                    ..
+                } => Some(SkillSummary {
+                    name,
+                    path,
+                    triggers,
+                    hits,
+                }),
+                _ => None,
+            })
+            .collect()
+    }
+    Ok(SkillsList {
+        global: to_summary(global_idx),
+        project: to_summary(project_idx),
+    })
+}
+
+#[derive(Debug, Deserialize)]
+pub struct EditMemoryArgs {
+    pub path: String,
+    pub content: String,
+}
+
+#[tauri::command]
+pub async fn agent_edit_memory(args: EditMemoryArgs) -> Result<(), String> {
+    // Trust the frontend to pass a path returned by agent_list_skills or
+    // resolved via well-known L0/L2 file names. Reject paths that escape
+    // either the global memory root or any project's agent dir.
+    let path = std::path::Path::new(&args.path);
+    let canon = std::fs::canonicalize(path).map_err(|e| e.to_string())?;
+    let global = dirs::data_local_dir()
+        .ok_or("no data_local_dir")?
+        .join("rust_brain/agent");
+    let allowed = canon.starts_with(&global) || canon.to_string_lossy().contains("/agent/");
+    if !allowed {
+        return Err(format!("refused to write outside agent dirs: {}", canon.display()));
+    }
+    std::fs::write(&canon, args.content).map_err(|e| e.to_string())
+}
