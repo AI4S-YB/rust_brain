@@ -271,6 +271,10 @@ mod tests {
             project,
             runner,
             binary_resolver: binres,
+            memory: None,
+            session_id: None,
+            project_root: None,
+            ask_user_tx: None,
         }
     }
 

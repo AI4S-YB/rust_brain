@@ -870,6 +870,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -890,6 +894,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -909,6 +917,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -927,6 +939,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -963,6 +979,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -978,6 +998,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -1011,6 +1035,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
@@ -1046,6 +1074,10 @@ mod tests {
                     project: &project,
                     runner: &runner,
                     binary_resolver: &resolver,
+                    memory: None,
+                    session_id: None,
+                    project_root: None,
+                    ask_user_tx: None,
                 },
             )
             .await
