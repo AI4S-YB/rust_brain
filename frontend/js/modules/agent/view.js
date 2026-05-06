@@ -4,6 +4,7 @@ import { state as appState } from '../../core/state.js';
 import { renderLeftPane } from './left-pane.js';
 import { appendStreamEvent } from './middle-pane.js';
 import { renderRightPane, updateCheckpointTodo } from './right-pane.js';
+import { attachApprovalHandlers } from './approval-card.js';
 
 export async function renderAgentView(content) {
   content.innerHTML = `
@@ -26,6 +27,7 @@ export async function renderAgentView(content) {
   agentState.projectRoot = projectRoot;
   await renderLeftPane(content.querySelector('#agent-left'));
   renderRightPane(content.querySelector('#agent-right'));
+  attachApprovalHandlers(content.querySelector('#agent-msgs'));
   if (!agentState.sessionId) {
     const r = await agentApi.startSession(projectRoot);
     agentState.sessionId = r.session_id;

@@ -57,6 +57,7 @@ function appendToolCall(m, ev) {
   c.dataset.bucket = ev.bucket;
   c.dataset.name = ev.name;
   const color = COLOR_BY_BUCKET[ev.bucket?.split(':')[0]] || 'slate';
+  const needsApproval = ev.decision === 'approve_once' || ev.decision === 'always_ask';
   c.innerHTML = `
     <div class="agent-tool-head">
       <span class="agent-tool-name">${escapeHtml(ev.name)}</span>
@@ -64,7 +65,13 @@ function appendToolCall(m, ev) {
       <span class="agent-decision">${ev.decision}</span>
     </div>
     <details class="agent-tool-args"><summary>args</summary><pre>${escapeHtml(JSON.stringify(ev.args, null, 2))}</pre></details>
-    <div class="agent-tool-status">${ev.decision === 'allow' ? 'running…' : 'awaiting approval'}</div>`;
+    <div class="agent-tool-status">${ev.decision === 'allow' ? 'running…' : 'awaiting approval'}</div>
+    ${needsApproval ? `
+      <div class="agent-approval-actions">
+        <button data-approve>Approve</button>
+        <button data-reject>Reject</button>
+      </div>` : ''}
+  `;
   m.appendChild(c);
 }
 function appendToolResult(m, ev) {
