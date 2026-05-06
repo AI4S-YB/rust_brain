@@ -321,3 +321,147 @@ mod tests {
         assert_eq!(res.rationale.as_deref(), Some("bm25"));
     }
 }
+
+// ---------- FlashRecaller (LLM-driven) ----------
+
+use crate::provider::{ChatProvider, ChatRequest, ProviderEvent, ProviderMessage, ThinkingConfig};
+
+pub struct FlashRecaller {
+    pub provider: std::sync::Arc<dyn ChatProvider>,
+    pub model: String,
+    pub max_candidates: usize,
+}
+
+#[async_trait]
+impl Recaller for FlashRecaller {
+    async fn recall(
+        &self,
+        query: &str,
+        candidates: Vec<RecallCandidate>,
+        _budget_tokens: usize,
+    ) -> Result<RecallResult, AiError> {
+        let cap = candidates.len().min(self.max_candidates);
+        let pruned: Vec<&RecallCandidate> = candidates.iter().take(cap).collect();
+        let menu: Vec<serde_json::Value> = pruned
+            .iter()
+            .map(|c| serde_json::json!({"id": c.id, "text": c.text}))
+            .collect();
+        let user_msg = format!(
+            "Query: {query}\n\nCandidates (id, text):\n{}\n\nReturn JSON: {{\"picked\": [\"id1\", \"id2\"], \"rationale\": \"...\"}}.",
+            serde_json::to_string_pretty(&menu).unwrap_or_default()
+        );
+        let req = ChatRequest {
+            model: self.model.clone(),
+            system: "You select the most relevant memory entries for the query. Return only JSON."
+                .into(),
+            messages: vec![ProviderMessage::User { content: user_msg }],
+            tools: vec![],
+            temperature: 0.0,
+            thinking: ThinkingConfig::default(),
+        };
+        let (tx, mut rx) = tokio::sync::mpsc::channel::<ProviderEvent>(8);
+        let cancel = rb_core::cancel::CancellationToken::new();
+        let prov = self.provider.clone();
+        let h = tokio::spawn(async move { prov.send(req, tx, cancel).await });
+        let mut text = String::new();
+        while let Some(ev) = rx.recv().await {
+            if let ProviderEvent::TextDelta(s) = ev {
+                text.push_str(&s);
+            }
+        }
+        match h.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => return Err(AiError::Provider(format!("{e}"))),
+            Err(e) => return Err(AiError::Provider(format!("provider join: {e}"))),
+        }
+        let parsed: serde_json::Value = match serde_json::from_str(text.trim()) {
+            Ok(v) => v,
+            Err(_) => {
+                // Try to extract first JSON object substring.
+                if let (Some(start), Some(end)) = (text.find('{'), text.rfind('}')) {
+                    serde_json::from_str(&text[start..=end]).map_err(|e| {
+                        AiError::Provider(format!("flash recall parse: {e} in {text:?}"))
+                    })?
+                } else {
+                    return Err(AiError::Provider(format!("flash recall no JSON: {text:?}")));
+                }
+            }
+        };
+        let ids: Vec<String> = parsed
+            .get("picked")
+            .and_then(|v| serde_json::from_value(v.clone()).ok())
+            .unwrap_or_default();
+        let picked: Vec<RecallCandidate> = ids
+            .into_iter()
+            .filter_map(|id| candidates.iter().find(|c| c.id == id).cloned())
+            .collect();
+        Ok(RecallResult {
+            picked,
+            rationale: parsed
+                .get("rationale")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string()),
+        })
+    }
+}
+
+#[cfg(test)]
+mod flash_tests {
+    use super::*;
+    use crate::provider::{ChatProvider, ChatRequest, ProviderError, ProviderEvent};
+    use async_trait::async_trait;
+
+    struct FakeProvider {
+        reply: String,
+    }
+    #[async_trait]
+    impl ChatProvider for FakeProvider {
+        fn id(&self) -> &str {
+            "fake"
+        }
+        async fn send(
+            &self,
+            _req: ChatRequest,
+            sink: tokio::sync::mpsc::Sender<ProviderEvent>,
+            _cancel: rb_core::cancel::CancellationToken,
+        ) -> Result<(), ProviderError> {
+            let _ = sink.send(ProviderEvent::TextDelta(self.reply.clone())).await;
+            let _ = sink
+                .send(ProviderEvent::Finish(crate::provider::FinishReason::Stop))
+                .await;
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn flash_picks_ids_from_json_reply() {
+        let cands = vec![
+            RecallCandidate {
+                id: "a".into(),
+                kind: "x".into(),
+                scope: "global".into(),
+                text: "alpha".into(),
+                path: None,
+            },
+            RecallCandidate {
+                id: "b".into(),
+                kind: "x".into(),
+                scope: "global".into(),
+                text: "beta".into(),
+                path: None,
+            },
+        ];
+        let prov = std::sync::Arc::new(FakeProvider {
+            reply: r#"{"picked":["b"],"rationale":"better match"}"#.into(),
+        });
+        let r = FlashRecaller {
+            provider: prov,
+            model: "haiku".into(),
+            max_candidates: 32,
+        };
+        let res = r.recall("anything", cands, 4096).await.unwrap();
+        assert_eq!(res.picked.len(), 1);
+        assert_eq!(res.picked[0].id, "b");
+        assert_eq!(res.rationale.as_deref(), Some("better match"));
+    }
+}
