@@ -269,3 +269,84 @@ mod tests {
         assert!(reg.get("skill_rna_seq_de").is_some());
     }
 }
+
+#[derive(Debug, Deserialize)]
+pub struct ApproveArgs {
+    pub project_root: String,
+    pub call_id: String,
+    pub edited_args: Option<serde_json::Value>,
+}
+
+#[tauri::command]
+pub async fn agent_approve(
+    args: ApproveArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<(), String> {
+    let handle = runtime
+        .handle_for(&args.project_root)
+        .await
+        .ok_or("no agent session")?;
+    let tx = handle.approval_tx_slot.lock().await.clone();
+    tx.send((
+        args.call_id,
+        ApprovalVerdict::Approve {
+            edited_args: args.edited_args,
+        },
+    ))
+    .await
+    .map_err(|e| format!("approve send: {e}"))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RejectArgs {
+    pub project_root: String,
+    pub call_id: String,
+    pub reason: Option<String>,
+}
+
+#[tauri::command]
+pub async fn agent_reject(
+    args: RejectArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<(), String> {
+    let handle = runtime
+        .handle_for(&args.project_root)
+        .await
+        .ok_or("no agent session")?;
+    let tx = handle.approval_tx_slot.lock().await.clone();
+    tx.send((
+        args.call_id,
+        ApprovalVerdict::Reject {
+            reason: args.reason,
+        },
+    ))
+    .await
+    .map_err(|e| format!("reject send: {e}"))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AnswerArgs {
+    pub project_root: String,
+    pub call_id: String,
+    pub reply: String,
+}
+
+#[tauri::command]
+pub async fn agent_answer(
+    args: AnswerArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<(), String> {
+    let handle = runtime
+        .handle_for(&args.project_root)
+        .await
+        .ok_or("no agent session")?;
+    let pending_lock = handle.pending_asks_slot.lock().await;
+    let pending = pending_lock
+        .as_ref()
+        .ok_or("no in-flight run; ask_user only valid during agent_send")?;
+    let mut p = pending.lock().await;
+    let tx = p
+        .remove(&args.call_id)
+        .ok_or_else(|| format!("no pending ask_user with call_id {}", args.call_id))?;
+    tx.send(args.reply).await.map_err(|e| format!("answer send: {e}"))
+}
