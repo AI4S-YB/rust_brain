@@ -5,10 +5,10 @@ use async_trait::async_trait;
 use rb_core::project::RunStatus;
 use serde_json::{json, Value};
 
-use super::schema::{RiskLevel, ToolDef, ToolError};
-use super::{ToolContext, ToolEntry, ToolExecutor, ToolOutput, ToolRegistry};
+use crate::tools::schema::{RiskLevel, ToolDef, ToolError};
+use crate::tools::{ToolContext, ToolEntry, ToolExecutor, ToolOutput, ToolRegistry};
 
-pub fn register_all(registry: &mut ToolRegistry) {
+pub fn register(registry: &mut ToolRegistry) {
     registry.register(list_project_files_entry());
     registry.register(list_project_inputs_entry());
     registry.register(list_project_samples_entry());
