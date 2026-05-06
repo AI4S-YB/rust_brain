@@ -16,4 +16,4 @@
 @import url('views/bam-tools.css');
 @import url('motion.css');           /* keyframes + animation utilities */
 @import url('responsive.css');       /* media queries — last so they win the cascade */
-/* chat.css removed in v0.3.0; agent.css added in Plan 2 Task 13 */
+@import url('agent.css');           /* agent (research) view */
