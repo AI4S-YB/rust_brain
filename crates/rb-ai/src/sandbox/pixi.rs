@@ -31,9 +31,9 @@ impl PixiRuntime {
     pub fn detect() -> Result<Self, AiError> {
         let bin_name = if cfg!(windows) { "pixi.exe" } else { "pixi" };
         let path = which::which(bin_name).map_err(|_| {
-            AiError::Tool(format!(
-                "pixi not found in PATH; install from https://pixi.sh and retry"
-            ))
+            AiError::Tool(
+                "pixi not found in PATH; install from https://pixi.sh and retry".to_string(),
+            )
         })?;
         Ok(Self { bin: path })
     }
@@ -47,9 +47,10 @@ impl PixiRuntime {
         let mut cmd = Command::new(&self.bin);
         cmd.arg("init").current_dir(sandbox_dir);
         rb_core::subprocess::harden_for_gui(&mut cmd);
-        let out = cmd.output().await.map_err(|e| {
-            AiError::Tool(format!("pixi init failed to spawn: {e}"))
-        })?;
+        let out = cmd
+            .output()
+            .await
+            .map_err(|e| AiError::Tool(format!("pixi init failed to spawn: {e}")))?;
         if !out.status.success() {
             return Err(AiError::Tool(format!(
                 "pixi init exited {}: {}",

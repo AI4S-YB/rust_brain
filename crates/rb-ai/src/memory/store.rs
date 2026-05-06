@@ -128,11 +128,15 @@ impl MemoryStore {
     }
 
     pub fn read_l0(&self) -> Result<String, AiError> {
-        Ok(std::fs::read_to_string(self.global_root.join("L0_meta.md"))?)
+        Ok(std::fs::read_to_string(
+            self.global_root.join("L0_meta.md"),
+        )?)
     }
 
     pub fn read_l2(&self) -> Result<String, AiError> {
-        Ok(std::fs::read_to_string(self.global_root.join("L2_facts.md"))?)
+        Ok(std::fs::read_to_string(
+            self.global_root.join("L2_facts.md"),
+        )?)
     }
 
     pub fn read_index(&self, path: &Path) -> Result<Vec<IndexEntry>, AiError> {
@@ -207,10 +211,7 @@ fn ensure_index(path: &Path) -> Result<(), AiError> {
 fn append_with_lock(path: &Path, data: &[u8]) -> Result<(), AiError> {
     use std::fs::OpenOptions;
     use std::io::Write;
-    let f = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
+    let f = OpenOptions::new().create(true).append(true).open(path)?;
     f.lock_exclusive()
         .map_err(|e| AiError::MemoryWrite(format!("lock {}: {e}", path.display())))?;
     let res = (&f).write_all(data).and_then(|_| f.sync_data());
@@ -246,6 +247,7 @@ where
     let lock_path = path.with_extension("lock");
     let lock_file = std::fs::OpenOptions::new()
         .create(true)
+        .truncate(false)
         .write(true)
         .open(&lock_path)?;
     lock_file
@@ -284,7 +286,11 @@ fn next_shard_path(dir: &Path, id: &str, shard_bytes: u64) -> Result<PathBuf, Ai
     loop {
         let p = dir.join(format!("{id}.part{n}.json"));
         let exists = p.exists();
-        let len = if exists { std::fs::metadata(&p)?.len() } else { 0 };
+        let len = if exists {
+            std::fs::metadata(&p)?.len()
+        } else {
+            0
+        };
         if !exists || len < shard_bytes {
             return Ok(p);
         }
@@ -401,7 +407,11 @@ mod tests {
         let pad = vec![b' '; (SHARD_BYTES + 1) as usize];
         std::fs::write(&main, pad).unwrap();
         let part = s.append_l4_archive(&project, &a1).await.unwrap();
-        assert!(part.file_name().unwrap().to_string_lossy().contains("part2"));
+        assert!(part
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .contains("part2"));
     }
 
     #[tokio::test]

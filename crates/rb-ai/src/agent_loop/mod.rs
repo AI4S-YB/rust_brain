@@ -34,7 +34,9 @@ use crate::error::AiError;
 use crate::memory::layers::ArchiveOutcome;
 use crate::memory::recall::Recaller;
 use crate::memory::MemoryStore;
-use crate::provider::{ChatProvider, FinishReason, ProviderMessage, ProviderToolCall, ThinkingConfig};
+use crate::provider::{
+    ChatProvider, FinishReason, ProviderMessage, ProviderToolCall, ThinkingConfig,
+};
 use crate::sandbox::policy::SandboxPolicy;
 use crate::sandbox::NetLogger;
 use crate::tools::{AskUserRequest, ToolRegistry};
@@ -89,7 +91,8 @@ pub async fn run_session(
     // 1. Append the user message.
     {
         let mut s = session.lock().await;
-        s.messages.push(serde_json::json!({"role":"user","content":user_text.clone()}));
+        s.messages
+            .push(serde_json::json!({"role":"user","content":user_text.clone()}));
     }
     let session_id = session.lock().await.id.clone();
 
@@ -235,7 +238,7 @@ pub async fn run_session(
                     session_id: &session_id,
                     project_root: Some(&ctx.project_root),
                     ask_user_tx: Some(&ask_user_tx),
-                    approval_rx: &*approval_rx,
+                    approval_rx: &approval_rx,
                     event_sink: &event_sink,
                 },
                 ProviderToolCall {
@@ -267,10 +270,7 @@ pub async fn run_session(
                             message: format!("{} failed {} times in a row", call.name, n),
                         })
                         .await;
-                    return Err(AiError::Tool(format!(
-                        "{} failed {} times",
-                        call.name, n
-                    )));
+                    return Err(AiError::Tool(format!("{} failed {} times", call.name, n)));
                 }
             } else {
                 consecutive_fail.remove(&call.name);
@@ -331,12 +331,7 @@ pub async fn run_session(
     }
 }
 
-async fn push_tool_result(
-    session: &SharedSession,
-    call_id: &str,
-    name: &str,
-    result: Value,
-) {
+async fn push_tool_result(session: &SharedSession, call_id: &str, name: &str, result: Value) {
     let mut s = session.lock().await;
     s.messages.push(serde_json::json!({
         "role":"tool",
@@ -388,10 +383,7 @@ fn to_provider_messages(messages: &[Value]) -> Vec<ProviderMessage> {
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string(),
-                    result: m
-                        .get("content")
-                        .map(|v| v.to_string())
-                        .unwrap_or_default(),
+                    result: m.get("content").map(|v| v.to_string()).unwrap_or_default(),
                 }),
                 _ => None,
             }
