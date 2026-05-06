@@ -5,6 +5,7 @@
 //! into `file.rs`, code_run, web_scan, memory tools, ask_user, and a
 //! skill loader as separate submodules.
 
+pub mod code_run;
 pub mod file;
 pub mod project_state;
 
@@ -15,6 +16,7 @@ use crate::tools::ToolRegistry;
 pub fn register_all(registry: &mut ToolRegistry) {
     project_state::register(registry);
     file::register(registry);
-    // code_run, web, memory_tools, ask_user, skill loader: registered by
+    code_run::register(registry);
+    // web, memory_tools, ask_user, skill loader: registered by
     // separate modules — see lib.rs orchestration.
 }
