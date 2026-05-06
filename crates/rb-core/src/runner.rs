@@ -73,6 +73,10 @@ impl Runner {
         &self.project
     }
 
+    pub fn project_arc(&self) -> Arc<Mutex<crate::project::Project>> {
+        self.project.clone()
+    }
+
     /// Spawn a module run, recording which registered InputRecord ids and
     /// AssetRecord ids this run consumes for lineage tracking in the
     /// Tasks / Assets views.

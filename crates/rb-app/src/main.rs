@@ -309,6 +309,7 @@ fn main() {
             commands::plugins::reload_plugins,
             commands::plugins::get_plugin_manifest,
             commands::agent::agent_start_session,
+            commands::agent::agent_send,
             rb_fastq_viewer::commands::fastq_viewer_open,
             rb_fastq_viewer::commands::fastq_viewer_close,
             rb_fastq_viewer::commands::fastq_viewer_status,

@@ -19,13 +19,14 @@ pub struct AgentHandle {
     pub session: SharedSession,
     pub policy: Arc<SandboxPolicy>,
     pub cancel: CancellationToken,
-    /// Sender into the approval channel that execute_call awaits.
-    pub approval_tx: mpsc::Sender<(String, ApprovalVerdict)>,
-    /// Sender into the ask_user channel that AskUserExec writes into. The
-    /// receiver is owned by a forwarder task that emits "agent-ask-user".
-    pub ask_user_tx: mpsc::Sender<rb_ai::tools::AskUserRequest>,
-    /// `Some` while a run_session task is active; `None` when the session
-    /// is paused awaiting the next user turn.
+    /// Replaced on every agent_send so the running task owns the fresh receiver.
+    pub approval_tx_slot: Mutex<mpsc::Sender<(String, ApprovalVerdict)>>,
+    pub ask_user_tx_slot: Mutex<mpsc::Sender<rb_ai::tools::AskUserRequest>>,
+    /// Map of call_id -> responder for in-flight ask_user questions.
+    /// Set by agent_send before spawning run_session; None when idle.
+    pub pending_asks_slot:
+        Mutex<Option<Arc<Mutex<HashMap<String, mpsc::Sender<String>>>>>>,
+    /// `Some` while a run_session task is active.
     pub run_join: Mutex<Option<tokio::task::JoinHandle<Result<(), AiError>>>>,
 }
 
@@ -87,8 +88,9 @@ mod tests {
             session,
             policy,
             cancel,
-            approval_tx: appr_tx,
-            ask_user_tx: ask_tx,
+            approval_tx_slot: Mutex::new(appr_tx),
+            ask_user_tx_slot: Mutex::new(ask_tx),
+            pending_asks_slot: Mutex::new(None),
             run_join: Mutex::new(None),
         });
         rt.insert("p".into(), h.clone()).await;

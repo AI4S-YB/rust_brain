@@ -63,6 +63,10 @@ impl SandboxPolicy {
         self
     }
 
+    pub fn is_full_permission(&self) -> bool {
+        matches!(self.mode, PolicyMode::FullPermission)
+    }
+
     pub fn classify(&self, tool_name: &str, args: &serde_json::Value) -> (Bucket, Decision) {
         // Memory + control tools.
         if matches!(
