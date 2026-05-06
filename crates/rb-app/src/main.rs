@@ -313,6 +313,8 @@ fn main() {
             commands::agent::agent_approve,
             commands::agent::agent_reject,
             commands::agent::agent_answer,
+            commands::agent::agent_cancel,
+            commands::agent::agent_set_full_permission,
             rb_fastq_viewer::commands::fastq_viewer_open,
             rb_fastq_viewer::commands::fastq_viewer_close,
             rb_fastq_viewer::commands::fastq_viewer_status,

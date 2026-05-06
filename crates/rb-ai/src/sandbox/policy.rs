@@ -40,7 +40,7 @@ pub enum PolicyMode {
 }
 
 pub struct SandboxPolicy {
-    pub mode: PolicyMode,
+    pub mode: std::sync::Mutex<PolicyMode>,
     pub project_root: PathBuf,
     pub sandbox_dir: PathBuf,
     pub approved: Mutex<HashSet<Bucket>>,
@@ -51,20 +51,29 @@ impl SandboxPolicy {
         let sandbox_dir = project_root.join(sandbox_dirname);
         let _ = std::fs::create_dir_all(&sandbox_dir);
         Self {
-            mode: PolicyMode::Normal,
+            mode: std::sync::Mutex::new(PolicyMode::Normal),
             project_root,
             sandbox_dir,
             approved: Mutex::new(HashSet::new()),
         }
     }
 
-    pub fn full_permission(mut self) -> Self {
-        self.mode = PolicyMode::FullPermission;
+    pub fn full_permission(self) -> Self {
+        *self.mode.lock().unwrap() = PolicyMode::FullPermission;
         self
     }
 
     pub fn is_full_permission(&self) -> bool {
-        matches!(self.mode, PolicyMode::FullPermission)
+        matches!(*self.mode.lock().unwrap(), PolicyMode::FullPermission)
+    }
+
+    pub fn set_full_permission(&self, enabled: bool) {
+        let mut m = self.mode.lock().unwrap();
+        *m = if enabled {
+            PolicyMode::FullPermission
+        } else {
+            PolicyMode::Normal
+        };
     }
 
     pub fn classify(&self, tool_name: &str, args: &serde_json::Value) -> (Bucket, Decision) {
@@ -156,7 +165,8 @@ impl SandboxPolicy {
     /// Apply approval-cache + full-permission bypass. Returns whether the
     /// caller should run immediately (true), or wait for user approval (false).
     pub fn should_run(&self, bucket: &Bucket, decision: &Decision) -> bool {
-        match self.mode {
+        let mode = *self.mode.lock().unwrap();
+        match mode {
             PolicyMode::FullPermission => true,
             PolicyMode::Normal => match decision {
                 Decision::Allow => true,

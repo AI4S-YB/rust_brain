@@ -350,3 +350,44 @@ pub async fn agent_answer(
         .ok_or_else(|| format!("no pending ask_user with call_id {}", args.call_id))?;
     tx.send(args.reply).await.map_err(|e| format!("answer send: {e}"))
 }
+
+#[derive(Debug, Deserialize)]
+pub struct CancelArgs {
+    pub project_root: String,
+}
+
+#[tauri::command]
+pub async fn agent_cancel(
+    args: CancelArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<(), String> {
+    let handle = runtime
+        .handle_for(&args.project_root)
+        .await
+        .ok_or("no agent session")?;
+    handle.cancel.cancel();
+    let mut slot = handle.run_join.lock().await;
+    if let Some(j) = slot.take() {
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), j).await;
+    }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FullPermArgs {
+    pub project_root: String,
+    pub enabled: bool,
+}
+
+#[tauri::command]
+pub async fn agent_set_full_permission(
+    args: FullPermArgs,
+    runtime: State<'_, Arc<AgentRuntime>>,
+) -> Result<(), String> {
+    let handle = runtime
+        .handle_for(&args.project_root)
+        .await
+        .ok_or("no agent session")?;
+    handle.policy.set_full_permission(args.enabled);
+    Ok(())
+}
