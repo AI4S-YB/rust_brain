@@ -35,6 +35,7 @@
         assets: '分析产物',
         ai_copilot: 'AI 助手',
         chat: '对话',
+        agent: '研究',
       },
       registry_picker: {
         asset_label: '从已登记产物选择',

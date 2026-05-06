@@ -90,7 +90,7 @@ export const COLOR_MAP = {
 export const KNOWN_VIEWS = new Set();
 function rebuildKnownViews() {
   KNOWN_VIEWS.clear();
-  ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'counts-merge', 'chat', 'plots', 'tasks', 'inputs', 'samples', 'assets', 'gene-length', 'expr-norm']
+  ['dashboard', 'settings', 'gff-convert', 'star-index', 'star-align', 'counts-merge', 'chat', 'agent', 'plots', 'tasks', 'inputs', 'samples', 'assets', 'gene-length', 'expr-norm']
     .forEach(v => KNOWN_VIEWS.add(v));
   MODULES.forEach(m => KNOWN_VIEWS.add(m.view_id || m.id));
   UTILITIES.forEach(u => KNOWN_VIEWS.add(u.view_id || u.id));

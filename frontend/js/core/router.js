@@ -3,6 +3,7 @@ import { KNOWN_VIEWS, MODULES } from './constants.js';
 import { t, navKey } from './i18n-helpers.js';
 import { renderComingSoon, renderEmptyState } from '../ui/coming-soon.js';
 import { renderDashboardView } from '../modules/dashboard/view.js';
+import { renderAgentView } from '../modules/agent/view.js';
 import { projectNew, projectOpen } from '../modules/dashboard/project.js';
 import { loadRunsForView } from '../modules/run-result.js';
 import { syncRunButtons } from './run-controls.js';
@@ -24,6 +25,7 @@ const PROJECT_REQUIRED_VIEWS = new Set([
   'gff-convert',
   'gene-length',
   'expr-norm',
+  'agent',
 ]);
 
 export async function navigate(view) {
@@ -99,8 +101,12 @@ export async function navigate(view) {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
     const m = await import('../modules/assets/view.js');
     if (state.currentView === view) m.renderAssetsView(content);
+  } else if (view === 'agent') {
+    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
+    if (state.currentView === view) renderAgentView(content);
   } else if (chatRoute) {
-    content.innerHTML = `<div class="module-view"><p>Chat is being replaced by the research agent; the <code>#agent</code> view is landing in v0.3.0.</p></div>`;
+    window.location.hash = '#agent';
+    return;
   } else if (view === 'genome-viewer') {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
     const m = await import('../utilities/genome-viewer/view.js');
@@ -178,7 +184,7 @@ function renderProjectRequiredView(content, requestedView, viewLabel) {
 async function openProjectThenContinue(openFn, requestedView) {
   const info = await openFn();
   if (!info) return;
-  const target = info.default_view === 'ai' ? 'chat' : requestedView;
+  const target = info.default_view === 'ai' ? 'agent' : requestedView;
   if (location.hash !== `#${target}`) {
     location.hash = `#${target}`;
   } else {
