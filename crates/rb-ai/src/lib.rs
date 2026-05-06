@@ -1,13 +1,19 @@
-//! AI orchestration, provider abstraction, and chat session persistence.
+//! Self-evolving agent core: provider abstraction, layered memory,
+//! sandboxed tool execution, perceive→reason→execute→record loop.
 //!
-//! Depends on `rb-core` for `ModuleRegistry` and `Runner`; does not depend on
-//! any Tauri or UI code, so it can be reused in a headless CLI or MCP server.
+//! Depends on `rb-core`. UI/Tauri integration lives in `rb-app` (Plan 2).
 
+pub mod agent_loop;
 pub mod config;
 pub mod error;
-pub mod orchestrator;
+pub mod memory;
 pub mod provider;
-pub mod session;
+pub mod sandbox;
 pub mod tools;
 
 pub use error::AiError;
+pub use memory::{
+    Archive, ArchiveOutcome, Bm25Recaller, CompositeRecaller, IndexEntry, Insight, MemoryStore,
+    Recaller, Scope, SkillMeta, TodoEntry, WorkingCheckpoint,
+};
+pub use sandbox::{Bucket, Decision, NetLogger, PolicyMode, SandboxPolicy};

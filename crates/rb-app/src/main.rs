@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod agent_runtime;
 mod ai_state;
 mod commands;
 mod rnaseq_pipeline;
@@ -129,32 +130,7 @@ fn main() {
         registry.register(m.clone());
     }
 
-    // 7. Build modules_for_ai = first-party + plugin (per-language tool registries).
-    let mut modules_for_ai: Vec<Arc<dyn rb_core::module::Module>> = vec![
-        Arc::new(rb_deseq2::DeseqModule),
-        Arc::new(rb_qc::QcModule),
-        Arc::new(rb_trimming::TrimmingModule),
-        Arc::new(rb_gff_convert::GffConvertModule),
-        Arc::new(rb_star_index::StarIndexModule),
-        Arc::new(rb_star_align::StarAlignModule),
-        Arc::new(rb_star_align::CountsMergeModule),
-        Arc::new(rb_rustqc::RustqcModule),
-        Arc::new(rb_gene_length::GeneLengthModule),
-        Arc::new(rb_expr_norm::ExprNormModule),
-    ];
-    modules_for_ai.extend(plugin_modules.iter().cloned());
-
-    let mut tools_by_lang = std::collections::HashMap::new();
-    tools_by_lang.insert(
-        "en".to_string(),
-        Arc::new(ai_state::build_tool_registry(&modules_for_ai, "en")),
-    );
-    tools_by_lang.insert(
-        "zh".to_string(),
-        Arc::new(ai_state::build_tool_registry(&modules_for_ai, "zh")),
-    );
-
-    // Load persisted AI config.
+    // 7. Load persisted AI config.
     let config_path = rb_ai::config::AiConfig::default_path();
     let mut ai_config =
         tauri::async_runtime::block_on(rb_ai::config::AiConfig::load_or_default(&config_path))
@@ -187,12 +163,9 @@ fn main() {
     };
 
     let ai = Arc::new(ai_state::AiState {
-        tools_by_lang,
         keystore,
         config_path,
         config: tokio::sync::Mutex::new(ai_config),
-        plans: rb_ai::orchestrator::PlanCardRegistry::new(),
-        active_turns: tokio::sync::Mutex::new(std::collections::HashMap::new()),
     });
 
     // 9. Build AppState (now with the pre-built resolver).
@@ -240,9 +213,17 @@ fn main() {
     // stops the window close handler from asking twice.
     let close_confirmed = Arc::new(AtomicBool::new(false));
 
+    // Agent runtime (self-evolving agent). Shared via Tauri state so the
+    // agent_* commands can look up per-project handles.
+    let agent_runtime = Arc::new(
+        agent_runtime::AgentRuntime::new()
+            .unwrap_or_else(|e| panic!("init AgentRuntime: {e}")),
+    );
+
     tauri::Builder::default()
         .manage(app_state)
         .manage(CloseConfirmed(close_confirmed.clone()))
+        .manage(agent_runtime.clone())
         .setup(|app| {
             register_bundled(app, "star", "star");
             register_bundled(app, "gffread-rs", "gffread-rs");
@@ -316,16 +297,6 @@ fn main() {
             commands::settings::get_binary_paths,
             commands::settings::set_binary_path,
             commands::settings::clear_binary_path,
-            commands::chat::chat_list_sessions,
-            commands::chat::chat_create_session,
-            commands::chat::chat_get_session,
-            commands::chat::chat_delete_session,
-            commands::chat::chat_rename_session,
-            commands::chat::chat_send_message,
-            commands::chat::chat_approve_tool,
-            commands::chat::chat_reject_tool,
-            commands::chat::chat_cancel_turn,
-            commands::chat::chat_cancel_run,
             commands::ai_provider::ai_get_config,
             commands::ai_provider::ai_set_provider_config,
             commands::ai_provider::ai_set_default_provider,
@@ -337,6 +308,17 @@ fn main() {
             commands::plugins::list_plugin_status,
             commands::plugins::reload_plugins,
             commands::plugins::get_plugin_manifest,
+            commands::agent::agent_start_session,
+            commands::agent::agent_send,
+            commands::agent::agent_approve,
+            commands::agent::agent_reject,
+            commands::agent::agent_answer,
+            commands::agent::agent_cancel,
+            commands::agent::agent_set_full_permission,
+            commands::agent::agent_list_archives,
+            commands::agent::agent_load_archive,
+            commands::agent::agent_list_skills,
+            commands::agent::agent_edit_memory,
             rb_fastq_viewer::commands::fastq_viewer_open,
             rb_fastq_viewer::commands::fastq_viewer_close,
             rb_fastq_viewer::commands::fastq_viewer_status,

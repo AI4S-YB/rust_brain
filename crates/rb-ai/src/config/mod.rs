@@ -13,6 +13,8 @@ pub struct AiConfig {
     pub default_provider: Option<String>,
     #[serde(default)]
     pub providers: HashMap<String, ProviderConfig>,
+    #[serde(default)]
+    pub agent: AgentConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -47,6 +49,7 @@ impl AiConfig {
         Self {
             default_provider: Some("openai-compat".into()),
             providers,
+            agent: AgentConfig::default(),
         }
     }
 
@@ -176,5 +179,103 @@ mod tests {
         let cfg = AiConfig::example_openai();
         cfg.save(&nested).await.unwrap();
         assert!(nested.exists());
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CodeRunRuntime {
+    Pixi,
+    System,
+    Custom,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkMode {
+    AllowAll,
+    Whitelist,
+    Denied,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentConfig {
+    pub default_model: String,
+    pub flash_recall_model: String,
+    pub flash_recall_timeout_ms: u64,
+    pub recall_budget_tokens: usize,
+    pub working_token_budget: usize,
+    pub code_run: CodeRunConfig,
+    pub sandbox: SandboxConfig,
+    pub network: NetworkConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CodeRunConfig {
+    pub runtime: CodeRunRuntime,
+    pub default_timeout_secs: u64,
+    pub custom_command: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SandboxConfig {
+    pub sandbox_dirname: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkConfig {
+    pub mode: NetworkMode,
+    pub whitelist: Vec<String>,
+    pub log_enabled: bool,
+}
+
+impl Default for AgentConfig {
+    fn default() -> Self {
+        Self {
+            default_model: "claude-sonnet-4-6".into(),
+            flash_recall_model: "claude-haiku-4-5".into(),
+            flash_recall_timeout_ms: 3000,
+            recall_budget_tokens: 4096,
+            working_token_budget: 8192,
+            code_run: CodeRunConfig {
+                runtime: CodeRunRuntime::Pixi,
+                default_timeout_secs: 600,
+                custom_command: String::new(),
+            },
+            sandbox: SandboxConfig {
+                sandbox_dirname: "sandbox".into(),
+            },
+            network: NetworkConfig {
+                mode: NetworkMode::AllowAll,
+                whitelist: vec![],
+                log_enabled: true,
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod agent_config_tests {
+    use super::*;
+
+    #[test]
+    fn agent_config_defaults_are_sane() {
+        let c = AgentConfig::default();
+        assert_eq!(c.code_run.runtime, CodeRunRuntime::Pixi);
+        assert_eq!(c.code_run.default_timeout_secs, 600);
+        assert_eq!(c.sandbox.sandbox_dirname, "sandbox");
+        assert!(matches!(c.network.mode, NetworkMode::AllowAll));
+        assert!(c.network.log_enabled);
+    }
+
+    #[test]
+    fn agent_config_round_trips_via_json() {
+        let c = AgentConfig::default();
+        let s = serde_json::to_string(&c).unwrap();
+        let back: AgentConfig = serde_json::from_str(&s).unwrap();
+        assert_eq!(
+            c.code_run.default_timeout_secs,
+            back.code_run.default_timeout_secs
+        );
     }
 }

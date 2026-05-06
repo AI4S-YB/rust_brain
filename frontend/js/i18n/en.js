@@ -35,6 +35,7 @@
         assets: 'Assets',
         ai_copilot: 'AI Copilot',
         chat: 'Chat',
+        agent: 'Research',
       },
       registry_picker: {
         asset_label: 'Use a registered asset',

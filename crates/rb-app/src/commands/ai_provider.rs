@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use tauri::State;
 
 use rb_ai::config::{AiConfig, ProviderConfig};
@@ -137,6 +139,52 @@ pub async fn ai_has_api_key(
             .unwrap_or_default()
     };
     Ok(env_api_key_for(&provider_id, &base_url).is_some())
+}
+
+/// Resolve the default chat provider for the given AiState. Returns an
+/// `Arc<dyn ChatProvider>` ready to be handed to `run_session`. Errors
+/// clearly when the default provider is unset or the API key is missing.
+pub async fn resolve_chat_provider(
+    ai_state: &Arc<crate::ai_state::AiState>,
+) -> Result<Arc<dyn rb_ai::provider::ChatProvider>, String> {
+    let (provider_id, provider_config) = {
+        let cfg = ai_state.config.lock().await;
+        let id = cfg
+            .default_provider
+            .clone()
+            .ok_or_else(|| "no default provider configured; set one in Settings".to_string())?;
+        let pc = cfg
+            .providers
+            .get(&id)
+            .cloned()
+            .ok_or_else(|| format!("default provider '{id}' has no configuration"))?;
+        (id, pc)
+    };
+
+    let key = ai_state
+        .keystore
+        .get(&provider_id)
+        .map_err(|e| e.to_string())?
+        .or_else(|| env_api_key_for(&provider_id, &provider_config.base_url))
+        .ok_or_else(|| {
+            if provider_config
+                .base_url
+                .trim()
+                .to_ascii_lowercase()
+                .contains("api.deepseek.com")
+            {
+                "API key not set for provider; set it in Settings or export DEEPSEEK_API_KEY"
+                    .to_string()
+            } else {
+                "API key not set for provider".to_string()
+            }
+        })?;
+
+    let provider = rb_ai::provider::openai_compat::OpenAiCompatProvider::new(
+        provider_config.base_url.clone(),
+        key,
+    );
+    Ok(Arc::new(provider))
 }
 
 #[tauri::command]

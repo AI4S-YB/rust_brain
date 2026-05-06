@@ -1,6 +1,6 @@
+pub mod agent;
 pub mod ai_provider;
 pub mod assets;
-pub mod chat;
 pub mod files;
 pub mod inputs;
 pub mod modules;

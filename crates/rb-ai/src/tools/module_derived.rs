@@ -26,7 +26,7 @@ pub fn register_for_modules(registry: &mut ToolRegistry, modules: &[Arc<dyn Modu
             def: ToolDef {
                 name,
                 description,
-                risk: RiskLevel::Run,
+                risk: RiskLevel::RunMid,
                 params: schema,
             },
             executor: Arc::new(ModuleRunExec { module: m.clone() }),
@@ -165,6 +165,6 @@ mod tests {
         register_for_modules(&mut reg, &mods, "en");
         let entry = reg.get("run_ok").unwrap();
         assert_eq!(entry.def.description, "ok module");
-        assert_eq!(entry.def.risk, RiskLevel::Run);
+        assert_eq!(entry.def.risk, RiskLevel::RunMid);
     }
 }
