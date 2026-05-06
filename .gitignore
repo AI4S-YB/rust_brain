@@ -25,3 +25,6 @@ crates/rb-app/binaries/*
 crates/rb-app/gen/
 
 .codex
+
+# Local worktree for agent development
+/.worktree/
