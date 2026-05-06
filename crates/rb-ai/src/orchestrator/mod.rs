@@ -249,7 +249,8 @@ pub async fn run_turn(
             };
             let risk_s = match risk {
                 RiskLevel::Read => "read",
-                RiskLevel::Run => "run",
+                RiskLevel::RunLow => "run_low",
+                RiskLevel::RunMid => "run_mid",
                 RiskLevel::Destructive => "destructive",
             };
             let _ = sink
@@ -268,7 +269,7 @@ pub async fn run_turn(
 
             let resolved_args = match risk {
                 RiskLevel::Read => tc.args.clone(),
-                RiskLevel::Run => {
+                RiskLevel::RunLow | RiskLevel::RunMid => {
                     let rx = ctx.plans.register(tc.id.clone()).await;
                     let decision = rx
                         .await

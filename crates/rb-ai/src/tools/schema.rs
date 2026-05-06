@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "snake_case")]
 pub enum RiskLevel {
     Read,
-    Run,
+    RunLow,
+    RunMid,
     Destructive,
 }
 
@@ -58,11 +59,11 @@ mod tests {
         let t = ToolDef {
             name: "x".into(),
             description: String::new(),
-            risk: RiskLevel::Run,
+            risk: RiskLevel::RunMid,
             params: serde_json::json!({"type": "object"}),
         };
         let s = serde_json::to_string(&t).unwrap();
-        assert!(s.contains(r#""risk":"run""#));
+        assert!(s.contains(r#""risk":"run_mid""#));
     }
 
     #[test]
@@ -89,5 +90,20 @@ mod tests {
             }),
         };
         assert!(t.validate_schema().is_ok());
+    }
+
+    #[test]
+    fn risk_level_serializes_all_four_buckets() {
+        use serde_json::json;
+        fn s(r: RiskLevel) -> String {
+            serde_json::to_value(r).unwrap().as_str().unwrap().to_string()
+        }
+        assert_eq!(s(RiskLevel::Read), "read");
+        assert_eq!(s(RiskLevel::RunLow), "run_low");
+        assert_eq!(s(RiskLevel::RunMid), "run_mid");
+        assert_eq!(s(RiskLevel::Destructive), "destructive");
+
+        let from: RiskLevel = serde_json::from_value(json!("run_mid")).unwrap();
+        assert_eq!(from, RiskLevel::RunMid);
     }
 }

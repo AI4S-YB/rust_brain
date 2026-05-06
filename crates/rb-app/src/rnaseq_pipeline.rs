@@ -27,7 +27,7 @@ fn rnaseq_pipeline_entry(modules: &[Arc<dyn Module>], lang: &str) -> ToolEntry {
         def: ToolDef {
             name: "run_rnaseq_pipeline".into(),
             description,
-            risk: RiskLevel::Run,
+            risk: RiskLevel::RunMid,
             params: json!({
                 "type": "object",
                 "properties": {
