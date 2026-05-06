@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr) 280px;
   gap: 16px;
-  height: calc(100vh - 80px);
+  height: calc(100vh - 140px);
 }
 .agent-left, .agent-right {
   background: var(--surface, #fdf8f0);
@@ -60,3 +60,10 @@
 .agent-todo-list { list-style: none; padding: 0; font-size: 0.85rem; }
 .agent-todo-list li.done { color: #888; text-decoration: line-through; }
 .agent-sandbox-tree, .agent-net-log { font-size: 0.78rem; max-height: 180px; overflow: auto; background: #fdfaf2; padding: 6px; border-radius: 4px; }
+
+#agent-toolbar { display: flex; gap: 12px; align-items: center; padding: 8px; border-bottom: 1px solid var(--line, #e4dccd); margin-bottom: 12px; }
+.agent-toolbar { display: flex; gap: 12px; align-items: center; width: 100%; }
+.agent-fp-toggle { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+.agent-fp-toggle input { cursor: pointer; }
+#agent-cancel-btn { margin-left: auto; padding: 4px 12px; font-size: 0.85rem; cursor: pointer; }
+#agent-cancel-btn:hover { background: #fbe7e2; }

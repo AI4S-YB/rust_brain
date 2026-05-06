@@ -5,9 +5,11 @@ import { renderLeftPane } from './left-pane.js';
 import { appendStreamEvent } from './middle-pane.js';
 import { renderRightPane, updateCheckpointTodo } from './right-pane.js';
 import { attachApprovalHandlers } from './approval-card.js';
+import { renderToolbar } from './full-permission.js';
 
 export async function renderAgentView(content) {
   content.innerHTML = `
+    <div id="agent-toolbar"></div>
     <div class="agent-shell">
       <aside class="agent-left" id="agent-left">left pane (archives) — wired in Task 9</aside>
       <section class="agent-mid" id="agent-mid">
@@ -25,6 +27,7 @@ export async function renderAgentView(content) {
     return;
   }
   agentState.projectRoot = projectRoot;
+  renderToolbar(content.querySelector('#agent-toolbar'));
   await renderLeftPane(content.querySelector('#agent-left'));
   renderRightPane(content.querySelector('#agent-right'));
   attachApprovalHandlers(content.querySelector('#agent-msgs'));
