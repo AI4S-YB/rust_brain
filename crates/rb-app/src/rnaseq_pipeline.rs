@@ -1,3 +1,10 @@
+//! The RNA-seq pipeline tool registry was wired into the chat orchestrator
+//! that has been removed in preparation for the self-evolving agent rewrite.
+//! The implementation is kept as a starting point for the agent_loop tool
+//! surface; once that lands the `register_all` entry point will be invoked
+//! again. Until then everything in this module is intentionally orphaned.
+#![allow(dead_code)]
+
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;

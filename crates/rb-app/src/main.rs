@@ -129,32 +129,7 @@ fn main() {
         registry.register(m.clone());
     }
 
-    // 7. Build modules_for_ai = first-party + plugin (per-language tool registries).
-    let mut modules_for_ai: Vec<Arc<dyn rb_core::module::Module>> = vec![
-        Arc::new(rb_deseq2::DeseqModule),
-        Arc::new(rb_qc::QcModule),
-        Arc::new(rb_trimming::TrimmingModule),
-        Arc::new(rb_gff_convert::GffConvertModule),
-        Arc::new(rb_star_index::StarIndexModule),
-        Arc::new(rb_star_align::StarAlignModule),
-        Arc::new(rb_star_align::CountsMergeModule),
-        Arc::new(rb_rustqc::RustqcModule),
-        Arc::new(rb_gene_length::GeneLengthModule),
-        Arc::new(rb_expr_norm::ExprNormModule),
-    ];
-    modules_for_ai.extend(plugin_modules.iter().cloned());
-
-    let mut tools_by_lang = std::collections::HashMap::new();
-    tools_by_lang.insert(
-        "en".to_string(),
-        Arc::new(ai_state::build_tool_registry(&modules_for_ai, "en")),
-    );
-    tools_by_lang.insert(
-        "zh".to_string(),
-        Arc::new(ai_state::build_tool_registry(&modules_for_ai, "zh")),
-    );
-
-    // Load persisted AI config.
+    // 7. Load persisted AI config.
     let config_path = rb_ai::config::AiConfig::default_path();
     let mut ai_config =
         tauri::async_runtime::block_on(rb_ai::config::AiConfig::load_or_default(&config_path))
@@ -187,12 +162,9 @@ fn main() {
     };
 
     let ai = Arc::new(ai_state::AiState {
-        tools_by_lang,
         keystore,
         config_path,
         config: tokio::sync::Mutex::new(ai_config),
-        plans: rb_ai::orchestrator::PlanCardRegistry::new(),
-        active_turns: tokio::sync::Mutex::new(std::collections::HashMap::new()),
     });
 
     // 9. Build AppState (now with the pre-built resolver).
@@ -316,16 +288,6 @@ fn main() {
             commands::settings::get_binary_paths,
             commands::settings::set_binary_path,
             commands::settings::clear_binary_path,
-            commands::chat::chat_list_sessions,
-            commands::chat::chat_create_session,
-            commands::chat::chat_get_session,
-            commands::chat::chat_delete_session,
-            commands::chat::chat_rename_session,
-            commands::chat::chat_send_message,
-            commands::chat::chat_approve_tool,
-            commands::chat::chat_reject_tool,
-            commands::chat::chat_cancel_turn,
-            commands::chat::chat_cancel_run,
             commands::ai_provider::ai_get_config,
             commands::ai_provider::ai_set_provider_config,
             commands::ai_provider::ai_set_default_provider,

@@ -32,8 +32,8 @@ pub struct ThinkingConfig {
     pub reasoning_effort: Option<String>,
 }
 
-/// Neutral message shape handed to provider adapters. Distinct from the
-/// persisted `session::Message`, which can carry extra metadata like
+/// Neutral message shape handed to provider adapters. Distinct from any
+/// persisted `Message` type, which can carry extra metadata like
 /// `interrupted` that providers don't need to see.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "role", rename_all = "lowercase")]
