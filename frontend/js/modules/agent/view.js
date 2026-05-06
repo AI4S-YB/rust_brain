@@ -3,6 +3,7 @@ import { agentApi, onAgentStream, onAgentAskUser } from './api.js';
 import { state as appState } from '../../core/state.js';
 import { renderLeftPane } from './left-pane.js';
 import { appendStreamEvent } from './middle-pane.js';
+import { renderRightPane, updateCheckpointTodo } from './right-pane.js';
 
 export async function renderAgentView(content) {
   content.innerHTML = `
@@ -24,6 +25,7 @@ export async function renderAgentView(content) {
   }
   agentState.projectRoot = projectRoot;
   await renderLeftPane(content.querySelector('#agent-left'));
+  renderRightPane(content.querySelector('#agent-right'));
   if (!agentState.sessionId) {
     const r = await agentApi.startSession(projectRoot);
     agentState.sessionId = r.session_id;
@@ -46,7 +48,7 @@ export async function renderAgentView(content) {
 
 function handleStream(ev) {
   appendStreamEvent(ev);
-  // checkpoint events are also handled by the right-pane updater (Task 11).
+  if (ev.kind === 'checkpoint') updateCheckpointTodo(ev.todo);
 }
 
 function handleAskUser(req) {
