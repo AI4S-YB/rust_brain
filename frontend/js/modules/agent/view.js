@@ -1,6 +1,7 @@
 import { agentState } from './state.js';
 import { agentApi, onAgentStream, onAgentAskUser } from './api.js';
 import { state as appState } from '../../core/state.js';
+import { renderLeftPane } from './left-pane.js';
 
 export async function renderAgentView(content) {
   content.innerHTML = `
@@ -21,6 +22,7 @@ export async function renderAgentView(content) {
     return;
   }
   agentState.projectRoot = projectRoot;
+  await renderLeftPane(content.querySelector('#agent-left'));
   if (!agentState.sessionId) {
     const r = await agentApi.startSession(projectRoot);
     agentState.sessionId = r.session_id;
