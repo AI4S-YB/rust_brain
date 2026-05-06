@@ -100,16 +100,7 @@ export async function navigate(view) {
     const m = await import('../modules/assets/view.js');
     if (state.currentView === view) m.renderAssetsView(content);
   } else if (chatRoute) {
-    content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
-    if (chatRoute.scope === 'project' && chatRoute.sessionId && !state.projectOpen) {
-      renderProjectRequiredView(content, view, label);
-    } else if (chatRoute.sessionId) {
-      const m = await import('../modules/chat/chat-view.js');
-      if (state.currentView === view) m.renderChatView(content, chatRoute.sessionId, { scope: chatRoute.scope || 'project' });
-    } else {
-      const m = await import('../modules/chat/session-list.js');
-      if (state.currentView === view) m.renderSessionListPage(content, { scope: chatRoute.scope });
-    }
+    content.innerHTML = `<div class="module-view"><p>Chat is being replaced by the research agent; the <code>#agent</code> view is landing in v0.3.0.</p></div>`;
   } else if (view === 'genome-viewer') {
     content.innerHTML = `<div class="module-view"><p>${t('common.loading')}</p></div>`;
     const m = await import('../utilities/genome-viewer/view.js');
