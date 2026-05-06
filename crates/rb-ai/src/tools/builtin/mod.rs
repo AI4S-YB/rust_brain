@@ -8,6 +8,7 @@
 pub mod code_run;
 pub mod file;
 pub mod project_state;
+pub mod web;
 
 use crate::tools::ToolRegistry;
 
@@ -17,6 +18,7 @@ pub fn register_all(registry: &mut ToolRegistry) {
     project_state::register(registry);
     file::register(registry);
     code_run::register(registry);
-    // web, memory_tools, ask_user, skill loader: registered by
+    web::register(registry);
+    // memory_tools, ask_user, skill loader: registered by
     // separate modules — see lib.rs orchestration.
 }
