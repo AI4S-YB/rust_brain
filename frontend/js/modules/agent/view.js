@@ -2,6 +2,7 @@ import { agentState } from './state.js';
 import { agentApi, onAgentStream, onAgentAskUser } from './api.js';
 import { state as appState } from '../../core/state.js';
 import { renderLeftPane } from './left-pane.js';
+import { appendStreamEvent } from './middle-pane.js';
 
 export async function renderAgentView(content) {
   content.innerHTML = `
@@ -44,13 +45,8 @@ export async function renderAgentView(content) {
 }
 
 function handleStream(ev) {
-  const m = document.getElementById('agent-msgs');
-  if (!m) return;
-  const line = document.createElement('div');
-  line.className = 'agent-event-debug';
-  line.textContent = JSON.stringify(ev);
-  m.appendChild(line);
-  m.scrollTop = m.scrollHeight;
+  appendStreamEvent(ev);
+  // checkpoint events are also handled by the right-pane updater (Task 11).
 }
 
 function handleAskUser(req) {
