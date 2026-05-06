@@ -213,9 +213,17 @@ fn main() {
     // stops the window close handler from asking twice.
     let close_confirmed = Arc::new(AtomicBool::new(false));
 
+    // Agent runtime (self-evolving agent). Shared via Tauri state so the
+    // agent_* commands can look up per-project handles.
+    let agent_runtime = Arc::new(
+        agent_runtime::AgentRuntime::new()
+            .unwrap_or_else(|e| panic!("init AgentRuntime: {e}")),
+    );
+
     tauri::Builder::default()
         .manage(app_state)
         .manage(CloseConfirmed(close_confirmed.clone()))
+        .manage(agent_runtime.clone())
         .setup(|app| {
             register_bundled(app, "star", "star");
             register_bundled(app, "gffread-rs", "gffread-rs");
@@ -300,6 +308,7 @@ fn main() {
             commands::plugins::list_plugin_status,
             commands::plugins::reload_plugins,
             commands::plugins::get_plugin_manifest,
+            commands::agent::agent_start_session,
             rb_fastq_viewer::commands::fastq_viewer_open,
             rb_fastq_viewer::commands::fastq_viewer_close,
             rb_fastq_viewer::commands::fastq_viewer_status,

@@ -1,3 +1,4 @@
+pub mod agent;
 pub mod ai_provider;
 pub mod assets;
 pub mod files;
