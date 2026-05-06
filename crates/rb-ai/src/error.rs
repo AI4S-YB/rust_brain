@@ -10,8 +10,6 @@ pub enum AiError {
     Provider(String),
     #[error("tool error: {0}")]
     Tool(String),
-    #[error("session not found: {0}")]
-    SessionNotFound(String),
     #[error("cancelled")]
     Cancelled,
     #[error("config error: {0}")]
@@ -22,4 +20,12 @@ pub enum AiError {
     ProviderNotConfigured,
     #[error("invalid state: {0}")]
     InvalidState(String),
+    #[error("sandbox violation: {0}")]
+    SandboxViolation(String),
+    #[error("path escapes allowed root: {0}")]
+    PathEscape(String),
+    #[error("memory write failed: {0}")]
+    MemoryWrite(String),
+    #[error("agent already running for project {0}")]
+    AgentAlreadyRunning(String),
 }

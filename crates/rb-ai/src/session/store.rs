@@ -86,7 +86,7 @@ impl SessionStore {
     pub async fn load_session(&self, id: &str) -> Result<ChatSession, AiError> {
         let text = fs::read_to_string(&self.session_path(id))
             .await
-            .map_err(|_| AiError::SessionNotFound(id.to_string()))?;
+            .map_err(|_| AiError::InvalidState("legacy session".into()))?;
         Ok(serde_json::from_str(&text)?)
     }
 
@@ -183,6 +183,6 @@ mod tests {
         let tmp = tempdir().unwrap();
         let store = SessionStore::new(tmp.path());
         let err = store.load_session("ses_nope").await.unwrap_err();
-        assert!(matches!(err, AiError::SessionNotFound(_)));
+        assert!(matches!(err, AiError::InvalidState(_)));
     }
 }
