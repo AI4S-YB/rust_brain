@@ -142,7 +142,11 @@ mod tests {
             "---\nname: rna-seq\ndescription: x\n---\nbody",
         )
         .unwrap();
-        std::fs::write(tmp.path().join("_index.md"), "---\nname: x\ndescription: x\n---\n").unwrap();
+        std::fs::write(
+            tmp.path().join("_index.md"),
+            "---\nname: x\ndescription: x\n---\n",
+        )
+        .unwrap();
         let mut reg = ToolRegistry::new();
         let n = register_dir(&mut reg, tmp.path()).unwrap();
         assert_eq!(n, 1);

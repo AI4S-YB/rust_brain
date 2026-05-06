@@ -163,7 +163,9 @@ impl ToolExecutor for FileWriteExec {
             std::fs::create_dir_all(parent).map_err(|e| ToolError::Execution(e.to_string()))?;
         }
         std::fs::write(path, content).map_err(|e| ToolError::Execution(e.to_string()))?;
-        Ok(ToolOutput::Value(json!({"path": path, "bytes": content.len()})))
+        Ok(ToolOutput::Value(
+            json!({"path": path, "bytes": content.len()}),
+        ))
     }
 }
 
@@ -179,7 +181,8 @@ impl ToolExecutor for FilePatchExec {
             .get("diff")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::InvalidArgs("diff required".into()))?;
-        let original = std::fs::read_to_string(path).map_err(|e| ToolError::Execution(e.to_string()))?;
+        let original =
+            std::fs::read_to_string(path).map_err(|e| ToolError::Execution(e.to_string()))?;
         let patched = apply_unified_diff(&original, diff)
             .map_err(|e| ToolError::Execution(format!("patch failed: {e}")))?;
         std::fs::write(path, &patched).map_err(|e| ToolError::Execution(e.to_string()))?;
@@ -206,7 +209,11 @@ fn apply_unified_diff(original: &str, diff: &str) -> Result<String, String> {
         if let Some(hdr) = l.strip_prefix("@@") {
             // Format: " -old_start,old_len +new_start,new_len @@..."
             let parts: Vec<&str> = hdr.split_whitespace().collect();
-            let old = parts.iter().find(|p| p.starts_with('-')).copied().unwrap_or("-0,0");
+            let old = parts
+                .iter()
+                .find(|p| p.starts_with('-'))
+                .copied()
+                .unwrap_or("-0,0");
             let old_start: usize = old
                 .trim_start_matches('-')
                 .split(',')
@@ -229,7 +236,12 @@ fn apply_unified_diff(original: &str, diff: &str) -> Result<String, String> {
                 }
                 i += 1;
             }
-            pending.push((old_start.saturating_sub(1), hunk_old.len(), hunk_old, hunk_new));
+            pending.push((
+                old_start.saturating_sub(1),
+                hunk_old.len(),
+                hunk_old,
+                hunk_new,
+            ));
             continue;
         }
         i += 1;
@@ -239,7 +251,10 @@ fn apply_unified_diff(original: &str, diff: &str) -> Result<String, String> {
     pending.sort_by_key(|h| std::cmp::Reverse(h.0));
     for (start, len, old, new) in pending {
         if start + len > out.len() {
-            return Err(format!("hunk start {start} len {len} > file len {}", out.len()));
+            return Err(format!(
+                "hunk start {start} len {len} > file len {}",
+                out.len()
+            ));
         }
         let actual: Vec<String> = out[start..start + len].to_vec();
         if actual != old {
@@ -331,9 +346,6 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(
-            std::fs::read_to_string(&p).unwrap(),
-            "alpha\nBETA\ngamma\n"
-        );
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "alpha\nBETA\ngamma\n");
     }
 }

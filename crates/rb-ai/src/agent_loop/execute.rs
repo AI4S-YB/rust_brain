@@ -35,10 +35,7 @@ pub struct ExecCtx<'a> {
     pub event_sink: &'a mpsc::Sender<AgentEvent>,
 }
 
-pub async fn execute_call(
-    ctx: ExecCtx<'_>,
-    call: ProviderToolCall,
-) -> Result<Value, AiError> {
+pub async fn execute_call(ctx: ExecCtx<'_>, call: ProviderToolCall) -> Result<Value, AiError> {
     let (bucket, decision) = ctx.policy.classify(&call.name, &call.args);
     let bucket_str = bucket_label(&bucket);
     let decision_str = decision_label(&decision);

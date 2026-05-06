@@ -96,7 +96,11 @@ mod tests {
     fn risk_level_serializes_all_four_buckets() {
         use serde_json::json;
         fn s(r: RiskLevel) -> String {
-            serde_json::to_value(r).unwrap().as_str().unwrap().to_string()
+            serde_json::to_value(r)
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string()
         }
         assert_eq!(s(RiskLevel::Read), "read");
         assert_eq!(s(RiskLevel::RunLow), "run_low");

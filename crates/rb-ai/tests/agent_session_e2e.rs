@@ -13,9 +13,7 @@ use rb_ai::agent_loop::{
     run_session, AgentEvent, AgentSession, ApprovalVerdict, RunConfig, RunSessionCtx, SharedSession,
 };
 use rb_ai::memory::{Bm25Recaller, MemoryStore, Recaller};
-use rb_ai::provider::{
-    ChatProvider, ChatRequest, FinishReason, ProviderError, ProviderEvent,
-};
+use rb_ai::provider::{ChatProvider, ChatRequest, FinishReason, ProviderError, ProviderEvent};
 use rb_ai::sandbox::{NetLogger, SandboxPolicy};
 use rb_ai::tools::{builtin, ToolRegistry};
 use tempfile::tempdir;
@@ -171,10 +169,17 @@ async fn agent_runs_scripted_session_to_task_done() {
     let archive = project_root
         .join("agent/L4_archives")
         .join(format!("{id}.json"));
-    assert!(archive.exists(), "expected archive at {}", archive.display());
+    assert!(
+        archive.exists(),
+        "expected archive at {}",
+        archive.display()
+    );
     // L1 insight appended
     let l1 = std::fs::read_to_string(memory.global_root.join("L1_insights.jsonl")).unwrap();
-    assert!(l1.lines().count() >= 1, "expected at least one L1 insight line");
+    assert!(
+        l1.lines().count() >= 1,
+        "expected at least one L1 insight line"
+    );
     // Checkpoint cleared
     assert!(
         !project_root.join("agent/checkpoints/current.json").exists(),

@@ -74,7 +74,11 @@ impl ToolExecutor for CodeRunExec {
             "python" => ("agent_run.py", "python"),
             "r" => ("agent_run.R", "Rscript"),
             "shell" => ("agent_run.sh", "bash"),
-            other => return Err(ToolError::InvalidArgs(format!("unsupported language: {other}"))),
+            other => {
+                return Err(ToolError::InvalidArgs(format!(
+                    "unsupported language: {other}"
+                )))
+            }
         };
         let script = cwd.join(script_name);
         std::fs::write(&script, code).map_err(|e| ToolError::Execution(e.to_string()))?;

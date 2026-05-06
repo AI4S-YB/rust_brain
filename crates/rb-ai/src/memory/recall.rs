@@ -425,7 +425,9 @@ mod flash_tests {
             sink: tokio::sync::mpsc::Sender<ProviderEvent>,
             _cancel: rb_core::cancel::CancellationToken,
         ) -> Result<(), ProviderError> {
-            let _ = sink.send(ProviderEvent::TextDelta(self.reply.clone())).await;
+            let _ = sink
+                .send(ProviderEvent::TextDelta(self.reply.clone()))
+                .await;
             let _ = sink
                 .send(ProviderEvent::Finish(crate::provider::FinishReason::Stop))
                 .await;

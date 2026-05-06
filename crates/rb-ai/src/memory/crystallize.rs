@@ -43,7 +43,11 @@ pub async fn crystallize_session(
 
     let insight = Insight {
         id: Uuid::new_v4().simple().to_string(),
-        tag: input.tags.first().cloned().unwrap_or_else(|| "session".into()),
+        tag: input
+            .tags
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "session".into()),
         summary: input.headline,
         evidence_archive_id: Some(input.session_id),
         ts: Utc::now(),
@@ -74,7 +78,9 @@ pub async fn long_term_update(
                 body.markdown
             ));
             super_write_text(&path, &existing)?;
-            Ok(UpdateResult { path: path.display().to_string() })
+            Ok(UpdateResult {
+                path: path.display().to_string(),
+            })
         }
         (Layer::L3, scope) => {
             let dir = match scope {
@@ -112,7 +118,9 @@ pub async fn long_term_update(
                     },
                 )
                 .await?;
-            Ok(UpdateResult { path: path.display().to_string() })
+            Ok(UpdateResult {
+                path: path.display().to_string(),
+            })
         }
         (Layer::L2, Scope::Project) => Err(AiError::InvalidState(
             "L2 is global-only by convention".into(),
@@ -124,10 +132,7 @@ fn super_write_text(path: &Path, text: &str) -> Result<(), AiError> {
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;
     }
-    let tmp = path.with_extension(format!(
-        "tmp.{}",
-        Uuid::new_v4().simple()
-    ));
+    let tmp = path.with_extension(format!("tmp.{}", Uuid::new_v4().simple()));
     std::fs::write(&tmp, text)?;
     std::fs::rename(&tmp, path)?;
     Ok(())
@@ -136,7 +141,13 @@ fn super_write_text(path: &Path, text: &str) -> Result<(), AiError> {
 fn slugify(s: &str) -> String {
     s.to_lowercase()
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '-' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect::<String>()
         .trim_matches('-')
         .replace("--", "-")

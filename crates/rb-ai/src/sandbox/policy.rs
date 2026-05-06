@@ -94,9 +94,12 @@ impl SandboxPolicy {
                 .unwrap_or_default();
             return match self.classify_write_path(Path::new(path_str)) {
                 WritePath::InsideSandbox => (Bucket::SandboxWrite, Decision::Allow),
-                WritePath::InsideProject => {
-                    (Bucket::ProjectModule { module: "fs".into() }, Decision::ApproveOnce)
-                }
+                WritePath::InsideProject => (
+                    Bucket::ProjectModule {
+                        module: "fs".into(),
+                    },
+                    Decision::ApproveOnce,
+                ),
                 WritePath::OutsideProject => (Bucket::DestructiveDelete, Decision::AlwaysAsk),
             };
         }
@@ -261,7 +264,10 @@ mod tests {
         let tmp = tempdir().unwrap();
         let p = pol(tmp.path());
         let outside = std::env::temp_dir().join("not_my_project").join("x");
-        let (_, d) = p.classify("file_write", &json!({"path": outside.display().to_string()}));
+        let (_, d) = p.classify(
+            "file_write",
+            &json!({"path": outside.display().to_string()}),
+        );
         assert_eq!(d, Decision::AlwaysAsk);
     }
 

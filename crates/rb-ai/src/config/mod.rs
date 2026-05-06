@@ -273,6 +273,9 @@ mod agent_config_tests {
         let c = AgentConfig::default();
         let s = serde_json::to_string(&c).unwrap();
         let back: AgentConfig = serde_json::from_str(&s).unwrap();
-        assert_eq!(c.code_run.default_timeout_secs, back.code_run.default_timeout_secs);
+        assert_eq!(
+            c.code_run.default_timeout_secs,
+            back.code_run.default_timeout_secs
+        );
     }
 }

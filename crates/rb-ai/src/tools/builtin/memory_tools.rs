@@ -84,7 +84,8 @@ fn long_term_def() -> ToolDef {
 fn task_done_def() -> ToolDef {
     ToolDef {
         name: "task_done".into(),
-        description: "Signal the current task is finished; triggers archive + insight crystallize.".into(),
+        description: "Signal the current task is finished; triggers archive + insight crystallize."
+            .into(),
         risk: RiskLevel::Read,
         params: json!({
             "type": "object",
@@ -105,10 +106,7 @@ impl ToolExecutor for RecallExec {
             .get("query")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::InvalidArgs("query required".into()))?;
-        let top_k = args
-            .get("top_k")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(5) as usize;
+        let top_k = args.get("top_k").and_then(|v| v.as_u64()).unwrap_or(5) as usize;
         let store = ctx
             .memory
             .ok_or_else(|| ToolError::Execution("memory not wired".into()))?;

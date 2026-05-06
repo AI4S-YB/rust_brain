@@ -88,7 +88,9 @@ mod tests {
         store.ensure_project(&project).unwrap();
         let session = AgentSession::new(project.display().to_string());
         // Pre-populate a checkpoint to verify it's cleared.
-        fsync_checkpoint(&store, &project, &session, "snap").await.unwrap();
+        fsync_checkpoint(&store, &project, &session, "snap")
+            .await
+            .unwrap();
         assert!(project.join("agent/checkpoints/current.json").exists());
         finalize(
             &store,
