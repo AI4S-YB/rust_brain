@@ -6,3 +6,6 @@ pub use policy::{Bucket, Decision, PolicyMode, SandboxPolicy, require_inside};
 
 pub mod pixi;
 pub use pixi::{Lang, PixiRuntime};
+
+pub mod net;
+pub use net::{NetEntry, NetLogger};
