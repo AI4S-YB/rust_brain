@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.11.1 — 2026-05-07
+
+### Fix
+
+- Bump `deps/DESeq2_rs` and `deps/fastqc-rs` submodules to current
+  `origin/main` (`f3d6fc5` and `52e1033` respectively). The previously
+  pinned commits had been removed from the upstream repos by a
+  force-push and could no longer be fetched, breaking the v0.11.0
+  release CI at the submodule checkout step. No source changes — both
+  adapters compile and pass tests against the bumped tools.
+
 ## v0.11.0 — 2026-05-07
 
 ### New
