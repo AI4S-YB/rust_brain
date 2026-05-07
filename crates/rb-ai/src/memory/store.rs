@@ -211,7 +211,13 @@ fn ensure_index(path: &Path) -> Result<(), AiError> {
 fn append_with_lock(path: &Path, data: &[u8]) -> Result<(), AiError> {
     use std::fs::OpenOptions;
     use std::io::Write;
-    let f = OpenOptions::new().create(true).append(true).open(path)?;
+    // `.read(true)` is required for Windows: `LockFileEx` rejects file
+    // handles opened with append-only access.
+    let f = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .read(true)
+        .open(path)?;
     f.lock_exclusive()
         .map_err(|e| AiError::MemoryWrite(format!("lock {}: {e}", path.display())))?;
     let res = (&f).write_all(data).and_then(|_| f.sync_data());
@@ -245,10 +251,13 @@ where
         std::fs::create_dir_all(p)?;
     }
     let lock_path = path.with_extension("lock");
+    // `.read(true)` is required for Windows: `LockFileEx` rejects file
+    // handles opened without read access.
     let lock_file = std::fs::OpenOptions::new()
         .create(true)
         .truncate(false)
         .write(true)
+        .read(true)
         .open(&lock_path)?;
     lock_file
         .lock_exclusive()

@@ -207,7 +207,32 @@ impl SandboxPolicy {
             self.project_root.join(p)
         };
         let cleaned = path_clean::clean(&abs);
-        std::fs::canonicalize(&cleaned).unwrap_or(cleaned)
+        if let Ok(c) = std::fs::canonicalize(&cleaned) {
+            return c;
+        }
+        // Walk up to the deepest existing ancestor, canonicalize that, then
+        // re-append the missing tail. Required so non-existent paths get
+        // the same symlink resolution as their existing parents — without
+        // this, macOS `/var/...` (symlink to `/private/var/...`) and Windows
+        // `\\?\` UNC prefixes cause `path_inside` to mis-classify sandbox
+        // writes as outside-project.
+        let mut tail: Vec<std::ffi::OsString> = vec![];
+        let mut cur = cleaned.clone();
+        loop {
+            if let Some(name) = cur.file_name().map(|n| n.to_os_string()) {
+                tail.push(name);
+            }
+            if !cur.pop() {
+                return cleaned;
+            }
+            if let Ok(canon) = std::fs::canonicalize(&cur) {
+                let mut result = canon;
+                for seg in tail.iter().rev() {
+                    result.push(seg);
+                }
+                return result;
+            }
+        }
     }
 }
 

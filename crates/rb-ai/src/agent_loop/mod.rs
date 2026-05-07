@@ -385,4 +385,3 @@ fn to_provider_messages(messages: &[Value]) -> Vec<ProviderMessage> {
         })
         .collect()
 }
-

@@ -60,9 +60,12 @@ impl NetLogger {
         }
         let line = serde_json::to_string(entry)? + "\n";
         let _g = self.inner.lock().unwrap();
+        // `.read(true)` is required for Windows: `LockFileEx` rejects file
+        // handles opened with append-only access.
         let f = std::fs::OpenOptions::new()
             .create(true)
             .append(true)
+            .read(true)
             .open(&self.path)?;
         f.lock_exclusive()
             .map_err(|e| AiError::MemoryWrite(format!("net log lock: {e}")))?;

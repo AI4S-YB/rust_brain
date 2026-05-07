@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.11.3 — 2026-05-07
+
+### Fix
+
+- **macOS sandbox path classification**: `SandboxPolicy::classify_write_path`
+  used `std::fs::canonicalize` directly, which returns the original path
+  unchanged when the target file doesn't exist yet. On macOS the sandbox
+  *directory* canonicalizes to `/private/var/folders/...` while a not-yet-
+  -written file under it stays at `/var/folders/...`, so `starts_with`
+  fails and the write is mis-classified as outside-project. Same shape
+  on Windows with `\\?\` UNC prefixes. Now walks up to the deepest
+  existing ancestor, canonicalizes that, then re-appends the missing
+  tail — so candidate and root resolve through identical logic.
+- **Windows file lock failures**: `fs2::FileExt::lock_exclusive` requires
+  the underlying handle to have read access on Windows; calling it on a
+  handle opened with `OpenOptions::append(true)` (no read) returns
+  `ERROR_ACCESS_DENIED` from `LockFileEx`. Added `.read(true)` to the
+  three call sites: `MemoryStore::append_with_lock`, `update_index`,
+  and `NetLogger::record`.
+
+Together these unblock CI on macOS / Windows. v0.11.2's CI got past
+submodule-checkout + fmt but hung for 2h on
+`agent_loop::execute::tests::allow_path_runs_immediately` (macOS+Win)
+and produced 6 confirmed failures in `sandbox::policy`, `memory::store`,
+`sandbox::net`, `agent_loop::record`, and `memory::crystallize`. The
+two fixes above address all of them.
+
 ## v0.11.2 — 2026-05-07
 
 ### Fix
