@@ -228,15 +228,9 @@ mod tests {
 
     fn ctx_with_mem<'a>(
         store: &'a Arc<MemoryStore>,
-        project: &'a Arc<tokio::sync::Mutex<rb_core::project::Project>>,
-        runner: &'a Arc<rb_core::runner::Runner>,
-        binres: &'a Arc<tokio::sync::Mutex<rb_core::binary::BinaryResolver>>,
         proot: &'a std::path::Path,
     ) -> ToolContext<'a> {
         ToolContext {
-            project,
-            runner,
-            binary_resolver: binres,
             memory: Some(store),
             session_id: Some("sess1"),
             project_root: Some(proot),
@@ -250,14 +244,7 @@ mod tests {
         let store = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
         let proot = tmp.path().join("proj");
         store.ensure_project(&proot).unwrap();
-        let project = Arc::new(tokio::sync::Mutex::new(
-            rb_core::project::Project::create("t", &proot).unwrap(),
-        ));
-        let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
-        let binres = Arc::new(tokio::sync::Mutex::new(
-            rb_core::binary::BinaryResolver::with_defaults_at(proot.join("binaries.json")),
-        ));
-        let ctx = ctx_with_mem(&store, &project, &runner, &binres, &proot);
+        let ctx = ctx_with_mem(&store, &proot);
         let exec = UpdateCpExec;
         exec.execute(
             &json!({
@@ -277,14 +264,7 @@ mod tests {
         let store = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
         let proot = tmp.path().join("proj");
         store.ensure_project(&proot).unwrap();
-        let project = Arc::new(tokio::sync::Mutex::new(
-            rb_core::project::Project::create("t", &proot).unwrap(),
-        ));
-        let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
-        let binres = Arc::new(tokio::sync::Mutex::new(
-            rb_core::binary::BinaryResolver::with_defaults_at(proot.join("binaries.json")),
-        ));
-        let ctx = ctx_with_mem(&store, &project, &runner, &binres, &proot);
+        let ctx = ctx_with_mem(&store, &proot);
         let exec = TaskDoneExec;
         let out = exec
             .execute(&json!({"headline": "did rna-seq", "tags":["rna-seq"]}), ctx)

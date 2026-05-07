@@ -271,21 +271,8 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
-    fn dummy_ctx(root: &std::path::Path) -> ToolContext<'static> {
-        // Build leaks/Box::leak: only acceptable in tests for short-lived ctx.
-        let project = Box::leak(Box::new(std::sync::Arc::new(tokio::sync::Mutex::new(
-            rb_core::project::Project::create("t", root).unwrap(),
-        ))));
-        let runner = Box::leak(Box::new(std::sync::Arc::new(rb_core::runner::Runner::new(
-            project.clone(),
-        ))));
-        let binres = Box::leak(Box::new(std::sync::Arc::new(tokio::sync::Mutex::new(
-            rb_core::binary::BinaryResolver::with_defaults_at(root.join("binaries.json")),
-        ))));
+    fn dummy_ctx(_root: &std::path::Path) -> ToolContext<'static> {
         ToolContext {
-            project,
-            runner,
-            binary_resolver: binres,
             memory: None,
             session_id: None,
             project_root: None,

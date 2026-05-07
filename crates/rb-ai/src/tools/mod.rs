@@ -1,4 +1,5 @@
 pub mod builtin;
+#[cfg(feature = "bio-tools")]
 pub mod module_derived;
 pub mod schema;
 pub mod skill;
@@ -10,21 +11,15 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use rb_core::project::Project;
-use rb_core::runner::Runner;
-
-/// Context handed to tool executors. Gives them project-level access
-/// without leaking `ModuleRegistry` internals.
+/// Host-agnostic context handed to tool executors. Tools that need
+/// domain-specific state (a project tree, a task runner, etc.) carry
+/// their own `Arc<...>` inside the executor struct, set at registration.
 ///
-/// The optional fields (`memory`, `session_id`, `project_root`,
-/// `ask_user_tx`) are wired by `agent_loop` for memory-mutating tools
+/// The optional fields are wired by `agent_loop` for memory-mutating tools
 /// (`recall_memory`, `update_working_checkpoint`, `start_long_term_update`,
-/// `task_done`, `ask_user`). Builtin Read-tier tools that only need
-/// project/runner access can ignore them.
+/// `task_done`, `ask_user`). Builtin Read-tier tools that don't need them
+/// can ignore them.
 pub struct ToolContext<'a> {
-    pub project: &'a Arc<tokio::sync::Mutex<Project>>,
-    pub runner: &'a Arc<Runner>,
-    pub binary_resolver: &'a Arc<tokio::sync::Mutex<rb_core::binary::BinaryResolver>>,
     pub memory: Option<&'a Arc<crate::memory::MemoryStore>>,
     pub session_id: Option<&'a str>,
     pub project_root: Option<&'a std::path::Path>,

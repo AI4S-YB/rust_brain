@@ -54,13 +54,6 @@ async fn agent_runs_scripted_session_to_task_done() {
     let tmp = tempdir().unwrap();
     let project_root = tmp.path().join("proj");
     std::fs::create_dir_all(&project_root).unwrap();
-    let project = Arc::new(Mutex::new(
-        rb_core::project::Project::create("demo", &project_root).unwrap(),
-    ));
-    let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
-    let binres = Arc::new(Mutex::new(
-        rb_core::binary::BinaryResolver::with_defaults_at(project_root.join("binaries.json")),
-    ));
     let memory = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
     memory.ensure_project(&project_root).unwrap();
     let policy = Arc::new(SandboxPolicy::new(project_root.clone(), "sandbox"));
@@ -134,9 +127,6 @@ async fn agent_runs_scripted_session_to_task_done() {
     });
 
     let ctx = RunSessionCtx {
-        project,
-        runner,
-        binary_resolver: binres,
         registry,
         policy,
         memory: memory.clone(),
@@ -144,6 +134,7 @@ async fn agent_runs_scripted_session_to_task_done() {
         provider,
         net_log,
         project_root: project_root.clone(),
+        system_context: String::new(),
         config: RunConfig::default(),
     };
     run_session(
@@ -192,13 +183,6 @@ async fn agent_aborts_after_consecutive_failures() {
     let tmp = tempdir().unwrap();
     let project_root = tmp.path().join("proj");
     std::fs::create_dir_all(&project_root).unwrap();
-    let project = Arc::new(Mutex::new(
-        rb_core::project::Project::create("demo", &project_root).unwrap(),
-    ));
-    let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
-    let binres = Arc::new(Mutex::new(
-        rb_core::binary::BinaryResolver::with_defaults_at(project_root.join("binaries.json")),
-    ));
     let memory = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
     memory.ensure_project(&project_root).unwrap();
     let policy = Arc::new(SandboxPolicy::new(project_root.clone(), "sandbox"));
@@ -240,9 +224,6 @@ async fn agent_aborts_after_consecutive_failures() {
     cfg.max_consecutive_failures = 3;
 
     let ctx = RunSessionCtx {
-        project,
-        runner,
-        binary_resolver: binres,
         registry,
         policy,
         memory: memory.clone(),
@@ -250,6 +231,7 @@ async fn agent_aborts_after_consecutive_failures() {
         provider,
         net_log,
         project_root: project_root.clone(),
+        system_context: String::new(),
         config: cfg,
     };
     let r = run_session(
@@ -278,13 +260,6 @@ async fn agent_cancel_writes_cancelled_archive() {
     let tmp = tempdir().unwrap();
     let project_root = tmp.path().join("proj");
     std::fs::create_dir_all(&project_root).unwrap();
-    let project = Arc::new(Mutex::new(
-        rb_core::project::Project::create("demo", &project_root).unwrap(),
-    ));
-    let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
-    let binres = Arc::new(Mutex::new(
-        rb_core::binary::BinaryResolver::with_defaults_at(project_root.join("binaries.json")),
-    ));
     let memory = Arc::new(MemoryStore::open(tmp.path().join("global")).unwrap());
     memory.ensure_project(&project_root).unwrap();
     let policy = Arc::new(SandboxPolicy::new(project_root.clone(), "sandbox"));
@@ -309,9 +284,6 @@ async fn agent_cancel_writes_cancelled_archive() {
     cancel.cancel();
 
     let ctx = RunSessionCtx {
-        project,
-        runner,
-        binary_resolver: binres,
         registry,
         policy,
         memory: memory.clone(),
@@ -319,6 +291,7 @@ async fn agent_cancel_writes_cancelled_archive() {
         provider,
         net_log,
         project_root: project_root.clone(),
+        system_context: String::new(),
         config: RunConfig::default(),
     };
     let r = run_session(

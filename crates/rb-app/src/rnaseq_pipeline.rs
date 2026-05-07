@@ -18,14 +18,27 @@ use rb_core::asset::AssetKind;
 use rb_core::input::{InputKind, InputRecord};
 use rb_core::module::{Module, ModuleResult, ValidationError};
 use rb_core::project::{Project, RunRecord, RunStatus};
+use rb_core::runner::Runner;
 use rb_core::sample::{default_read_pair_patterns, SampleRecord};
 use serde_json::{json, Value};
+use tokio::sync::Mutex;
 
-pub fn register_all(registry: &mut ToolRegistry, modules: &[Arc<dyn Module>], lang: &str) {
-    registry.register(rnaseq_pipeline_entry(modules, lang));
+pub fn register_all(
+    registry: &mut ToolRegistry,
+    modules: &[Arc<dyn Module>],
+    project: Arc<Mutex<Project>>,
+    runner: Arc<Runner>,
+    lang: &str,
+) {
+    registry.register(rnaseq_pipeline_entry(modules, project, runner, lang));
 }
 
-fn rnaseq_pipeline_entry(modules: &[Arc<dyn Module>], lang: &str) -> ToolEntry {
+fn rnaseq_pipeline_entry(
+    modules: &[Arc<dyn Module>],
+    project: Arc<Mutex<Project>>,
+    runner: Arc<Runner>,
+    lang: &str,
+) -> ToolEntry {
     let description = match lang {
         "zh" => "自动运行标准 RNA-seq / 转录组分析流水线: 发现项目样本和参考 FASTA/GTF,复用或构建 STAR index,逐样本比对,合并 ReadsPerGene counts,并在条件满足时继续做基因长度、TPM/FPKM、RustQC 和 DESeq2。工具内部会等待每个阻塞步骤完成。".to_string(),
         _ => "Run a standard RNA-seq / transcriptome pipeline: discover project samples and reference FASTA/GTF, reuse or build a STAR index, align samples, merge ReadsPerGene counts, and continue with gene lengths, TPM/FPKM, RustQC, and DESeq2 when inputs are available. The tool waits for blocking steps internally.".to_string(),
@@ -154,20 +167,24 @@ fn rnaseq_pipeline_entry(modules: &[Arc<dyn Module>], lang: &str) -> ToolEntry {
                 .iter()
                 .map(|m| (m.id().to_string(), m.clone()))
                 .collect(),
+            project,
+            runner,
         }),
     }
 }
 
 struct RnaSeqPipelineExec {
     modules: HashMap<String, Arc<dyn Module>>,
+    project: Arc<Mutex<Project>>,
+    runner: Arc<Runner>,
 }
 
 #[async_trait]
 impl ToolExecutor for RnaSeqPipelineExec {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let params = PipelineArgs::from_value(args)?;
         let discovery = {
-            let project = ctx.project.lock().await;
+            let project = self.project.lock().await;
             discover_project(&project, &params)?
         };
 
@@ -203,7 +220,8 @@ impl ToolExecutor for RnaSeqPipelineExec {
                     discovery.reference.gtf_input_id.clone(),
                 ]);
                 let record = spawn_and_wait_required(
-                    &ctx,
+                    &self.runner,
+                    &self.project,
                     star_index,
                     index_params,
                     input_ids,
@@ -229,7 +247,8 @@ impl ToolExecutor for RnaSeqPipelineExec {
             };
 
         let alignments = run_alignments(
-            &ctx,
+            &self.runner,
+            &self.project,
             star_align,
             &discovery.samples,
             &genome_dir,
@@ -258,7 +277,8 @@ impl ToolExecutor for RnaSeqPipelineExec {
             "output_name": "counts_matrix.tsv",
         });
         let counts_record = spawn_and_wait_required(
-            &ctx,
+            &self.runner,
+            &self.project,
             counts_merge,
             counts_params,
             fastq_input_ids,
@@ -273,7 +293,8 @@ impl ToolExecutor for RnaSeqPipelineExec {
         if params.run_gene_length {
             if let Some(module) = self.modules.get("gene_length").cloned() {
                 let record = spawn_and_wait_optional(
-                    &ctx,
+                    &self.runner,
+            &self.project,
                     module,
                     json!({
                         "gtf": discovery.reference.gtf_file,
@@ -306,7 +327,8 @@ impl ToolExecutor for RnaSeqPipelineExec {
                 Some(lengths) => {
                     if let Some(module) = self.modules.get("expr_norm").cloned() {
                         match spawn_and_wait_optional(
-                            &ctx,
+                            &self.runner,
+            &self.project,
                             module,
                             json!({
                                 "counts": counts_matrix,
@@ -347,7 +369,8 @@ impl ToolExecutor for RnaSeqPipelineExec {
                     warnings.push(json!({"step": "rustqc", "status": "skipped", "reason": "no BAM outputs found"}));
                 } else {
                     match spawn_and_wait_optional(
-                        &ctx,
+                        &self.runner,
+            &self.project,
                         module,
                         json!({
                             "input_bams": bam_paths,
@@ -373,11 +396,12 @@ impl ToolExecutor for RnaSeqPipelineExec {
         }
 
         if params.run_differential {
-            match prepare_deseq2_coldata(&ctx, &discovery.samples, &params).await {
+            match prepare_deseq2_coldata(&self.project, &discovery.samples, &params).await {
                 Ok(Some(coldata)) => {
                     if let Some(module) = self.modules.get("deseq2").cloned() {
                         match spawn_and_wait_optional(
-                            &ctx,
+                            &self.runner,
+            &self.project,
                             module,
                             json!({
                                 "counts_path": counts_matrix,
@@ -758,7 +782,8 @@ fn dedupe_sample_names(samples: &mut [PipelineSample]) {
 }
 
 async fn run_alignments(
-    ctx: &ToolContext<'_>,
+    runner: &Arc<Runner>,
+    project: &Arc<Mutex<Project>>,
     module: Arc<dyn Module>,
     samples: &[PipelineSample],
     genome_dir: &str,
@@ -783,8 +808,7 @@ async fn run_alignments(
         validate_module(module.as_ref(), &align_params)?;
         let input_ids =
             ids_present(&[Some(sample.r1_input_id.clone()), sample.r2_input_id.clone()]);
-        let run_id = ctx
-            .runner
+        let run_id = runner
             .spawn(
                 module.clone(),
                 align_params,
@@ -796,11 +820,11 @@ async fn run_alignments(
         pending.push((run_id, sample.clone()));
 
         if pending.len() >= params.parallel_alignments {
-            drain_alignment_batch(ctx.project, &mut pending, &mut outputs, params, steps).await?;
+            drain_alignment_batch(project, &mut pending, &mut outputs, params, steps).await?;
         }
     }
 
-    drain_alignment_batch(ctx.project, &mut pending, &mut outputs, params, steps).await?;
+    drain_alignment_batch(project, &mut pending, &mut outputs, params, steps).await?;
     Ok(outputs)
 }
 
@@ -821,7 +845,8 @@ async fn drain_alignment_batch(
 }
 
 async fn spawn_and_wait_required(
-    ctx: &ToolContext<'_>,
+    runner: &Arc<Runner>,
+    project: &Arc<Mutex<Project>>,
     module: Arc<dyn Module>,
     run_params: Value,
     inputs_used: Vec<String>,
@@ -829,12 +854,11 @@ async fn spawn_and_wait_required(
     params: &PipelineArgs,
 ) -> Result<RunRecord, ToolError> {
     validate_module(module.as_ref(), &run_params)?;
-    let run_id = ctx
-        .runner
+    let run_id = runner
         .spawn(module, run_params, inputs_used, assets_used)
         .await
         .map_err(ToolError::Execution)?;
-    let record = wait_for_terminal(ctx.project, &run_id, params).await?;
+    let record = wait_for_terminal(project, &run_id, params).await?;
     ensure_done(&record)?;
     Ok(record)
 }
@@ -845,7 +869,8 @@ enum OptionalRun {
 }
 
 async fn spawn_and_wait_optional(
-    ctx: &ToolContext<'_>,
+    runner: &Arc<Runner>,
+    project: &Arc<Mutex<Project>>,
     module: Arc<dyn Module>,
     run_params: Value,
     inputs_used: Vec<String>,
@@ -859,8 +884,7 @@ async fn spawn_and_wait_optional(
             "reason": e.to_string(),
         }));
     }
-    let run_id = match ctx
-        .runner
+    let run_id = match runner
         .spawn(module.clone(), run_params, inputs_used, assets_used)
         .await
     {
@@ -873,7 +897,7 @@ async fn spawn_and_wait_optional(
             }))
         }
     };
-    match wait_for_terminal(ctx.project, &run_id, params).await {
+    match wait_for_terminal(project, &run_id, params).await {
         Ok(record) if matches!(record.status, RunStatus::Done) => OptionalRun::Done(record),
         Ok(record) => OptionalRun::Skipped(json!({
             "step": module.id(),
@@ -1067,7 +1091,7 @@ struct DeseqColdata {
 }
 
 async fn prepare_deseq2_coldata(
-    ctx: &ToolContext<'_>,
+    project: &Arc<Mutex<Project>>,
     samples: &[PipelineSample],
     params: &PipelineArgs,
 ) -> Result<Option<DeseqColdata>, ToolError> {
@@ -1114,7 +1138,7 @@ async fn prepare_deseq2_coldata(
         return Ok(None);
     };
 
-    let root = { ctx.project.lock().await.root_dir.clone() };
+    let root = { project.lock().await.root_dir.clone() };
     let dir = root.join("ai_workflows");
     std::fs::create_dir_all(&dir)
         .map_err(|e| ToolError::Execution(format!("create ai_workflows: {e}")))?;

@@ -13,8 +13,7 @@ pub use types::{AgentEvent, AgentSession, SharedSession};
 // run_session: orchestrate perceive → reason → execute → record.
 //
 // The caller hands us:
-// - the project + runner + binary_resolver (rb_core),
-// - a built ToolRegistry (with builtin + module_derived + skill tools),
+// - a built ToolRegistry (host injects bio-specific tools via their own Arcs),
 // - a SandboxPolicy,
 // - a Recaller (BM25 fallback, optionally Composite with Flash),
 // - a ChatProvider,
@@ -66,9 +65,6 @@ impl Default for RunConfig {
 }
 
 pub struct RunSessionCtx {
-    pub project: Arc<Mutex<rb_core::project::Project>>,
-    pub runner: Arc<rb_core::runner::Runner>,
-    pub binary_resolver: Arc<Mutex<rb_core::binary::BinaryResolver>>,
     pub registry: Arc<ToolRegistry>,
     pub policy: Arc<SandboxPolicy>,
     pub memory: Arc<MemoryStore>,
@@ -76,6 +72,9 @@ pub struct RunSessionCtx {
     pub provider: Arc<dyn ChatProvider>,
     pub net_log: Arc<NetLogger>,
     pub project_root: std::path::PathBuf,
+    /// Pre-computed host-supplied summary fed into the system prompt
+    /// (e.g. project name, recent runs). Empty string disables the section.
+    pub system_context: String,
     pub config: RunConfig,
 }
 
@@ -98,14 +97,13 @@ pub async fn run_session(
 
     // Outer perceive — recall once per session-start (not per turn) keeps
     // determinism. Per-turn updates are achievable via recall_memory tool.
-    let proj_summary = orchestrator_compat::project_summary(&ctx.project).await;
     let perceive_out = perceive(
         &ctx.memory,
         Some(&ctx.project_root),
         ctx.recaller.clone(),
         &PerceiveCtx {
             user_text: user_text.clone(),
-            project_summary: proj_summary.clone(),
+            project_summary: ctx.system_context.clone(),
         },
         ctx.config.recall_budget_tokens,
     )
@@ -231,9 +229,6 @@ pub async fn run_session(
                 ExecCtx {
                     policy: &ctx.policy,
                     registry: &ctx.registry,
-                    project: &ctx.project,
-                    runner: &ctx.runner,
-                    binary_resolver: &ctx.binary_resolver,
                     memory: Some(&ctx.memory),
                     session_id: &session_id,
                     project_root: Some(&ctx.project_root),
@@ -391,26 +386,3 @@ fn to_provider_messages(messages: &[Value]) -> Vec<ProviderMessage> {
         .collect()
 }
 
-// orchestrator_compat module: snapshot helper. We deleted orchestrator/, so
-// we keep a slim copy of `snapshot::build` here under that name.
-mod orchestrator_compat {
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
-
-    pub async fn project_summary(project: &Arc<Mutex<rb_core::project::Project>>) -> String {
-        // Inline minimal version of the deleted orchestrator/snapshot.rs::build.
-        let p = project.lock().await;
-        format!(
-            "Project: {}\nDefault view: {}\nRecent runs:\n{}",
-            p.name,
-            p.default_view.as_deref().unwrap_or("manual"),
-            p.runs
-                .iter()
-                .rev()
-                .take(10)
-                .map(|r| format!("  {}: {} {:?}", r.id, r.module_id, r.status))
-                .collect::<Vec<_>>()
-                .join("\n")
-        )
-    }
-}

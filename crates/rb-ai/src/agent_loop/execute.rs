@@ -24,9 +24,6 @@ pub enum ApprovalVerdict {
 pub struct ExecCtx<'a> {
     pub policy: &'a SandboxPolicy,
     pub registry: &'a ToolRegistry,
-    pub project: &'a Arc<Mutex<rb_core::project::Project>>,
-    pub runner: &'a Arc<rb_core::runner::Runner>,
-    pub binary_resolver: &'a Arc<Mutex<rb_core::binary::BinaryResolver>>,
     pub memory: Option<&'a Arc<crate::memory::MemoryStore>>,
     pub session_id: &'a str,
     pub project_root: Option<&'a std::path::Path>,
@@ -85,9 +82,6 @@ pub async fn execute_call(ctx: ExecCtx<'_>, call: ProviderToolCall) -> Result<Va
         .get(&call.name)
         .ok_or_else(|| AiError::Tool(format!("unknown tool: {}", call.name)))?;
     let tool_ctx = ToolContext {
-        project: ctx.project,
-        runner: ctx.runner,
-        binary_resolver: ctx.binary_resolver,
         memory: ctx.memory,
         session_id: Some(ctx.session_id),
         project_root: ctx.project_root,
@@ -155,29 +149,11 @@ mod tests {
         r
     }
 
-    fn rb_core_handles(
-        root: &std::path::Path,
-    ) -> (
-        Arc<Mutex<rb_core::project::Project>>,
-        Arc<rb_core::runner::Runner>,
-        Arc<Mutex<rb_core::binary::BinaryResolver>>,
-    ) {
-        let project = Arc::new(Mutex::new(
-            rb_core::project::Project::create("t", root).unwrap(),
-        ));
-        let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
-        let binres = Arc::new(Mutex::new(
-            rb_core::binary::BinaryResolver::with_defaults_at(root.join("binaries.json")),
-        ));
-        (project, runner, binres)
-    }
-
     #[tokio::test]
     async fn allow_path_runs_immediately() {
         let tmp = tempdir().unwrap();
         let policy = SandboxPolicy::new(tmp.path().to_path_buf(), "sandbox");
         let reg = registry();
-        let (proj, run, br) = rb_core_handles(tmp.path());
         let (sink_tx, mut sink_rx) = mpsc::channel(16);
         let (_appr_tx, appr_rx) = mpsc::channel(1);
         let appr_rx = Mutex::new(appr_rx);
@@ -186,9 +162,6 @@ mod tests {
             ExecCtx {
                 policy: &policy,
                 registry: &reg,
-                project: &proj,
-                runner: &run,
-                binary_resolver: &br,
                 memory: None,
                 session_id: "s",
                 project_root: Some(tmp.path()),

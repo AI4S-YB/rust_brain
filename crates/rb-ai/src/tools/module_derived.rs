@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use rb_core::module::Module;
+use rb_core::runner::Runner;
 use serde_json::Value;
 
 use super::schema::{RiskLevel, ToolDef, ToolError};
@@ -10,7 +11,12 @@ use super::{ToolContext, ToolEntry, ToolExecutor, ToolOutput, ToolRegistry};
 /// Register a `run_{module.id}` Run-risk tool for every module whose
 /// `params_schema` is `Some(_)`. Modules returning `None` are skipped so
 /// half-specified modules can't accidentally be invoked by the LLM.
-pub fn register_for_modules(registry: &mut ToolRegistry, modules: &[Arc<dyn Module>], lang: &str) {
+pub fn register_for_modules(
+    registry: &mut ToolRegistry,
+    modules: &[Arc<dyn Module>],
+    runner: Arc<Runner>,
+    lang: &str,
+) {
     for m in modules {
         let Some(schema) = m.params_schema() else {
             continue;
@@ -29,18 +35,22 @@ pub fn register_for_modules(registry: &mut ToolRegistry, modules: &[Arc<dyn Modu
                 risk: RiskLevel::RunMid,
                 params: schema,
             },
-            executor: Arc::new(ModuleRunExec { module: m.clone() }),
+            executor: Arc::new(ModuleRunExec {
+                module: m.clone(),
+                runner: runner.clone(),
+            }),
         });
     }
 }
 
 pub struct ModuleRunExec {
     pub module: Arc<dyn Module>,
+    pub runner: Arc<Runner>,
 }
 
 #[async_trait]
 impl ToolExecutor for ModuleRunExec {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         // Validate before spawning so schema-level errors surface as
         // InvalidArgs (recoverable at the LLM layer) rather than Execution.
         let errs = self.module.validate(args);
@@ -52,7 +62,7 @@ impl ToolExecutor for ModuleRunExec {
                     .join("; "),
             ));
         }
-        let run_id = ctx
+        let run_id = self
             .runner
             .spawn(self.module.clone(), args.clone(), Vec::new(), Vec::new())
             .await
@@ -146,11 +156,21 @@ mod tests {
         }
     }
 
+    fn dummy_runner() -> Arc<rb_core::runner::Runner> {
+        let tmp = tempfile::tempdir().unwrap();
+        let project = Arc::new(tokio::sync::Mutex::new(
+            rb_core::project::Project::create("t", tmp.path()).unwrap(),
+        ));
+        // Tempdir leaks here are fine for short-lived test runners.
+        Box::leak(Box::new(tmp));
+        Arc::new(rb_core::runner::Runner::new(project))
+    }
+
     #[test]
     fn module_without_schema_is_skipped() {
         let mut reg = ToolRegistry::new();
         let mods: Vec<Arc<dyn Module>> = vec![Arc::new(OkModule), Arc::new(SilentModule)];
-        register_for_modules(&mut reg, &mods, "en");
+        register_for_modules(&mut reg, &mods, dummy_runner(), "en");
         assert!(reg.get("run_ok").is_some());
         assert!(
             reg.get("run_silent").is_none(),
@@ -162,7 +182,7 @@ mod tests {
     fn derived_tool_uses_ai_hint_when_present() {
         let mut reg = ToolRegistry::new();
         let mods: Vec<Arc<dyn Module>> = vec![Arc::new(OkModule)];
-        register_for_modules(&mut reg, &mods, "en");
+        register_for_modules(&mut reg, &mods, dummy_runner(), "en");
         let entry = reg.get("run_ok").unwrap();
         assert_eq!(entry.def.description, "ok module");
         assert_eq!(entry.def.risk, RiskLevel::RunMid);

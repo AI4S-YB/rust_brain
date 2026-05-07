@@ -2,29 +2,35 @@ use std::path::Path;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use rb_core::project::RunStatus;
+use rb_core::binary::BinaryResolver;
+use rb_core::project::{Project, RunStatus};
 use serde_json::{json, Value};
+use tokio::sync::Mutex;
 
 use crate::tools::schema::{RiskLevel, ToolDef, ToolError};
 use crate::tools::{ToolContext, ToolEntry, ToolExecutor, ToolOutput, ToolRegistry};
 
-pub fn register(registry: &mut ToolRegistry) {
-    registry.register(list_project_files_entry());
-    registry.register(list_project_inputs_entry());
-    registry.register(list_project_samples_entry());
-    registry.register(list_project_assets_entry());
-    registry.register(list_project_runs_entry());
-    registry.register(read_table_preview_entry());
-    registry.register(get_project_info_entry());
-    registry.register(get_run_status_entry());
-    registry.register(wait_for_run_entry());
-    registry.register(summarize_run_entry());
-    registry.register(list_known_binaries_entry());
+pub fn register(
+    registry: &mut ToolRegistry,
+    project: Arc<Mutex<Project>>,
+    binres: Arc<Mutex<BinaryResolver>>,
+) {
+    registry.register(list_project_files_entry(project.clone()));
+    registry.register(list_project_inputs_entry(project.clone()));
+    registry.register(list_project_samples_entry(project.clone()));
+    registry.register(list_project_assets_entry(project.clone()));
+    registry.register(list_project_runs_entry(project.clone()));
+    registry.register(read_table_preview_entry(project.clone()));
+    registry.register(get_project_info_entry(project.clone()));
+    registry.register(get_run_status_entry(project.clone()));
+    registry.register(wait_for_run_entry(project.clone()));
+    registry.register(summarize_run_entry(project));
+    registry.register(list_known_binaries_entry(binres));
 }
 
 // ----- list_project_files -----
 
-fn list_project_files_entry() -> ToolEntry {
+fn list_project_files_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "list_project_files".into(),
@@ -44,17 +50,19 @@ fn list_project_files_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(ListProjectFiles),
+        executor: Arc::new(ListProjectFiles { project }),
     }
 }
 
-struct ListProjectFiles;
+struct ListProjectFiles {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ListProjectFiles {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let subdir = args.get("subdir").and_then(|v| v.as_str()).unwrap_or("");
-        let root = { ctx.project.lock().await.root_dir.clone() };
+        let root = { self.project.lock().await.root_dir.clone() };
         let target = if subdir.is_empty() {
             root.clone()
         } else {
@@ -154,7 +162,7 @@ fn path_string(path: &Path) -> String {
 
 // ----- list_project_inputs -----
 
-fn list_project_inputs_entry() -> ToolEntry {
+fn list_project_inputs_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "list_project_inputs".into(),
@@ -181,15 +189,17 @@ fn list_project_inputs_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(ListProjectInputs),
+        executor: Arc::new(ListProjectInputs { project }),
     }
 }
 
-struct ListProjectInputs;
+struct ListProjectInputs {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ListProjectInputs {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let kind_filter = args
             .get("kind")
             .and_then(|v| v.as_str())
@@ -201,7 +211,7 @@ impl ToolExecutor for ListProjectInputs {
             .unwrap_or(true);
         let limit = value_limit(args, 200, 500);
 
-        let proj = ctx.project.lock().await;
+        let proj = self.project.lock().await;
         let mut items = Vec::new();
         for rec in &proj.inputs {
             let kind = format!("{:?}", rec.kind);
@@ -239,7 +249,7 @@ impl ToolExecutor for ListProjectInputs {
 
 // ----- list_project_samples -----
 
-fn list_project_samples_entry() -> ToolEntry {
+fn list_project_samples_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "list_project_samples".into(),
@@ -253,17 +263,19 @@ fn list_project_samples_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(ListProjectSamples),
+        executor: Arc::new(ListProjectSamples { project }),
     }
 }
 
-struct ListProjectSamples;
+struct ListProjectSamples {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ListProjectSamples {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let limit = value_limit(args, 200, 500);
-        let proj = ctx.project.lock().await;
+        let proj = self.project.lock().await;
         let mut samples = Vec::new();
         for sample in proj.samples.iter().take(limit) {
             let inputs: Vec<Value> = sample
@@ -303,7 +315,7 @@ impl ToolExecutor for ListProjectSamples {
 
 // ----- list_project_assets -----
 
-fn list_project_assets_entry() -> ToolEntry {
+fn list_project_assets_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "list_project_assets".into(),
@@ -321,15 +333,17 @@ fn list_project_assets_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(ListProjectAssets),
+        executor: Arc::new(ListProjectAssets { project }),
     }
 }
 
-struct ListProjectAssets;
+struct ListProjectAssets {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ListProjectAssets {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let kind_filter = args
             .get("kind")
             .and_then(|v| v.as_str())
@@ -337,7 +351,7 @@ impl ToolExecutor for ListProjectAssets {
             .filter(|s| !s.is_empty());
         let limit = value_limit(args, 200, 500);
 
-        let proj = ctx.project.lock().await;
+        let proj = self.project.lock().await;
         let mut assets = Vec::new();
         for asset in &proj.assets {
             let kind = format!("{:?}", asset.kind);
@@ -370,7 +384,7 @@ impl ToolExecutor for ListProjectAssets {
 
 // ----- list_project_runs -----
 
-fn list_project_runs_entry() -> ToolEntry {
+fn list_project_runs_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "list_project_runs".into(),
@@ -386,15 +400,17 @@ fn list_project_runs_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(ListProjectRuns),
+        executor: Arc::new(ListProjectRuns { project }),
     }
 }
 
-struct ListProjectRuns;
+struct ListProjectRuns {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ListProjectRuns {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let module_filter = args
             .get("module_id")
             .and_then(|v| v.as_str())
@@ -407,7 +423,7 @@ impl ToolExecutor for ListProjectRuns {
             .filter(|s| !s.is_empty());
         let limit = value_limit(args, 50, 500);
 
-        let proj = ctx.project.lock().await;
+        let proj = self.project.lock().await;
         let mut runs = Vec::new();
         for r in proj.runs.iter().rev() {
             if let Some(module_id) = module_filter {
@@ -453,7 +469,7 @@ impl ToolExecutor for ListProjectRuns {
 
 // ----- read_table_preview -----
 
-fn read_table_preview_entry() -> ToolEntry {
+fn read_table_preview_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "read_table_preview".into(),
@@ -471,15 +487,17 @@ fn read_table_preview_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(ReadTablePreview),
+        executor: Arc::new(ReadTablePreview { project }),
     }
 }
 
-struct ReadTablePreview;
+struct ReadTablePreview {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ReadTablePreview {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let path = args
             .get("path")
             .and_then(|v| v.as_str())
@@ -489,7 +507,7 @@ impl ToolExecutor for ReadTablePreview {
             .and_then(|v| v.as_u64())
             .unwrap_or(10)
             .min(200) as usize;
-        let root = { ctx.project.lock().await.root_dir.clone() };
+        let root = { self.project.lock().await.root_dir.clone() };
         // Early reject: any `..` component in the requested path is a
         // traversal attempt, regardless of whether the target exists yet.
         if std::path::Path::new(path)
@@ -521,7 +539,7 @@ impl ToolExecutor for ReadTablePreview {
 
 // ----- get_project_info -----
 
-fn get_project_info_entry() -> ToolEntry {
+fn get_project_info_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "get_project_info".into(),
@@ -529,16 +547,18 @@ fn get_project_info_entry() -> ToolEntry {
             risk: RiskLevel::Read,
             params: json!({ "type": "object", "additionalProperties": false }),
         },
-        executor: Arc::new(GetProjectInfo),
+        executor: Arc::new(GetProjectInfo { project }),
     }
 }
 
-struct GetProjectInfo;
+struct GetProjectInfo {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for GetProjectInfo {
-    async fn execute(&self, _args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
-        let proj = ctx.project.lock().await;
+    async fn execute(&self, _args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+        let proj = self.project.lock().await;
         let runs: Vec<_> = proj
             .runs
             .iter()
@@ -566,7 +586,7 @@ impl ToolExecutor for GetProjectInfo {
 
 // ----- get_run_status -----
 
-fn get_run_status_entry() -> ToolEntry {
+fn get_run_status_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "get_run_status".into(),
@@ -581,20 +601,22 @@ fn get_run_status_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(GetRunStatus),
+        executor: Arc::new(GetRunStatus { project }),
     }
 }
 
-struct GetRunStatus;
+struct GetRunStatus {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for GetRunStatus {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let id = args
             .get("run_id")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::InvalidArgs("run_id required".into()))?;
-        let proj = ctx.project.lock().await;
+        let proj = self.project.lock().await;
         let r = proj
             .runs
             .iter()
@@ -613,7 +635,7 @@ impl ToolExecutor for GetRunStatus {
 
 // ----- wait_for_run -----
 
-fn wait_for_run_entry() -> ToolEntry {
+fn wait_for_run_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "wait_for_run".into(),
@@ -642,15 +664,17 @@ fn wait_for_run_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(WaitForRun),
+        executor: Arc::new(WaitForRun { project }),
     }
 }
 
-struct WaitForRun;
+struct WaitForRun {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for WaitForRun {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let id = args
             .get("run_id")
             .and_then(|v| v.as_str())
@@ -669,7 +693,7 @@ impl ToolExecutor for WaitForRun {
 
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(timeout);
         loop {
-            let status = run_status_snapshot(&id, ctx.project).await?;
+            let status = run_status_snapshot(&id, &self.project).await?;
             if status
                 .get("terminal")
                 .and_then(|v| v.as_bool())
@@ -717,7 +741,7 @@ async fn run_status_snapshot(
 
 // ----- summarize_run -----
 
-fn summarize_run_entry() -> ToolEntry {
+fn summarize_run_entry(project: Arc<Mutex<Project>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "summarize_run".into(),
@@ -733,15 +757,17 @@ fn summarize_run_entry() -> ToolEntry {
                 "additionalProperties": false
             }),
         },
-        executor: Arc::new(SummarizeRun),
+        executor: Arc::new(SummarizeRun { project }),
     }
 }
 
-struct SummarizeRun;
+struct SummarizeRun {
+    project: Arc<Mutex<Project>>,
+}
 
 #[async_trait]
 impl ToolExecutor for SummarizeRun {
-    async fn execute(&self, args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+    async fn execute(&self, args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
         let id = args
             .get("run_id")
             .and_then(|v| v.as_str())
@@ -751,7 +777,7 @@ impl ToolExecutor for SummarizeRun {
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
 
-        let proj = ctx.project.lock().await;
+        let proj = self.project.lock().await;
         let r = proj
             .runs
             .iter()
@@ -801,7 +827,7 @@ impl ToolExecutor for SummarizeRun {
 
 // ----- list_known_binaries -----
 
-fn list_known_binaries_entry() -> ToolEntry {
+fn list_known_binaries_entry(binres: Arc<Mutex<BinaryResolver>>) -> ToolEntry {
     ToolEntry {
         def: ToolDef {
             name: "list_known_binaries".into(),
@@ -814,16 +840,18 @@ fn list_known_binaries_entry() -> ToolEntry {
             risk: RiskLevel::Read,
             params: json!({ "type": "object", "additionalProperties": false }),
         },
-        executor: Arc::new(ListKnownBinaries),
+        executor: Arc::new(ListKnownBinaries { binres }),
     }
 }
 
-struct ListKnownBinaries;
+struct ListKnownBinaries {
+    binres: Arc<Mutex<BinaryResolver>>,
+}
 
 #[async_trait]
 impl ToolExecutor for ListKnownBinaries {
-    async fn execute(&self, _args: &Value, ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
-        let resolver = ctx.binary_resolver.lock().await;
+    async fn execute(&self, _args: &Value, _ctx: ToolContext<'_>) -> Result<ToolOutput, ToolError> {
+        let resolver = self.binres.lock().await;
         let items = resolver.list_known();
         Ok(ToolOutput::Value(json!({ "binaries": items })))
     }
@@ -832,52 +860,32 @@ impl ToolExecutor for ListKnownBinaries {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rb_core::binary::BinaryResolver;
     use rb_core::module::ModuleResult;
-    use rb_core::project::{Project, RunStatus};
-    use rb_core::runner::Runner;
     use std::path::PathBuf;
-    use std::sync::Arc;
     use tempfile::{tempdir, TempDir};
-    use tokio::sync::Mutex;
 
-    fn make_ctx_fixture() -> (
-        Arc<Mutex<Project>>,
-        Arc<Runner>,
-        Arc<Mutex<BinaryResolver>>,
-        TempDir,
-    ) {
+    fn make_project_fixture() -> (Arc<Mutex<Project>>, TempDir) {
         let tmp = tempdir().unwrap();
         let project = Project::create("t", tmp.path()).unwrap();
         std::fs::write(tmp.path().join("a.tsv"), "h1\th2\n1\t2\n3\t4\n").unwrap();
         std::fs::create_dir_all(tmp.path().join("data")).unwrap();
-        let project = Arc::new(Mutex::new(project));
-        let runner = Arc::new(Runner::new(project.clone()));
-        let resolver = Arc::new(Mutex::new(BinaryResolver::with_defaults_at(
-            tmp.path().join("binaries.json"),
-        )));
-        (project, runner, resolver, tmp)
+        (Arc::new(Mutex::new(project)), tmp)
+    }
+
+    fn empty_ctx() -> ToolContext<'static> {
+        ToolContext {
+            memory: None,
+            session_id: None,
+            project_root: None,
+            ask_user_tx: None,
+        }
     }
 
     #[tokio::test]
     async fn list_project_files_sees_top_level() {
-        let (project, runner, resolver, _tmp) = make_ctx_fixture();
-        let exec = ListProjectFiles;
-        let out = exec
-            .execute(
-                &json!({}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
-            )
-            .await
-            .unwrap();
+        let (project, _tmp) = make_project_fixture();
+        let exec = ListProjectFiles { project };
+        let out = exec.execute(&json!({}), empty_ctx()).await.unwrap();
         let ToolOutput::Value(v) = out;
         let entries = v["entries"].as_array().unwrap();
         assert!(entries.iter().any(|e| e["name"] == "a.tsv"));
@@ -885,21 +893,10 @@ mod tests {
 
     #[tokio::test]
     async fn read_table_preview_limits_rows() {
-        let (project, runner, resolver, _tmp) = make_ctx_fixture();
-        let exec = ReadTablePreview;
+        let (project, _tmp) = make_project_fixture();
+        let exec = ReadTablePreview { project };
         let out = exec
-            .execute(
-                &json!({"path":"a.tsv","rows":2}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
-            )
+            .execute(&json!({"path":"a.tsv","rows":2}), empty_ctx())
             .await
             .unwrap();
         let ToolOutput::Value(v) = out;
@@ -908,21 +905,10 @@ mod tests {
 
     #[tokio::test]
     async fn read_table_preview_rejects_path_outside_project() {
-        let (project, runner, resolver, _tmp) = make_ctx_fixture();
-        let exec = ReadTablePreview;
+        let (project, _tmp) = make_project_fixture();
+        let exec = ReadTablePreview { project };
         let err = exec
-            .execute(
-                &json!({"path":"../escape.tsv"}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
-            )
+            .execute(&json!({"path":"../escape.tsv"}), empty_ctx())
             .await
             .unwrap_err();
         assert!(matches!(err, ToolError::InvalidArgs(_)));
@@ -930,23 +916,9 @@ mod tests {
 
     #[tokio::test]
     async fn get_project_info_returns_name() {
-        let (project, runner, resolver, _tmp) = make_ctx_fixture();
-        let exec = GetProjectInfo;
-        let out = exec
-            .execute(
-                &json!({}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
-            )
-            .await
-            .unwrap();
+        let (project, _tmp) = make_project_fixture();
+        let exec = GetProjectInfo { project };
+        let out = exec.execute(&json!({}), empty_ctx()).await.unwrap();
         let ToolOutput::Value(v) = out;
         assert_eq!(v["name"], "t");
         assert_eq!(v["runs_count"], 0);
@@ -954,7 +926,7 @@ mod tests {
 
     #[tokio::test]
     async fn list_project_inputs_and_samples_resolves_input_records() {
-        let (project, runner, resolver, tmp) = make_ctx_fixture();
+        let (project, tmp) = make_project_fixture();
         let fastq = tmp.path().join("sample_R1.fastq");
         std::fs::write(&fastq, b"@r1\nACGT\n+\nIIII\n").unwrap();
         let input_id = {
@@ -972,38 +944,18 @@ mod tests {
             rec.id
         };
 
-        let inputs_out = ListProjectInputs
-            .execute(
-                &json!({"kind":"Fastq"}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
-            )
-            .await
-            .unwrap();
+        let inputs_out = ListProjectInputs {
+            project: project.clone(),
+        }
+        .execute(&json!({"kind":"Fastq"}), empty_ctx())
+        .await
+        .unwrap();
         let ToolOutput::Value(inputs_v) = inputs_out;
         assert_eq!(inputs_v["returned"], 1);
         assert_eq!(inputs_v["inputs"][0]["id"], input_id);
 
-        let samples_out = ListProjectSamples
-            .execute(
-                &json!({}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
-            )
+        let samples_out = ListProjectSamples { project }
+            .execute(&json!({}), empty_ctx())
             .await
             .unwrap();
         let ToolOutput::Value(samples_v) = samples_out;
@@ -1014,7 +966,7 @@ mod tests {
 
     #[tokio::test]
     async fn summarize_run_returns_result_summary_and_log_preview() {
-        let (project, runner, resolver, _tmp) = make_ctx_fixture();
+        let (project, _tmp) = make_project_fixture();
         let run_id = {
             let mut proj = project.lock().await;
             let rec = proj.create_run("qc", json!({"input":"a.tsv"}));
@@ -1028,18 +980,10 @@ mod tests {
             rec.id
         };
 
-        let out = SummarizeRun
+        let out = SummarizeRun { project }
             .execute(
                 &json!({"run_id": run_id, "include_params": false}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
+                empty_ctx(),
             )
             .await
             .unwrap();
@@ -1052,7 +996,7 @@ mod tests {
 
     #[tokio::test]
     async fn wait_for_run_returns_completed_run_immediately() {
-        let (project, runner, resolver, _tmp) = make_ctx_fixture();
+        let (project, _tmp) = make_project_fixture();
         let run_id = {
             let mut proj = project.lock().await;
             let rec = proj.create_run("qc", json!({"input":"a.tsv"}));
@@ -1067,18 +1011,10 @@ mod tests {
             rec.id
         };
 
-        let out = WaitForRun
+        let out = WaitForRun { project }
             .execute(
                 &json!({"run_id": run_id, "timeout_seconds": 1, "poll_interval_seconds": 1}),
-                ToolContext {
-                    project: &project,
-                    runner: &runner,
-                    binary_resolver: &resolver,
-                    memory: None,
-                    session_id: None,
-                    project_root: None,
-                    ask_user_tx: None,
-                },
+                empty_ctx(),
             )
             .await
             .unwrap();

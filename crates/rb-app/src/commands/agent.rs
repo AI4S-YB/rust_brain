@@ -70,19 +70,46 @@ pub async fn agent_start_session(
     Ok(StartSessionResp { session_id })
 }
 
-/// Build a per-session ToolRegistry (builtin + module-derived + skill loader).
+/// Build a per-session ToolRegistry (builtin + project_state + module-derived
+/// + skill loader). The project/runner/binary_resolver are now passed in so
+/// each tool that needs them carries its own `Arc<...>`.
 pub(crate) fn build_registry(
     modules: &[Arc<dyn rb_core::module::Module>],
+    runner: Arc<rb_core::runner::Runner>,
+    project: Arc<Mutex<rb_core::project::Project>>,
+    binary_resolver: Arc<Mutex<rb_core::binary::BinaryResolver>>,
     lang: &str,
     memory_global: &std::path::Path,
     project_root: &std::path::Path,
 ) -> ToolRegistry {
     let mut reg = ToolRegistry::new();
     builtin::register_all(&mut reg);
-    rb_ai::tools::module_derived::register_for_modules(&mut reg, modules, lang);
+    builtin::project_state::register(&mut reg, project, binary_resolver);
+    rb_ai::tools::module_derived::register_for_modules(&mut reg, modules, runner, lang);
     let _ = rb_ai::tools::skill::register_dir(&mut reg, &memory_global.join("L3_skills"));
     let _ = rb_ai::tools::skill::register_dir(&mut reg, &project_root.join("agent/L3_local"));
     reg
+}
+
+/// Build the system-prompt project summary the agent loop used to compute
+/// inline. Moved here so rb-ai stays generic — the host (rb-app) owns the
+/// rust_brain Project model and renders its preferred summary string.
+pub(crate) async fn project_summary(
+    project: &Arc<Mutex<rb_core::project::Project>>,
+) -> String {
+    let p = project.lock().await;
+    format!(
+        "Project: {}\nDefault view: {}\nRecent runs:\n{}",
+        p.name,
+        p.default_view.as_deref().unwrap_or("manual"),
+        p.runs
+            .iter()
+            .rev()
+            .take(10)
+            .map(|r| format!("  {}: {} {:?}", r.id, r.module_id, r.status))
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
 }
 
 use rb_ai::agent_loop::{run_session, AgentEvent, RunConfig, RunSessionCtx};
@@ -149,6 +176,9 @@ pub async fn agent_send(
     let lang = "en".to_string();
     let registry = Arc::new(build_registry(
         &modules,
+        runner.clone(),
+        runner.project_arc(),
+        module_state.binary_resolver.clone(),
         &lang,
         &memory.global_root,
         &project_root_pb,
@@ -212,11 +242,12 @@ pub async fn agent_send(
     // Snapshot the send arguments we still need after moving into the task.
     let text = args.text;
 
+    // Build the system-prompt project summary up-front (rb-ai is now host-
+    // agnostic; we render the rust_brain-specific snapshot here).
+    let system_context = project_summary(&runner.project_arc()).await;
+
     // Spawn run_session.
     let ctx = RunSessionCtx {
-        project: runner.project_arc(),
-        runner: runner.clone(),
-        binary_resolver: module_state.binary_resolver.clone(),
         registry,
         policy: handle.policy.clone(),
         memory,
@@ -224,6 +255,7 @@ pub async fn agent_send(
         provider,
         net_log,
         project_root: project_root_pb,
+        system_context,
         config: RunConfig::default(),
     };
     let session_arc = handle.session.clone();
@@ -264,7 +296,14 @@ mod tests {
         .unwrap();
         let proot = tmp.path().join("proj");
         std::fs::create_dir_all(proot.join("agent/L3_local")).unwrap();
-        let reg = build_registry(&[], "en", &global, &proot);
+        let project = Arc::new(Mutex::new(
+            rb_core::project::Project::create("t", &proot).unwrap(),
+        ));
+        let runner = Arc::new(rb_core::runner::Runner::new(project.clone()));
+        let binres = Arc::new(Mutex::new(
+            rb_core::binary::BinaryResolver::with_defaults_at(proot.join("binaries.json")),
+        ));
+        let reg = build_registry(&[], runner, project, binres, "en", &global, &proot);
         assert!(reg.get("file_read").is_some());
         assert!(reg.get("skill_rna_seq_de").is_some());
     }
