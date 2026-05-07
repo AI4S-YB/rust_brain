@@ -3,6 +3,7 @@
 //! agent session. The runtime is shared via Tauri State.
 
 use std::collections::HashMap;
+#[cfg(test)]
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -45,7 +46,7 @@ impl AgentRuntime {
     }
 
     /// Test-only constructor that lets us point the global root at a tempdir.
-    #[doc(hidden)]
+    #[cfg(test)]
     pub fn with_memory_root(root: PathBuf) -> Result<Self, AiError> {
         Ok(Self {
             memory: Arc::new(MemoryStore::open(root)?),
@@ -61,6 +62,9 @@ impl AgentRuntime {
         self.active.lock().await.insert(project_root, handle);
     }
 
+    /// Reserved for explicit session cleanup; currently sessions persist for
+    /// the app lifetime, so this is unused outside tests.
+    #[allow(dead_code)]
     pub async fn remove(&self, project_root: &str) -> Option<Arc<AgentHandle>> {
         self.active.lock().await.remove(project_root)
     }
