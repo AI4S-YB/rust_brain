@@ -6,7 +6,7 @@ use futures_util::StreamExt;
 use serde_json::Value;
 use tokio::sync::mpsc;
 
-use rb_core::cancel::CancellationToken;
+use tokio_util::sync::CancellationToken;
 
 use super::{
     ChatProvider, ChatRequest, FinishReason, ProviderError, ProviderEvent, ProviderMessage,

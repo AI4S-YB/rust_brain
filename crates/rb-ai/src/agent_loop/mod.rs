@@ -26,9 +26,9 @@ pub use types::{AgentEvent, AgentSession, SharedSession};
 
 use std::sync::Arc;
 
-use rb_core::cancel::CancellationToken;
 use serde_json::Value;
 use tokio::sync::{mpsc, Mutex};
+use tokio_util::sync::CancellationToken;
 
 use crate::error::AiError;
 use crate::memory::layers::ArchiveOutcome;

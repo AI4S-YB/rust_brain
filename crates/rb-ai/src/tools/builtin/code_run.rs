@@ -86,7 +86,7 @@ impl ToolExecutor for CodeRunExec {
         let mut cmd = Command::new(interp);
         cmd.arg(&script).current_dir(&cwd);
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-        rb_core::subprocess::harden_for_gui(&mut cmd);
+        crate::subprocess::harden_for_gui(&mut cmd);
 
         let mut child = cmd
             .spawn()

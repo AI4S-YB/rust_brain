@@ -9,6 +9,7 @@ pub mod error;
 pub mod memory;
 pub mod provider;
 pub mod sandbox;
+pub mod subprocess;
 pub mod tools;
 
 pub use error::AiError;

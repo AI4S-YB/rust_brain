@@ -46,7 +46,7 @@ impl PixiRuntime {
         std::fs::create_dir_all(sandbox_dir)?;
         let mut cmd = Command::new(&self.bin);
         cmd.arg("init").current_dir(sandbox_dir);
-        rb_core::subprocess::harden_for_gui(&mut cmd);
+        crate::subprocess::harden_for_gui(&mut cmd);
         let out = cmd
             .output()
             .await

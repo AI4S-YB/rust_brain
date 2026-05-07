@@ -68,9 +68,9 @@ impl ToolExecutor for ModuleRunExec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rb_core::cancel::CancellationToken;
     use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
     use rb_core::run_event::RunEvent;
+    use tokio_util::sync::CancellationToken;
     use serde_json::json;
     use std::path::Path;
     use tokio::sync::mpsc;

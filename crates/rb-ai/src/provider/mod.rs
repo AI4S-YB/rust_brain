@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc;
 
-use rb_core::cancel::CancellationToken;
+use tokio_util::sync::CancellationToken;
 
 use crate::tools::ToolDef;
 

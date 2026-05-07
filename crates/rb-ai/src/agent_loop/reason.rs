@@ -3,8 +3,8 @@
 
 use std::sync::Arc;
 
-use rb_core::cancel::CancellationToken;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 use crate::error::AiError;
 use crate::provider::{

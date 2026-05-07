@@ -360,7 +360,7 @@ impl Recaller for FlashRecaller {
             thinking: ThinkingConfig::default(),
         };
         let (tx, mut rx) = tokio::sync::mpsc::channel::<ProviderEvent>(8);
-        let cancel = rb_core::cancel::CancellationToken::new();
+        let cancel = tokio_util::sync::CancellationToken::new();
         let prov = self.provider.clone();
         let h = tokio::spawn(async move { prov.send(req, tx, cancel).await });
         let mut text = String::new();
@@ -423,7 +423,7 @@ mod flash_tests {
             &self,
             _req: ChatRequest,
             sink: tokio::sync::mpsc::Sender<ProviderEvent>,
-            _cancel: rb_core::cancel::CancellationToken,
+            _cancel: tokio_util::sync::CancellationToken,
         ) -> Result<(), ProviderError> {
             let _ = sink
                 .send(ProviderEvent::TextDelta(self.reply.clone()))
