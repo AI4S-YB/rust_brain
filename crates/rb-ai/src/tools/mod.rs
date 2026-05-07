@@ -1,6 +1,4 @@
 pub mod builtin;
-#[cfg(feature = "bio-tools")]
-pub mod module_derived;
 pub mod schema;
 pub mod skill;
 

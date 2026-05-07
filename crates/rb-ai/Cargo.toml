@@ -4,16 +4,11 @@ version = "0.3.0"
 edition = "2021"
 
 [features]
-default = ["bio-tools"]
-# Bio-specific tools (project_state, run_<module>) and the Module
-# trait integration. Requires rb-core. Disable to use rb-ai as a
-# generic agent framework outside the rust_brain workflow.
-bio-tools = ["dep:rb-core"]
+default = []
 anthropic = []
 ollama-native = []
 
 [dependencies]
-rb-core = { path = "../rb-core", optional = true }
 async-trait = "0.1"
 thiserror = "1"
 serde = { version = "1", features = ["derive"] }

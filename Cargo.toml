@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/rb-core",
     "crates/rb-ai",
+    "crates/rb-ai-bio",
     "crates/rb-app",
     "crates/rb-bam-tools",
     "crates/rb-deseq2",

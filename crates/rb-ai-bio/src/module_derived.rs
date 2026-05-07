@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use rb_ai::tools::{
+    RiskLevel, ToolContext, ToolDef, ToolEntry, ToolError, ToolExecutor, ToolOutput, ToolRegistry,
+};
 use rb_core::module::Module;
 use rb_core::runner::Runner;
 use serde_json::Value;
-
-use super::schema::{RiskLevel, ToolDef, ToolError};
-use super::{ToolContext, ToolEntry, ToolExecutor, ToolOutput, ToolRegistry};
 
 /// Register a `run_{module.id}` Run-risk tool for every module whose
 /// `params_schema` is `Some(_)`. Modules returning `None` are skipped so
@@ -78,12 +78,12 @@ impl ToolExecutor for ModuleRunExec {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rb_core::module::{Module, ModuleError, ModuleResult, ValidationError};
+    use rb_core::module::{ModuleError, ModuleResult, ValidationError};
     use rb_core::run_event::RunEvent;
-    use tokio_util::sync::CancellationToken;
     use serde_json::json;
     use std::path::Path;
     use tokio::sync::mpsc;
+    use tokio_util::sync::CancellationToken;
 
     struct OkModule;
     #[async_trait]
@@ -156,14 +156,14 @@ mod tests {
         }
     }
 
-    fn dummy_runner() -> Arc<rb_core::runner::Runner> {
+    fn dummy_runner() -> Arc<Runner> {
         let tmp = tempfile::tempdir().unwrap();
         let project = Arc::new(tokio::sync::Mutex::new(
             rb_core::project::Project::create("t", tmp.path()).unwrap(),
         ));
         // Tempdir leaks here are fine for short-lived test runners.
         Box::leak(Box::new(tmp));
-        Arc::new(rb_core::runner::Runner::new(project))
+        Arc::new(Runner::new(project))
     }
 
     #[test]

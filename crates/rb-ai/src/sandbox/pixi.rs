@@ -6,7 +6,7 @@
 //!
 //! `init_if_needed` runs `pixi init` once per sandbox dir.
 //! `build_command` returns a `tokio::process::Command` ready to spawn —
-//! the caller wires stdin/stdout/stderr and `harden_for_gui` from rb-core.
+//! the caller wires stdin/stdout/stderr and `crate::subprocess::harden_for_gui`.
 
 use std::path::{Path, PathBuf};
 

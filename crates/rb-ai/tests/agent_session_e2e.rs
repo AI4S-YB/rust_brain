@@ -34,7 +34,7 @@ impl ChatProvider for ScriptedProvider {
         &self,
         _req: ChatRequest,
         sink: mpsc::Sender<ProviderEvent>,
-        _cancel: rb_core::cancel::CancellationToken,
+        _cancel: tokio_util::sync::CancellationToken,
     ) -> Result<(), ProviderError> {
         let next = self.steps.lock().unwrap().drain(..1).next();
         if let Some(events) = next {
@@ -115,7 +115,7 @@ async fn agent_runs_scripted_session_to_task_done() {
     let (ask_tx, _ask_rx) = mpsc::channel(4);
     let (_appr_tx, appr_rx) = mpsc::channel::<(String, ApprovalVerdict)>(4);
     let appr_rx = Arc::new(Mutex::new(appr_rx));
-    let cancel = rb_core::cancel::CancellationToken::new();
+    let cancel = tokio_util::sync::CancellationToken::new();
 
     // Drain events in background.
     let drain = tokio::spawn(async move {
@@ -218,7 +218,7 @@ async fn agent_aborts_after_consecutive_failures() {
     let (ask_tx, _ask_rx) = mpsc::channel(4);
     let (_appr_tx, appr_rx) = mpsc::channel::<(String, ApprovalVerdict)>(4);
     let appr_rx = Arc::new(Mutex::new(appr_rx));
-    let cancel = rb_core::cancel::CancellationToken::new();
+    let cancel = tokio_util::sync::CancellationToken::new();
 
     let mut cfg = RunConfig::default();
     cfg.max_consecutive_failures = 3;
@@ -280,7 +280,7 @@ async fn agent_cancel_writes_cancelled_archive() {
     let (ask_tx, _ask_rx) = mpsc::channel(4);
     let (_appr_tx, appr_rx) = mpsc::channel::<(String, ApprovalVerdict)>(4);
     let appr_rx = Arc::new(Mutex::new(appr_rx));
-    let cancel = rb_core::cancel::CancellationToken::new();
+    let cancel = tokio_util::sync::CancellationToken::new();
     cancel.cancel();
 
     let ctx = RunSessionCtx {

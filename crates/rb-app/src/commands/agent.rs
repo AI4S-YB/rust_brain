@@ -84,8 +84,8 @@ pub(crate) fn build_registry(
 ) -> ToolRegistry {
     let mut reg = ToolRegistry::new();
     builtin::register_all(&mut reg);
-    builtin::project_state::register(&mut reg, project, binary_resolver);
-    rb_ai::tools::module_derived::register_for_modules(&mut reg, modules, runner, lang);
+    rb_ai_bio::project_state::register(&mut reg, project, binary_resolver);
+    rb_ai_bio::module_derived::register_for_modules(&mut reg, modules, runner, lang);
     let _ = rb_ai::tools::skill::register_dir(&mut reg, &memory_global.join("L3_skills"));
     let _ = rb_ai::tools::skill::register_dir(&mut reg, &project_root.join("agent/L3_local"));
     reg

@@ -1,16 +1,11 @@
-//! Built-in tools (non module-derived, non skill).
-//!
-//! Houses host-agnostic tools (file/code_run/web/memory/ask_user) and the
-//! bio-specific `project_state` family. Hosts call `register_all` for the
-//! generic set and (when running rust_brain projects) the gated
-//! `project_state::register` for the bio-specific tools.
+//! Built-in (host-agnostic) tools: file/code_run/web/memory/ask_user.
+//! Bio-specific tools (`project_state`, `run_<module>`) live in the
+//! sibling `rb-ai-bio` crate and are registered separately by the host.
 
 pub mod ask_user;
 pub mod code_run;
 pub mod file;
 pub mod memory_tools;
-#[cfg(feature = "bio-tools")]
-pub mod project_state;
 pub mod web;
 
 use crate::tools::ToolRegistry;

@@ -3,7 +3,7 @@ use rb_ai::provider::{
     ChatProvider, ChatRequest, FinishReason, ProviderEvent, ProviderMessage, ProviderToolCall,
     ThinkingConfig,
 };
-use rb_core::cancel::CancellationToken;
+use tokio_util::sync::CancellationToken;
 use tokio::sync::mpsc;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

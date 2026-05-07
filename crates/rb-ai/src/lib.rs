@@ -1,7 +1,9 @@
 //! Self-evolving agent core: provider abstraction, layered memory,
 //! sandboxed tool execution, perceive→reason→execute→record loop.
 //!
-//! Depends on `rb-core`. UI/Tauri integration lives in `rb-app` (Plan 2).
+//! Host-agnostic — no dependence on the rust_brain workflow model. The
+//! sibling `rb-ai-bio` crate bridges this framework with `rb-core`'s
+//! `Module`/`Project`/`Runner` types.
 
 pub mod agent_loop;
 pub mod config;

@@ -1,0 +1,18 @@
+[package]
+name = "rb-ai-bio"
+version = "0.3.0"
+edition = "2021"
+description = "Bio-specific agent tools (project_state, run_<module>) bridging rb-ai and rb-core."
+
+[dependencies]
+rb-ai = { path = "../rb-ai", default-features = false }
+rb-core = { path = "../rb-core" }
+async-trait = "0.1"
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "rt", "macros", "time"] }
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["full", "test-util"] }
+tokio-util = { workspace = true }

@@ -7,8 +7,9 @@ use rb_core::project::{Project, RunStatus};
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
-use crate::tools::schema::{RiskLevel, ToolDef, ToolError};
-use crate::tools::{ToolContext, ToolEntry, ToolExecutor, ToolOutput, ToolRegistry};
+use rb_ai::tools::{
+    RiskLevel, ToolContext, ToolDef, ToolEntry, ToolError, ToolExecutor, ToolOutput, ToolRegistry,
+};
 
 pub fn register(
     registry: &mut ToolRegistry,
