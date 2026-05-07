@@ -294,7 +294,7 @@ impl ToolExecutor for RnaSeqPipelineExec {
             if let Some(module) = self.modules.get("gene_length").cloned() {
                 let record = spawn_and_wait_optional(
                     &self.runner,
-            &self.project,
+                    &self.project,
                     module,
                     json!({
                         "gtf": discovery.reference.gtf_file,
@@ -328,7 +328,7 @@ impl ToolExecutor for RnaSeqPipelineExec {
                     if let Some(module) = self.modules.get("expr_norm").cloned() {
                         match spawn_and_wait_optional(
                             &self.runner,
-            &self.project,
+                            &self.project,
                             module,
                             json!({
                                 "counts": counts_matrix,
@@ -370,7 +370,7 @@ impl ToolExecutor for RnaSeqPipelineExec {
                 } else {
                     match spawn_and_wait_optional(
                         &self.runner,
-            &self.project,
+                        &self.project,
                         module,
                         json!({
                             "input_bams": bam_paths,

@@ -25,8 +25,7 @@ pub struct AgentHandle {
     pub ask_user_tx_slot: Mutex<mpsc::Sender<rb_ai::tools::AskUserRequest>>,
     /// Map of call_id -> responder for in-flight ask_user questions.
     /// Set by agent_send before spawning run_session; None when idle.
-    pub pending_asks_slot:
-        Mutex<Option<Arc<Mutex<HashMap<String, mpsc::Sender<String>>>>>>,
+    pub pending_asks_slot: Mutex<Option<Arc<Mutex<HashMap<String, mpsc::Sender<String>>>>>>,
     /// `Some` while a run_session task is active.
     pub run_join: Mutex<Option<tokio::task::JoinHandle<Result<(), AiError>>>>,
 }

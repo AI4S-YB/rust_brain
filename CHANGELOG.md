@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.11.2 — 2026-05-07
+
+### Fix
+
+- Apply `cargo fmt` to rb-app changes from the rb-ai decoupling
+  (PR2/PR3) that landed unformatted. The CI fmt check (`cargo fmt
+  -p rb-core ... -p rb-rustqc -- --check`) failed on v0.11.1; this
+  release re-formats `agent_runtime.rs`, `commands/agent.rs`,
+  `main.rs`, and `rnaseq_pipeline.rs`. No behavioural change.
+
 ## v0.11.1 — 2026-05-07
 
 ### Fix

@@ -94,9 +94,7 @@ pub(crate) fn build_registry(
 /// Build the system-prompt project summary the agent loop used to compute
 /// inline. Moved here so rb-ai stays generic — the host (rb-app) owns the
 /// rust_brain Project model and renders its preferred summary string.
-pub(crate) async fn project_summary(
-    project: &Arc<Mutex<rb_core::project::Project>>,
-) -> String {
+pub(crate) async fn project_summary(project: &Arc<Mutex<rb_core::project::Project>>) -> String {
     let p = project.lock().await;
     format!(
         "Project: {}\nDefault view: {}\nRecent runs:\n{}",
@@ -161,9 +159,9 @@ pub async fn agent_send(
     // Snapshot the runner Arc; agent_send requires a project to be open.
     let runner = {
         let opt = module_state.runner.lock().await;
-        opt.as_ref()
-            .cloned()
-            .ok_or_else(|| "no project open; open a project before sending agent messages".to_string())?
+        opt.as_ref().cloned().ok_or_else(|| {
+            "no project open; open a project before sending agent messages".to_string()
+        })?
     };
 
     // Build the registry per send.
@@ -387,7 +385,9 @@ pub async fn agent_answer(
     let tx = p
         .remove(&args.call_id)
         .ok_or_else(|| format!("no pending ask_user with call_id {}", args.call_id))?;
-    tx.send(args.reply).await.map_err(|e| format!("answer send: {e}"))
+    tx.send(args.reply)
+        .await
+        .map_err(|e| format!("answer send: {e}"))
 }
 
 #[derive(Debug, Deserialize)]
@@ -453,7 +453,10 @@ pub async fn agent_list_archives(
 ) -> Result<Vec<ArchiveListEntry>, String> {
     let path = rb_ai::memory::MemoryStore::project_root(&PathBuf::from(&args.project_root))
         .join("L4_archives/_index.json");
-    let entries = runtime.memory.read_index(&path).map_err(|e| e.to_string())?;
+    let entries = runtime
+        .memory
+        .read_index(&path)
+        .map_err(|e| e.to_string())?;
     let mut out = vec![];
     for e in entries {
         if let rb_ai::memory::IndexEntry::Archive {
@@ -575,7 +578,10 @@ pub async fn agent_edit_memory(args: EditMemoryArgs) -> Result<(), String> {
         .join("rust_brain/agent");
     let allowed = canon.starts_with(&global) || canon.to_string_lossy().contains("/agent/");
     if !allowed {
-        return Err(format!("refused to write outside agent dirs: {}", canon.display()));
+        return Err(format!(
+            "refused to write outside agent dirs: {}",
+            canon.display()
+        ));
     }
     std::fs::write(&canon, args.content).map_err(|e| e.to_string())
 }

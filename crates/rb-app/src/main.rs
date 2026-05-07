@@ -216,8 +216,7 @@ fn main() {
     // Agent runtime (self-evolving agent). Shared via Tauri state so the
     // agent_* commands can look up per-project handles.
     let agent_runtime = Arc::new(
-        agent_runtime::AgentRuntime::new()
-            .unwrap_or_else(|e| panic!("init AgentRuntime: {e}")),
+        agent_runtime::AgentRuntime::new().unwrap_or_else(|e| panic!("init AgentRuntime: {e}")),
     );
 
     tauri::Builder::default()
